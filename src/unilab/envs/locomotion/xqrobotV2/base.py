@@ -28,9 +28,7 @@ NUM_LEG_ACTIONS = len(LEG_PREFIXES)
 NUM_WHEEL_ACTIONS = 2
 NUM_ACTIONS = len(JOINT_PREFIXES)
 
-# Widened squat stance: [L_hip, L_thigh, L_knee, R_hip, R_thigh, R_knee]
-# 更伸展的默认姿态: 接近站立, 方便策略学会站直
-DEFAULT_LEG_ANGLES = np.array([0.1, 0.1, -0.1, 0.1, 0.1, -0.1], dtype=np.float64)
+DEFAULT_LEG_ANGLES = np.array([0.1, 0.1, -0.1, 0.0, 0.1, -0.1], dtype=np.float64)
 DEFAULT_WHEEL_ANGLES = np.zeros(NUM_WHEEL_ACTIONS, dtype=np.float64)
 DEFAULT_ANGLES = np.concatenate([DEFAULT_LEG_ANGLES, DEFAULT_WHEEL_ANGLES])
 

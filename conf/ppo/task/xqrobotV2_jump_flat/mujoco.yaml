@@ -1,27 +1,38 @@
 # @package _global_
 # =============================================================================
-# XqRobotV2 两轮腿机器人 PPO 训练配置 (MuJoCo 后端)
-# 基于 wheel_legged_genesis (Albusgive/CJ-003) 参考设计
-# 含: 9帧历史堆叠, 课程学习, 域随机化, 触地终止
-# 回退至接近原始配置, 排除新增代码干扰
+# XqRobotV2 双轮腿机器人 PPO 跳跃训练配置 (MuJoCo 后端)
+# 5D 命令: [vx, vy, vyaw, tsk, jump_trigger]
+#   jump_trigger > 0.5 时触发跳跃: 下蹲 → 爆发伸展 → 腾空 → 着陆
 # =============================================================================
 training:
-  task_name: XqRobotV2WalkFlat
+  task_name: XqRobotV2JumpFlat
   sim_backend: mujoco
+  play_steps: 300
+  play_env_num: 1
+  render_spacing: 0.0
+
+interactive:
+  action_mode: policy
+  policy_obs_mode: auto
+  camera_follow_body: true
+  camera_distance: 4.0
+  camera_elevation: -15.0
 
 algo:
   num_envs: 1024
-  num_steps_per_env: 25
+  num_steps_per_env: 24
   max_iterations: 5000
   empirical_normalization: false
   obs_groups:
-    default:
+    actor:
       - actor
+    critic:
+      - critic
   policy:
     activation: elu
     actor_hidden_dims: [512, 512, 256, 128]
     critic_hidden_dims: [512, 512, 256, 128]
-    init_noise_std: 0.5
+    init_noise_std: 1.0
   algorithm:
     learning_rate: 1.0e-4
     entropy_coef: 0.01
@@ -37,37 +48,41 @@ env:
     wheel_action_scale: 10.0
     clip_actions: 100.0
   commands:
-    # 5D: [vx, vy, vyaw, tsk, height]
     vel_limit:
-      - [-0.6, -0.3, -1.0, -0.1, 0.45]
-      - [0.6, 0.3, 1.0, 0.1, 0.85]
-    resampling_time: 3.0
+      - [-0.3, -0.1, -0.5, -0.1, 0]
+      - [0.3, 0.1, 0.5, 0.1, 1]
+    resampling_time: 4.0
   curriculum:
-    enabled: true
+    enabled: false
   domain_rand:
     randomize_base_mass: false
     randomize_ground_friction: false
     randomize_kp: false
     randomize_kd: false
     random_com: false
-    randomize_leg_length: false          # 1024 变体编译慢+动态差异大, 收敛后再开
+    randomize_leg_length: false
 
 reward:
   only_positive_rewards: false
   scales:
-    tracking_lin_vel: 1.5
-    tracking_ang_vel: 1.5
+    tracking_lin_vel: 1.0
+    tracking_ang_vel: 1.0
     lin_vel_z: -0.2
-    ang_vel_xy: -0.02
+    ang_vel_xy: -0.05
     base_height: -5.0
     orientation: -5.0
     joint_action_rate: -0.1
     wheel_action_rate: -0.015
-    similar_calf: -0.3
+    leg_mirror: -0.5
     tsk: -2.0
-    feet_distance: -1.0
     alive: 1.0
+    jump_height: 4.0
+    crouch_prep: 1.0
+    landing_soft: 2.0
+    wheel_air_time: 1.0
   tracking_sigma: 0.3
   base_height_target: 0.65
-  max_tilt_deg: 60.0
-  min_base_height: 0.20
+  jump_height_target: 1.0
+  crouch_height_target: 0.40
+  max_tilt_deg: 45.0
+  min_base_height: 0.15

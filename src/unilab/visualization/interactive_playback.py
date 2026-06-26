@@ -80,6 +80,7 @@ class KeyboardCommander:
     """Mutable ``[vx, vy, vyaw]`` velocity command driven by keyboard nudges.
 
     Per-axis nudges stack and are clamped to the task's ``commands.vel_limit``.
+    Also supports base height target adjustment via Q/E keys.
     """
 
     low: np.ndarray
@@ -87,6 +88,10 @@ class KeyboardCommander:
     step_lin: float = 0.1
     step_ang: float = 0.2
     command: np.ndarray = field(init=False)
+    height_target: float = 0.65
+    height_step: float = 0.02
+    height_min: float = 0.30
+    height_max: float = 0.90
 
     AXIS_VX: ClassVar[int] = 0
     AXIS_VY: ClassVar[int] = 1
@@ -102,9 +107,18 @@ class KeyboardCommander:
         cls, vel_limit: Any, *, step_lin: float = 0.1, step_ang: float = 0.2
     ) -> "KeyboardCommander":
         limit = np.asarray(vel_limit, dtype=np.float64)
-        if limit.shape != (2, 3):
-            raise ValueError(f"commands.vel_limit must have shape (2, 3), got {limit.shape}")
-        return cls(low=limit[0], high=limit[1], step_lin=float(step_lin), step_ang=float(step_ang))
+        if limit.ndim != 2 or limit.shape[0] != 2:
+            raise ValueError(
+                f"commands.vel_limit must have shape (2, K), got {limit.shape}"
+            )
+        if limit.shape[1] < 3:
+            raise ValueError(
+                f"commands.vel_limit needs at least 3 cols (vx, vy, vyaw), got {limit.shape}"
+            )
+        return cls(
+            low=limit[0, :3], high=limit[1, :3],
+            step_lin=float(step_lin), step_ang=float(step_ang),
+        )
 
     def nudge(self, axis: int, sign: float) -> None:
         base = self.step_lin if axis in (self.AXIS_VX, self.AXIS_VY) else self.step_ang
@@ -113,12 +127,18 @@ class KeyboardCommander:
             np.clip(self.command[axis] + delta, self.low[axis], self.high[axis])
         )
 
+    def nudge_height(self, sign: float) -> None:
+        self.height_target = float(
+            np.clip(self.height_target + sign * self.height_step, self.height_min, self.height_max)
+        )
+
     def zero(self) -> None:
         self.command[:] = 0.0
 
     def describe(self) -> str:
         return (
             f"cmd vx={self.command[0]:+.2f} vy={self.command[1]:+.2f} vyaw={self.command[2]:+.2f}"
+            f"  h={self.height_target:.2f}"
         )
 
 

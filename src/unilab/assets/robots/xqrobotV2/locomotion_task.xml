@@ -1,0 +1,9 @@
+<mujoco model="xqrobotV2 locomotion task">
+  <keyframe>
+    <key name="home" qpos="
+        0 0 0.65  1 0 0 0
+        0 0.1 -0.1 0
+        0.1 -0.1 0 0"
+      ctrl="0 0 0 0 0 0 0 0"/>
+  </keyframe>
+</mujoco>

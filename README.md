@@ -290,3 +290,98 @@ bash shell/eval/xqrobotV2_tb.sh
 # 验证（macOS→viser, Linux→原生窗口）
 bash shell/eval/xqrobotV2_play.sh <run_id>
 ```
+
+---
+
+---
+
+## 十六、XqRobotV2 功能总结 (2026-06-26)
+
+### 四个训练任务
+
+| 任务 | Shell 脚本 | 命令 | 地形 | 说明 |
+|------|-----------|------|------|------|
+| **Flat Walk** | `train_ppo_flat.sh` | 5D | 平面 | 基础轮腿行走 |
+| **Rough Walk** | `train_ppo_rough.sh` | 5D | 程序化 6×6 网格 | random_rough 40% + wave 40% + slope 各 10% |
+| **Jump Flat** | `train_ppo_jump_flat.sh` | 5D | 平面 | 下蹲→爆发→腾空→着陆 |
+| **Toe Walk Flat** | `train_ppo_toe_walk_flat.sh` | 4D | 平面 | 轮子当脚，交替抬腿 |
+
+### 5D 命令向量
+
+```
+[vx, vy, vyaw, tsk, height_target]
+```
+
+### 键盘控制 (play_interactive.py)
+
+| 按键 | 功能 |
+|------|------|
+| ↑/↓ | 前进/后退 (vx) |
+| ←/→ | 左转/右转 (vyaw) |
+| A/D | 左移/右移 (vy) |
+| Q/E | 降低/升高 机身高度 |
+| Enter | 刹停 |
+| Backspace | 重置 |
+| 空格 | 暂停/恢复 |
+
+### 已修复的关键问题
+
+| 问题 | 根因 | 修复 |
+|------|------|------|
+| **左右腿一前一后** | `similar_calf` 只约束小腿，髋/大腿无对称 | `similar_calf` 改为覆盖髋+大腿+小腿：`(hip_L+hip_R)² + (thigh_L-thigh_R)² + (calf_L-calf_R)²` |
+| **机身向一侧倾斜** | 双髋同向 roll，无镜像约束 | 髋关节 `axis="1 0 0"` 同向 → 正确镜像为 `left+right≈0` |
+| **keyframe-Python 不一致** | XML 右髋=0，Python 右髋=0.1 | Python 改为 0.0，与 keyframe 对齐 |
+| **课程只向正方向扩展** | `full_low_x=0.0` 硬编码 | 对称扩展 `low←max(low-step, -limit)`, `high←min(high+step, limit)` |
+| **vel_limit 4D→5D 维度** | 新增 height_target 第五维 | `obs_frame_dim=33, critic=36`，config 和代码同步 |
+| **KeyboardCommander 崩溃** | 要求 shape (2,3)，XqRobotV2 是 (2,4) | 改为接受 (2,K) K≥3，只写前 3 列 |
+| **feet_distance 轮距约束** | 无约束，策略可能过度内收/外展 | 跟踪左右轮 Y 坐标差，惩罚偏离 [0.3, 0.6]m |
+
+### 文件结构
+
+```
+src/unilab/envs/locomotion/xqrobotV2/
+├── base.py       # DEFAULT_LEG_ANGLES, 工具函数
+├── joystick.py   # Flat Walk env
+├── rough.py      # Rough Walk env
+├── jump.py       # Jump Flat env
+├── toe_walk.py   # Toe Walk Flat env
+└── __init__.py
+
+conf/ppo/task/
+├── xqrobotV2_walk_flat/mujoco.yaml
+├── xqrobotV2_walk_rough/mujoco.yaml
+├── xqrobotV2_jump_flat/mujoco.yaml
+└── xqrobotV2_toe_walk_flat/mujoco.yaml
+
+shell/
+├── train_ppo_flat.sh / train_ppo_rough.sh
+├── train_ppo_jump_flat.sh / train_ppo_toe_walk_flat.sh
+├── eval_ppo_flat.sh / eval_ppo_rough.sh
+├── eval_ppo_jump_flat.sh / eval_ppo_toe_walk_flat.sh
+└── tensorboard.sh
+
+assets/robots/xqrobotV2/
+└── locomotion_task.xml   # keyframe fragment (地形模式)
+```
+
+### 训练命令
+
+```bash
+# 单 GPU
+bash shell/train_ppo_flat.sh
+bash shell/train_ppo_rough.sh
+bash shell/train_ppo_jump_flat.sh
+bash shell/train_ppo_toe_walk_flat.sh
+
+# 多 GPU (2×RTX4090)
+CUDA_VISIBLE_DEVICES=0 bash shell/train_ppo_flat.sh &
+CUDA_VISIBLE_DEVICES=1 bash shell/train_ppo_rough.sh &
+
+# TensorBoard
+bash shell/tensorboard.sh          # all
+bash shell/tensorboard.sh flat 8080
+
+# 键盘验证
+bash shell/eval_ppo_flat.sh --keyboard
+bash shell/eval_ppo_rough.sh --keyboard
+```

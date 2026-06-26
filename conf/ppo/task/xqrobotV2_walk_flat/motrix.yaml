@@ -30,8 +30,8 @@ env:
     clip_actions: 100.0
   commands:
     vel_limit:
-      - [0.0, 0.0, 0.0, -0.3]
-      - [2.0, 0.0, 12.0, 0.3]
+      - [-2.0, -0.3, -12.0, -0.3]
+      - [2.0, 0.3, 12.0, 0.3]
     resampling_time: 3.0
 reward:
   only_positive_rewards: true
@@ -44,7 +44,7 @@ reward:
     orientation: -14.0
     joint_action_rate: -0.1
     wheel_action_rate: -0.015
-    similar_calf: -0.3
+    leg_mirror: -0.3
     tsk: -2.0
     alive: 1.0
   tracking_sigma: 0.3

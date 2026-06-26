@@ -872,12 +872,24 @@ def _build_keyboard_commander(env: Any, args) -> KeyboardCommander | None:
     cmds_cfg.heading_command = False
     cmds_cfg.resampling_time = 0.0
 
+    limit = np.asarray(cmds_cfg.vel_limit, dtype=np.float64)
+    symmetric = np.maximum(np.abs(limit[0]), np.abs(limit[1]))
+    symmetric_vel_limit = np.stack([-symmetric, symmetric], axis=0)
+
     commander = KeyboardCommander.from_vel_limit(
-        cmds_cfg.vel_limit,
+        symmetric_vel_limit,
         step_lin=float(getattr(args, "keyboard_step_lin", 0.1)),
         step_ang=float(getattr(args, "keyboard_step_ang", 0.2)),
     )
-    env.state.info["commands"][:] = commander.command
+    reward_cfg = getattr(env, "_reward_cfg", None)
+    if reward_cfg is not None and hasattr(reward_cfg, "base_height_target"):
+        commander.height_target = float(reward_cfg.base_height_target)
+    if limit.shape[1] >= 5:
+        commander.height_min = float(limit[0, 4])
+        commander.height_max = float(limit[1, 4])
+    env.state.info["commands"][:, :3] = commander.command
+    if env.state.info["commands"].shape[1] >= 5:
+        env.state.info["commands"][:, 4] = commander.height_target
     return commander
 
 
@@ -984,6 +996,14 @@ def _handle_command_key(commander: KeyboardCommander, keycode: int) -> None:
         commander.nudge(commander.AXIS_VYAW, +1.0)
     elif keycode == _KEY_RIGHT:
         commander.nudge(commander.AXIS_VYAW, -1.0)
+    elif keycode == ord("A"):
+        commander.nudge(commander.AXIS_VY, +1.0)
+    elif keycode == ord("D"):
+        commander.nudge(commander.AXIS_VY, -1.0)
+    elif keycode == ord("Q"):
+        commander.nudge_height(-1.0)
+    elif keycode == ord("E"):
+        commander.nudge_height(+1.0)
     elif keycode in (_KEY_ENTER, _KEY_KP_ENTER):
         commander.zero()
     else:
@@ -995,6 +1015,8 @@ def _print_keyboard_legend(args) -> None:
     print("[play_interactive] Keyboard teleop ENABLED (drive style):")
     print("  Up / Down    : forward / backward (vx)")
     print("  Left / Right : turn left / right  (vyaw)")
+    print("  A / D        : strafe left / right (vy)")
+    print("  Q / E        : lower / raise  body height")
     print("  Enter        : full stop")
     if str(getattr(args, "action_mode", "")) != "policy":
         print("  NOTE: action_mode is not 'policy'; commands will not drive the robot.")
@@ -1236,7 +1258,12 @@ def play_interactive(args, cfg: DictConfig | None = None, *, algo: str | None = 
 
                 # Write the command before stepping so this step's obs follow it.
                 if commander is not None and env.state is not None:
-                    env.state.info["commands"][:] = commander.command
+                    env.state.info["commands"][:, :3] = commander.command
+                    if env.state.info["commands"].shape[1] >= 5:
+                        env.state.info["commands"][:, 4] = commander.height_target
+                    reward_cfg = getattr(env, "_reward_cfg", None)
+                    if reward_cfg is not None and hasattr(reward_cfg, "base_height_target"):
+                        reward_cfg.base_height_target = commander.height_target
 
                 playback_session.advance(controls)
 

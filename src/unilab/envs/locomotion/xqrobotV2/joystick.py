@@ -62,6 +62,8 @@ class XqRobotDomainRandConfig(DomainRandConfig):
     com_offset_y: float = 0.03
     randomize_gravity: bool = False
     push_robots: bool = False
+    randomize_leg_length: bool = False
+    leg_length_scale_range: list[float] = field(default_factory=lambda: [0.8, 1.2])
 
 
 @dataclass
@@ -101,13 +103,27 @@ def _reward_wheel_action_rate(ctx: RewardContext) -> np.ndarray:
 
 
 def _reward_similar_calf(ctx: RewardContext) -> np.ndarray:
-    return np.square(ctx.dof_pos[:, 2] - ctx.dof_pos[:, 5])
+    # 髋: 镜像 left+right≈0;  大腿/小腿: 平行 left-right≈0
+    hip = ctx.dof_pos[:, 0] + ctx.dof_pos[:, 3]
+    thigh = ctx.dof_pos[:, 1] - ctx.dof_pos[:, 4]
+    calf = ctx.dof_pos[:, 2] - ctx.dof_pos[:, 5]
+    return np.square(hip) + np.square(thigh) + np.square(calf)
 
 
 def _reward_tsk(ctx: RewardContext) -> np.ndarray:
     tsk_cmd = ctx.info["commands"][:, 3]
     hip_diff = ctx.dof_pos[:, 0] - ctx.dof_pos[:, 3]
     return np.square(hip_diff - tsk_cmd)
+
+
+def _reward_feet_distance(ctx: RewardContext) -> np.ndarray:
+    feet_dist = ctx.info.get("feet_distance")
+    if feet_dist is None:
+        return np.zeros((ctx.num_envs,), dtype=np.float64)
+    dist = np.asarray(feet_dist, dtype=np.float64).reshape(-1)
+    over = np.maximum(0.0, dist - 0.6)
+    under = np.maximum(0.0, 0.3 - dist)
+    return (over + under) * 0.3
 
 
 @registry.envcfg("XqRobotV2WalkFlat")
@@ -203,10 +219,23 @@ class XqRobotV2WalkFlatEnv(XqRobotBaseEnv):
         self._init_reward_functions()
         self._init_domain_randomization(XqRobotDRProvider())
 
+        if cfg.domain_rand.randomize_leg_length:
+            self._base_leg_geom_sizes = {
+                name: backend.get_geom_size(name) for name in XqRobotDRProvider._LEG_GEOM_NAMES
+            }
+
+        import mujoco as _mj
+        if hasattr(backend, "_model"):  # type: ignore[union-attr]
+            self._left_wheel_bid = _mj.mj_name2id(backend._model, _mj.mjtObj.mjOBJ_BODY, "left_link_wheel")  # type: ignore[union-attr]
+            self._right_wheel_bid = _mj.mj_name2id(backend._model, _mj.mjtObj.mjOBJ_BODY, "right_link_wheel")  # type: ignore[union-attr]
+        else:
+            self._left_wheel_bid = -1
+            self._right_wheel_bid = -1
+
         # ── 历史堆叠 ──
         self._hist_len = _HISTORY_LEN
-        self._obs_frame_dim = 32   # 单帧 obs 维度
-        self._critic_frame_dim = 35
+        self._obs_frame_dim = 33   # 5D cmd: gyro(3)+grav(3)+diff(6)+vel(6)+wheel(2)+act(8)+cmd(5)
+        self._critic_frame_dim = 36  # 5D cmd + linvel(3)
         self._obs_history = np.zeros((num_envs, self._hist_len, self._obs_frame_dim), dtype=self._np_dtype)
         self._critic_history = np.zeros((num_envs, self._hist_len, self._critic_frame_dim), dtype=self._np_dtype)
 
@@ -241,6 +270,7 @@ class XqRobotV2WalkFlatEnv(XqRobotBaseEnv):
         gravity = self._backend.get_sensor_data(self._cfg.sensor.upvector)
         dof_pos = self.get_dof_pos()
         dof_vel = self.get_dof_vel()
+        self._update_feet_distance(state.info)
         terminated = self._compute_terminated(gravity, dof_pos)
         reward = self._compute_reward(state.info, linvel, gyro, gravity, dof_pos, dof_vel)
         obs = self._compute_obs(state.info, linvel, gyro, gravity, dof_pos, dof_vel)
@@ -260,6 +290,14 @@ class XqRobotV2WalkFlatEnv(XqRobotBaseEnv):
         terminated |= calf_extreme
         return terminated
 
+    def _update_feet_distance(self, info: dict) -> None:
+        try:
+            body_ids = np.array([self._left_wheel_bid, self._right_wheel_bid], dtype=np.int32)
+            pos = self._backend.get_body_pos_w(body_ids)
+            info["feet_distance"] = np.abs(pos[1, :, 1] - pos[0, :, 1]).astype(np.float64)
+        except Exception:
+            info["feet_distance"] = np.full((self._num_envs,), 0.45, dtype=np.float64)
+
     def _init_reward_functions(self) -> None:
         self._reward_fns: dict[str, Any] = {
             "tracking_lin_vel": rewards.tracking_lin_vel,
@@ -272,6 +310,7 @@ class XqRobotV2WalkFlatEnv(XqRobotBaseEnv):
             "wheel_action_rate": _reward_wheel_action_rate,
             "similar_calf": _reward_similar_calf,
             "tsk": _reward_tsk,
+            "feet_distance": _reward_feet_distance,
             "alive": rewards.alive,
         }
 
@@ -301,7 +340,6 @@ class XqRobotV2WalkFlatEnv(XqRobotBaseEnv):
         cc = self._cfg.curriculum
         if not cc.enabled:
             return
-        # 跟踪累加速度误差
         commands = info.get("commands")
         linvel = self.get_local_linvel()
         if commands is not None and linvel is not None:
@@ -310,27 +348,24 @@ class XqRobotV2WalkFlatEnv(XqRobotBaseEnv):
         if self._curriculum_step_count < cc.update_interval:
             return
         self._curriculum_step_count = 0
-        # 检查存活率
         ep_steps = info.get("steps", np.zeros((self._num_envs,)))
         mean_ep_len = ep_steps[ep_steps > 0].mean() if np.any(ep_steps > 0) else 0.0
         max_steps = int(self._cfg.max_episode_seconds / self._cfg.ctrl_dt)
         survive_ratio = mean_ep_len / max_steps if max_steps > 0 else 0.0
         if survive_ratio < 0.5:
             return
-        # 平均跟踪误差
         active = ep_steps[ep_steps > 0]
         mean_err = self._tracking_err_buf[ep_steps > 0].mean() / active.mean() if len(active) > 0 else 999.0
         self._tracking_err_buf[:] = 0.0
-        # 扩展到命令范围
         low = np.array(self._cfg.commands.vel_limit[0], dtype=self._np_dtype)
         high = np.array(self._cfg.commands.vel_limit[1], dtype=self._np_dtype)
-        full_low_x, full_high_x = 0.0, 2.0    # 线速度全范围
-        full_low_w, full_high_w = 0.0, 12.0    # 角速度全范围
+        vx_range = max(abs(low[0]), abs(high[0]))
+        vyaw_range = max(abs(low[2]), abs(high[2]))
         if mean_err < cc.err_threshold:
-            low[0] = max(low[0] + cc.vel_step * full_low_x, full_low_x)
-            high[0] = min(high[0] + cc.vel_step * full_high_x, full_high_x)
-            low[2] = max(low[2] + cc.ang_vel_step * full_low_w, full_low_w)
-            high[2] = min(high[2] + cc.ang_vel_step * full_high_w, full_high_w)
+            low[0] = max(low[0] - cc.vel_step, -vx_range)
+            high[0] = min(high[0] + cc.vel_step, vx_range)
+            low[2] = max(low[2] - cc.ang_vel_step, -vyaw_range)
+            high[2] = min(high[2] + cc.ang_vel_step, vyaw_range)
         self._cfg.commands.vel_limit[0] = low.tolist()
         self._cfg.commands.vel_limit[1] = high.tolist()
 

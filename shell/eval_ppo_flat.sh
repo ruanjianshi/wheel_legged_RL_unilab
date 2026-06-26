@@ -1,15 +1,15 @@
 #!/bin/bash
 # ============================================================
-# XqRobotV2 策略验证脚本 (MuJoCo 原生窗口 + 键盘控制)
+# XqRobotV2 平坦地形策略验证 (MuJoCo 原生窗口 + 键盘控制)
 # 用法:
-#   bash shell/eval/xqrobotV2_play.sh                      # 最新模型, 策略回放
-#   bash shell/eval/xqrobotV2_play.sh --keyboard             # 最新模型, 键盘遥控
-#   bash shell/eval/xqrobotV2_play.sh <run_id>               # 指定 run, 策略回放
-#   bash shell/eval/xqrobotV2_play.sh <run_id> --keyboard    # 指定 run, 键盘遥控
+#   bash shell/eval_ppo_flat.sh                          # 最新模型, 策略回放
+#   bash shell/eval_ppo_flat.sh --keyboard                # 最新模型, 键盘遥控
+#   bash shell/eval_ppo_flat.sh <run_id>                  # 指定 run, 策略回放
+#   bash shell/eval_ppo_flat.sh <run_id> --keyboard       # 指定 run, 键盘遥控
 # ============================================================
 set -e
 
-ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT_DIR"
 
 LOAD_RUN=""

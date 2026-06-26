@@ -1,27 +1,37 @@
 # @package _global_
 # =============================================================================
-# XqRobotV2 两轮腿机器人 PPO 训练配置 (MuJoCo 后端)
-# 基于 wheel_legged_genesis (Albusgive/CJ-003) 参考设计
-# 含: 9帧历史堆叠, 课程学习, 域随机化, 触地终止
-# 回退至接近原始配置, 排除新增代码干扰
+# XqRobotV2 双轮腿机器人 PPO 点足行走训练配置 (MuJoCo 后端, 平坦地形)
+# 点足行走: 轮子当脚用, 交替抬腿迈步, 减少持续滚动, 模拟人类步态
 # =============================================================================
 training:
-  task_name: XqRobotV2WalkFlat
+  task_name: XqRobotV2ToeWalkFlat
   sim_backend: mujoco
+  play_steps: 500
+  play_env_num: 1
+  render_spacing: 0.0
+
+interactive:
+  action_mode: policy
+  policy_obs_mode: auto
+  camera_follow_body: true
+  camera_distance: 4.0
+  camera_elevation: -15.0
 
 algo:
   num_envs: 1024
-  num_steps_per_env: 25
+  num_steps_per_env: 24
   max_iterations: 5000
   empirical_normalization: false
   obs_groups:
-    default:
+    actor:
       - actor
+    critic:
+      - critic
   policy:
     activation: elu
     actor_hidden_dims: [512, 512, 256, 128]
     critic_hidden_dims: [512, 512, 256, 128]
-    init_noise_std: 0.5
+    init_noise_std: 1.0
   algorithm:
     learning_rate: 1.0e-4
     entropy_coef: 0.01
@@ -34,23 +44,28 @@ algo:
 env:
   control_config:
     action_scale: 0.5
-    wheel_action_scale: 10.0
+    wheel_action_scale: 5.0
     clip_actions: 100.0
   commands:
-    # 5D: [vx, vy, vyaw, tsk, height]
     vel_limit:
-      - [-0.6, -0.3, -1.0, -0.1, 0.45]
-      - [0.6, 0.3, 1.0, 0.1, 0.85]
-    resampling_time: 3.0
+      - [-0.5, -0.2, -0.8, -0.1]
+      - [0.5, 0.2, 0.8, 0.1]
+    resampling_time: 6.0
   curriculum:
     enabled: true
+    vel_step: 0.0005
+    ang_vel_step: 0.001
+    min_vel_range_frac: 0.3
+    min_ang_range_frac: 0.05
+    update_interval: 25
+    err_threshold: 0.4
   domain_rand:
     randomize_base_mass: false
     randomize_ground_friction: false
     randomize_kp: false
     randomize_kd: false
     random_com: false
-    randomize_leg_length: false          # 1024 变体编译慢+动态差异大, 收敛后再开
+    randomize_leg_length: false
 
 reward:
   only_positive_rewards: false
@@ -58,16 +73,18 @@ reward:
     tracking_lin_vel: 1.5
     tracking_ang_vel: 1.5
     lin_vel_z: -0.2
-    ang_vel_xy: -0.02
+    ang_vel_xy: -0.05
     base_height: -5.0
     orientation: -5.0
     joint_action_rate: -0.1
-    wheel_action_rate: -0.015
-    similar_calf: -0.3
+    wheel_action_rate: -0.005
+    leg_mirror: -0.5
     tsk: -2.0
-    feet_distance: -1.0
     alive: 1.0
+    step_pattern: 1.5
+    wheel_lift: 0.8
+    static_wheel: 0.5
   tracking_sigma: 0.3
   base_height_target: 0.65
-  max_tilt_deg: 60.0
-  min_base_height: 0.20
+  max_tilt_deg: 45.0
+  min_base_height: 0.15
