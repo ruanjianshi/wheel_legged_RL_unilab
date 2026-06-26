@@ -1,0 +1,57 @@
+policy_name: "policy_from_pt_humanoidgym.rknn"
+
+algorithm: "humanoidgym"
+
+motor_group: "lowerBody"
+
+dofs: 12
+
+frame_stack: 15
+
+num_single_obs: 47
+
+frequency: 0.5
+
+cmd_lin_vel_scale: 2.0
+cmd_ang_vel_scale: 1.0
+rbt_lin_pos_scale: 1.0
+rbt_lin_vel_scale: 0.05
+rbt_ang_vel_scale: 0.5
+
+cmd_vel_x_min:   -0.15
+cmd_vel_x_max:    0.15
+cmd_vel_y_min:   -0.20
+cmd_vel_y_max:    0.20
+cmd_vel_yaw_min: -2.00
+cmd_vel_yaw_max:  2.00
+
+clip_obs: 18.0
+
+pd_ctrl_f: 1000 
+rl_ctrl_f: 100
+
+action_scale: 0.25
+
+joint_names: [ 
+'l_hip_pitch_joint', 'l_hip_roll_joint', 'l_thigh_joint', 'l_calf_joint', 'l_ankle_pitch_joint', 'l_ankle_roll_joint',
+'r_hip_pitch_joint', 'r_hip_roll_joint', 'r_thigh_joint', 'r_calf_joint', 'r_ankle_pitch_joint', 'r_ankle_roll_joint']
+
+# policy顺序
+clip_actions_lower: [-3, -3, -3, -3, -3, -3,
+                     -3, -3, -3, -3, -3, -3 ]
+clip_actions_upper: [ 3,  3,  3,  3,  3,  3,
+                      3,  3,  3,  3,  3,  3 ]
+
+clip_output_lower:  [-1.00, -0.40, -0.60, -1.30, -0.75, -0.30,
+                     -1.00, -0.40, -0.60, -1.30, -0.75, -0.30]
+clip_output_upper: [ 1.00,  0.40,  0.60,  1.30,  0.75,  0.30,
+                     1.00,  0.40,  0.60,  1.30,  0.75,  0.30]
+
+kp: [40, 40, 40, 40, 40, 40,
+     40, 40, 40, 40, 40, 40]
+
+kd: [1.2, 0.8, 0.8, 1.2, 0.8, 0.8,
+     1.2, 0.8, 0.8, 1.2, 0.8, 0.8]
+
+urdf_offset: [-0.25, 0.00, 0.00, 0.65, -0.40, 0.00,
+              -0.25, 0.00, 0.00, 0.65, -0.40, 0.00]

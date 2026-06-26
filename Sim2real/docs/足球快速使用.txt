@@ -1,0 +1,69 @@
+
+
+
+      终端运行
+      sudo killall -9 rosmaster
+      sim2real_pi_plus_football.sh
+
+以下是足球键位：
+
+  multi_waypoint_config:
+    - name: "cheer"
+      key: "rt+a"
+      remark: "双手欢呼"
+
+    - name: "defense_shake"
+      key: "rt+y"
+      remark: "摇手防守"
+
+    - name: "defense_fix"
+      key: "rt+b"
+      remark: "固定手防守"
+
+  series_waypoint_config:
+    - name: "xuridongsheng"
+      key: "rt+b"
+      remark: "旭日东升"
+
+  policy_change_config:
+    - name: "tackle"
+      remark: "抢断"
+      key: "a"
+
+    - name: "confrontation"
+      remark: "对抗"
+      key: "b"
+
+    - name: "small_kick"
+      remark: "小脚踢球"
+      key: "x"
+
+    - name: "big_kick"
+      remark: "大脚踢球"
+      key: "y"
+
+    - name: "set_ball_kick"
+      remark: "定位球"
+      key: "lt+y"
+    
+    - name: "diving_save"
+      remark: "鱼跃扑球"
+      key: "lt+x"
+
+    - name: "byd_pi_flip"
+      remark: "pi侧手翻"
+      key: "lt+rt+x"
+
+    - name: "byd_pi_S_kick"
+      remark: "S过人"
+      key: "lt+rt+dpu"
+
+    - name: "byd_pi_fangshou"
+      remark: "防守"
+      key: "lt+rt+dpd"
+
+    - name: "byd_dance1_subject1_pi_flip_cut1"
+      remark: "舞蹈"
+      key: "lt+rt+y"
+
+

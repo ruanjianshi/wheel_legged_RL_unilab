@@ -1,0 +1,45 @@
+motor_group: "lowerBody"
+
+dofs: 12
+
+cmd_lin_vel_scale: 1.0
+cmd_ang_vel_scale: 1.25
+rbt_lin_pos_scale: 1.0
+rbt_lin_vel_scale: 1.0
+rbt_ang_vel_scale: 1.0
+
+cmd_vel_x_min:   -0.55
+cmd_vel_x_max:    0.55
+cmd_vel_y_min:   -0.30
+cmd_vel_y_max:    0.30
+cmd_vel_yaw_min: -2.00
+cmd_vel_yaw_max:  2.00
+
+
+pd_ctrl_f: 1000 
+
+action_scale: 1.0
+
+joint_names: [ 
+'l_hip_pitch_joint', 'l_hip_roll_joint', 'l_thigh_joint', 'l_calf_joint', 'l_ankle_pitch_joint', 'l_ankle_roll_joint',
+'r_hip_pitch_joint', 'r_hip_roll_joint', 'r_thigh_joint', 'r_calf_joint', 'r_ankle_pitch_joint', 'r_ankle_roll_joint']
+
+# policy顺序
+clip_actions_lower: [-3, -3, -3, -3, -3, -3,
+                     -3, -3, -3, -3, -3, -3 ]
+clip_actions_upper: [ 3,  3,  3,  3,  3,  3,
+                      3,  3,  3,  3,  3,  3 ]
+
+clip_output_lower:  [-1.00, -0.40, -0.60, -1.30, -0.75, -0.30,
+                     -1.00, -0.40, -0.60, -1.30, -0.75, -0.30]
+clip_output_upper: [ 1.00,  0.40,  0.60,  1.30,  0.75,  0.30,
+                     1.00,  0.40,  0.60,  1.30,  0.75,  0.30]
+
+kp: [35, 35, 35, 35, 35, 35,
+     35, 35, 35, 35, 35, 35]
+
+kd: [0.6, 0.6, 0.6, 0.6, 0.6, 0.6,
+     0.6, 0.6, 0.6, 0.6, 0.6, 0.6]
+
+urdf_offset: [-0.25, 0.00, 0.00, 0.65, -0.40, 0.00,
+              -0.25, 0.00, 0.00, 0.65, -0.40, 0.00]

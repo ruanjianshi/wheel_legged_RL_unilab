@@ -1,0 +1,11 @@
+1.杀掉所有 ROS 进程
+pkill -9 -x roslaunch; pkill -9 -x rosmaster; pkill -9 -x motor_set_zero; pkill -9 -x motor_feedback; pkill -9 -x quadruped_deploy_node; pkill -9 -x yesense_imu_node; pkill -9 -x rosout; sleep 2; ps -eo pid,cmd | grep -E "roslaunch|rosmaster|motor_set_zero|motor_feedback|quadruped_deploy|yesense_imu" | grep -v grep || echo ALL_CLEAN'
+
+2. 给串口权限（每次开机第一次需要）
+echo ht | sudo -S chmod 666 /dev/ttyACM*; ls -l /dev/ttyACM*'
+
+3. 调零
+cd ~/sim2real_master-master && source devel/setup.bash && for i in 1 2 3; do echo "=== Round $i ==="; timeout 22 roslaunch quadruped_deploy set_zero_htdw_4438.launch 2>&1 | tail -3; sleep 3; done'
+
+4. 验证
+cd ~/sim2real_master-master && source devel/setup.bash && timeout 6 roslaunch quadruped_deploy feedback_htdw_4438.launch 2>&1 | grep "position:" | tail -24'

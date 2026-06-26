@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<launch>
+    <!-- 人形机器人驱动器启动文件 -->
+    <node name="humanoid_driver" pkg="robot_driver" type="test_robot_driver.py" output="screen">
+        <!-- 加载参数文件 -->
+        <rosparam file="$(find robot_driver)/config/params.yaml" command="load" />
+        
+        <!-- 也可以在这里直接设置参数 -->
+        <!-- <param name="alpha" value="0.8" /> -->
+    </node>
+    
+
+    
+
+
+</launch> 

@@ -1,0 +1,8 @@
+# Develop 模式：RL 策略配置
+# 用于开发和测试，可以根据需要添加或移除策略
+
+walk:
+   - name: "footstep"
+     path: "walk/footstep.yaml"
+
+

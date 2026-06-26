@@ -1,0 +1,200 @@
+name: "pi_plus_22dof"
+
+dofs: 20 # 少了头部2个自由度
+
+max_power: 300.0 # 最大功率限制
+max_power_duration: 1.0 # 最大功率持续时间限制
+
+joint_names: [
+ "l_hip_pitch_joint", "l_hip_roll_joint", "l_thigh_joint", "l_calf_joint", "l_ankle_pitch_joint", "l_ankle_roll_joint", 
+ "r_hip_pitch_joint", "r_hip_roll_joint", "r_thigh_joint", "r_calf_joint", "r_ankle_pitch_joint", "r_ankle_roll_joint",
+ "l_shoulder_pitch_joint", "l_shoulder_roll_joint", "l_upper_arm_joint", "l_elbow_joint",
+ "r_shoulder_pitch_joint", "r_shoulder_roll_joint", "r_upper_arm_joint", "r_elbow_joint"]
+
+map_index: [ 5,  4,  3,  2,  1,  0, 11, 10,  9,  8,  7,  6, 
+            12, 13, 14, 15, 16, 17, 18, 19]
+
+# 2.0.0机器人
+direction: [1,  1, -1, -1,  1,  1,
+           -1,  1, -1,  1, -1,  1,
+            1, -1, -1, -1,
+           -1, -1, -1,  1]
+
+# 2.0.0 之前的机器人
+# direction: [1,  1, -1, -1,  1,  1,
+#            -1,  1, -1,  1, -1,  1,
+#             1,  1, -1,  1,
+#            -1,  1, -1, -1]
+
+# 2.0.0 带限位件
+# lower: [-2.80, -0.33, -2.90, -2.50, -0.98, -0.75,
+#         -3.64, -3.64, -3.64, -3.64, -3.64, -3.64,
+#         -3.64, -3.64, -3.60, -3.64,
+#         -3.64, -3.64, -3.64, -3.64]
+# upper: [ 2.80,  3.14,  2.80,  2.50,  0.98,  0.77,
+#          3.64,  3.64,  3.64,  3.64,  3.64,  3.64,
+#          3.64,  3.64,  3.64,  3.64,
+#          2.58,  3.64,  3.64,  3.64]
+#
+# 通用
+lower: [-3.64, -3.64, -3.64, -3.64, -3.64, -3.64,
+        -3.64, -3.64, -3.64, -3.64, -3.64, -3.64,
+        -3.64, -3.64, -3.60, -3.64,
+        -3.64, -3.64, -3.64, -3.64]
+upper: [ 3.64,  3.64,  3.64,  3.64,  3.64,  3.64,
+         3.64,  3.64,  3.64,  3.64,  3.64,  3.64,
+         3.64,  3.64,  3.64,  3.64,
+         3.64,  3.64,  3.64,  3.64]
+
+kp: [110, 110, 110, 110, 210, 110,
+     110, 110, 110, 110, 210, 110,
+     60, 60, 60, 60,
+     60, 60, 60, 60]
+kd: [1.1, 1.4, 1.1, 1.1, 1.1, 1.1,
+     1.1, 1.4, 1.1, 1.1, 1.1, 1.1,
+     0.3, 0.3, 0.3, 0.3,
+     0.3, 0.3, 0.3, 0.3]
+
+urdf_offset: [ 0.00,  0.00,  0.00,  0.00,  0.00,  0.00,
+               0.00,  0.00,  0.00,  0.00,  0.00,  0.00,
+               # 2.0.0
+               1.95, -1.57,  1.57, -1.57,
+               1.95,  1.57, -1.57, -1.57]
+               # < 2.0.0
+               # 1.95,  1.57,  1.57,  1.57,
+               # 1.95, -1.57, -1.57,  1.57]
+
+multi_waypoint_config:
+  - key: "rt+a"
+    name: "xuridongsheng_1a"
+    path: "way_point/xuridongsheng/xuridongsheng_1.boost"
+    # path: "way_point/hello.boost"
+    type: 1
+    duration: 0.2
+    torque: 0.0
+    velocity: 0.0
+    back_to_zero: true
+    back_to_walk: true
+    loop: true
+
+  - key: "rt+b"
+    name: "xuridongsheng_1b"
+    path: "way_point/xuridongsheng/xuridongsheng_1.boost"
+    type: 2
+    duration: 0.2
+    torque: 0.0
+    velocity: 0.0
+    back_to_zero: false
+    back_to_walk: true
+    loop: false
+
+  - key: "rt+x"
+    name: "dancex"
+    path: "way_point/dance2/ForgetmeNots_part1.boost"
+    type: 5
+    duration: 0.013125
+    torque: 0.0
+    velocity: -1.0 # 固定速度 如果是负数或无此参数就按程序自动计算
+    back_to_zero: true
+    back_to_walk: true
+    loop: true
+    # type5用的参数
+    time_interval: 0.21 # boost文件每个点的时间间隔
+
+  - key: "rt+y"
+    name: "dancex"
+    path: "way_point/dance2/ForgetmeNots_part1.boost"
+    type: 5
+    torque: 0.0
+    velocity: 0.0
+    duration: 0.013125
+    back_to_zero: true
+    back_to_walk: true
+    loop: false
+    # type4用的参数
+    time_interval: 0.21 # boost文件每个点的时间间隔
+
+  - key: "rt+r"
+    name: "hello"
+    path: "way_point/hello.boost"
+    type: 5
+    duration: 0.013125
+    # duration: 0.1
+    torque: 0.0 # 最大力矩
+    velocity: 0.00 # boost文件每个点的时间间隔
+    back_to_zero: true
+    back_to_walk: true
+    loop: true
+    # type4用的参数
+    time_interval: 0.07 # boost文件每个点的时间间隔 * boost文件点的数量等于执行时间
+
+series_waypoint_config:
+  - key: "rt+l"
+    name: "xuridongsheng"
+    waypoint_config:
+      - path: "way_point/xuridongsheng/xuridongsheng_1.boost"
+        name: "sa"
+        type: 1
+        torque: 0.0
+        velocity: 0.0
+        duration: 0.5
+    
+      - path: "way_point/xuridongsheng/xuridongsheng_2.boost"
+        name: "sb"
+        type: 2
+        torque: 0.0
+        velocity: 0.0
+        duration: 0.2
+    
+      - path: "way_point/xuridongsheng/xuridongsheng_3.boost"
+        name: "sc"
+        type: 5
+        torque: 0.0
+        velocity: 1.0 # 固定速度 如果是负数或无此参数就按程序自动计算
+        duration: 0.013125
+        # type5用的参数
+        time_interval: 0.21 # boost文件每个点的时间间隔
+
+      - path: "way_point/xuridongsheng/xuridongsheng_3.boost"
+        name: "sd"
+        type: 5
+        torque: 0.0
+        velocity: -1.0 # 固定速度 如果是负数或无此参数就按程序自动计算
+        duration: 0.013125
+        # type5用的参数
+        time_interval: 0.21 # boost文件每个点的时间间隔
+
+  - key: "rt+a+b"
+    name: "dance"
+    waypoint_config:
+      - path: "way_point/dance2/ForgetmeNots_part1.boost"
+        name: "sf1"
+        type: 5
+        torque: 0.0
+        velocity: 0.0
+        duration: 0.013125
+        time_interval: 0.21 # boost文件每个点的时间间隔
+    
+      # - path: "way_point/dance2/ForgetmeNots_part2.boost"
+      #   name: "sf2"
+      #   type: 5
+      #   torque: 0.0
+      #   velocity: 0.0
+      #   duration: 0.013125
+      #   time_interval: 0.21 # boost文件每个点的时间间隔
+      #
+      # - path: "way_point/dance2/ForgetmeNots_part3.boost"
+      #   name: "sf3"
+      #   type: 5
+      #   torque: 0.0
+      #   velocity: 0.0
+      #   duration: 0.013125
+      #   time_interval: 0.21 # boost文件每个点的时间间隔
+      #
+      # - path: "way_point/dance2/ForgetmeNots_part4.boost"
+      #   name: "sf4"
+      #   type: 5
+      #   torque: 0.0
+      #   velocity: 0.0
+      #   duration: 0.013125
+      #   time_interval: 0.21 # boost文件每个点的时间间隔

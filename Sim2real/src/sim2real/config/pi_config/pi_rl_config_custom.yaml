@@ -1,0 +1,7 @@
+walk:
+  - name: "humanoidgym"
+    path: "walk/humanoidgym.yaml"
+  - name: "footstep"
+    path: "walk/footstep.yaml"
+  - name: "dreamwaq"
+    path: "walk/dreamwaq.yaml"

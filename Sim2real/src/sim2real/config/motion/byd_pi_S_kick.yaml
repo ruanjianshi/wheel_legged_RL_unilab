@@ -1,0 +1,104 @@
+# policy_name: "motion/model_20000_action_2025-10-28_23-11-59_pi_plus_S_kick2_pg.rknn" # 重力投影
+policy_name: "motion/model_20000_action_2025-10-28_23-15-41_pi_plus_S_kick2.rknn" # 四元数
+detect_falls: false
+
+algorithm: "bydmmc"
+
+future_file_name: "motion/pi_plus_S_kick2_cut.json" # 长序列
+
+motor_group: "all-pi_plus_bydmmc"
+
+dofs: 22
+
+# 四元数
+# ref_pos(dofs) + ref_vel(dofs) + ref_ori(6) + angle_vel(3) + pos(dofs) + vel(dofs) + actions(dofs)
+num_single_obs: 119
+# 重力投影
+# ref_pos(dofs) + ref_vel(dofs) + ref_ori(3+1) + robot_ori(3+1) + angle_vel(3) + pos(dofs) + vel(dofs) + actions(dofs)
+# num_single_obs: 121
+
+motion_len: 1000.2 # 通过json的数据判断 ，无需在此处写
+
+cmd_lin_vel_scale: 1.0
+cmd_ang_vel_scale: 1.0
+rbt_lin_pos_scale: 1.0
+rbt_lin_vel_scale: 1.0
+rbt_ang_vel_scale: 1.0
+
+clip_obs: 100.0
+
+pd_ctrl_f: 200 
+rl_ctrl_f: 50
+
+action_scale: 1.00
+
+action_scales: [
+0.094,0.167,0.094,0.167,
+0.094,0.167,0.094,0.167,
+0.094,0.167,0.094,0.167,
+0.094,0.167,0.094,0.167,
+0.094,0.167,0.094,0.167,
+0.094,0.094]
+
+joint_names: [ 
+'l_hip_pitch_joint', 'l_shoulder_pitch_joint', 'r_hip_pitch_joint','r_shoulder_pitch_joint', 
+'l_hip_roll_joint','l_shoulder_roll_joint',  'r_hip_roll_joint', 'r_shoulder_roll_joint', 
+'l_thigh_joint', 'l_upper_arm_joint', 'r_thigh_joint', 'r_upper_arm_joint', 
+'l_calf_joint','l_elbow_joint', 'r_calf_joint', 'r_elbow_joint', 
+'l_ankle_pitch_joint','l_wrist_joint', 'r_ankle_pitch_joint', 'r_wrist_joint',
+'l_ankle_roll_joint', 'r_ankle_roll_joint']
+
+# policy顺序
+clip_actions_lower: [-32, -32, -32, -32,
+                     -32, -32, -32, -32,
+                     -32, -32, -32, -32,
+                     -32, -32, -32, -32,
+                     -32, -32, -32, -32,
+                     -32, -32]
+clip_actions_upper: [ 32,  32,  32,  32,
+                      32,  32,  32,  32,
+                      32,  32,  32,  32,
+                      32,  32,  32,  32,
+                      32,  32,  32,  32,
+                      32,  32]
+
+clip_output_lower:  [-3.14,  -3.14,  -3.14,  -3.14,
+                     -3.14,  -3.14,  -3.14,  -3.14,
+                     -3.14,  -3.14,  -3.14,  -3.14,
+                     -3.14,  -3.14,  -3.14,  -3.14,
+                     -3.14,  -3.14,  -3.14,  -3.14,
+                     -3.14,  -3.14]
+clip_output_upper:  [ 3.14,   3.14,   3.14,   3.14,
+                      3.14,   3.14,   3.14,   3.14,
+                      3.14,   3.14,   3.14,   3.14,
+                      3.14,   3.14,   3.14,   3.14,
+                      3.14,   3.14,   3.14,   3.14,
+                      3.14,   3.14]
+
+kp: [80.000,80.000,80.000,80.000,
+     80.000,80.000,80.000,80.000,
+     80.000,80.000,80.000,80.000,
+     80.000,80.000,80.000,80.000,
+     80.000,80.000,80.000,80.000,
+     80.000,80.000]
+
+kd: [1.100,1.100,1.100,1.100,
+     1.100,1.100,1.100,1.100,
+     1.100,1.100,1.100,1.100,
+     1.100,1.100,1.100,1.100,
+     1.100,1.100,1.100,1.100,
+     1.100,1.100]
+
+urdf_offset: [ 0.00,  1.57,  0.00,  1.57,
+               0.00, -1.57,  0.00,  1.57,
+               0.00,  0.00,  0.00,  0.00,
+               0.00,  0.00,  0.00,  0.00,
+               0.00,  0.00,  0.00,  0.00, 
+               0.00,  0.00]
+
+default_pose: [-0.250,0.000,-0.250,0.000,
+                0.000,0.000, 0.000,0.000,
+                0.000,0.000, 0.000,0.000,
+                0.650,0.000, 0.650,0.000,
+               -0.400,0.000,-0.400,0.000,
+                0.000,0.000]

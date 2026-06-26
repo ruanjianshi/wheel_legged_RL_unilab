@@ -1,0 +1,10 @@
+<?xml version="1.0" ?>
+<launch>
+  <!-- 用 HTDW-4438 四足硬件配置加载电机参数, 然后调用 livelybot_bringup/motor_set_zero
+       将所有电机的当前物理位置写入电气零位.
+
+       使用前: 必须把机器人摆好 default_angles 站立姿态 (所有 12 个关节 URDF 角度
+       == [0, 0.9, -1.5] x4), 且没有任何其它 ROS 节点在向电机发指令. -->
+  <rosparam file="$(find sim2real)/robot_param/12dof_STM32H730_htdw_4438_ctrl_params.yaml" command="load" />
+  <node pkg="livelybot_bringup" name="motor_set_zero" type="motor_set_zero" output="screen" required="true"/>
+</launch>

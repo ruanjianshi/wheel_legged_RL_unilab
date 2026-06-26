@@ -1,0 +1,99 @@
+policy_name: "motion/model_115000_action_2025-10-11_10-36-26_ticao_80_limit.rknn"
+detect_falls: false
+
+algorithm: "bydmmc"
+
+future_file_name: "motion/ticao_rot_cut.json"
+
+motor_group: "all-pi_plus_bydmmc"
+
+dofs: 22
+
+# ref_pos(dofs) + ref_vel(dofs) + ref_ori(6) + angle_vel(3) + pos(dofs) + vel(dofs) + actions(dofs)
+num_single_obs: 119 
+
+motion_len: 1000.2 # 通过json的数据判断 ，无需在此处写
+
+cmd_lin_vel_scale: 1.0
+cmd_ang_vel_scale: 1.0
+rbt_lin_pos_scale: 1.0
+rbt_lin_vel_scale: 1.0
+rbt_ang_vel_scale: 1.0
+
+clip_obs: 100.0
+
+pd_ctrl_f: 200 
+rl_ctrl_f: 50
+
+action_scale: 1.00
+
+action_scales: [
+0.094,0.167,0.094,0.167,
+0.094,0.167,0.094,0.167,
+0.094,0.167,0.094,0.167,
+0.094,0.167,0.094,0.167,
+0.094,0.167,0.094,0.167,
+0.094,0.094]
+
+joint_names: [ 
+'l_hip_pitch_joint', 'l_shoulder_pitch_joint', 'r_hip_pitch_joint','r_shoulder_pitch_joint', 
+'l_hip_roll_joint','l_shoulder_roll_joint',  'r_hip_roll_joint', 'r_shoulder_roll_joint', 
+'l_thigh_joint', 'l_upper_arm_joint', 'r_thigh_joint', 'r_upper_arm_joint', 
+'l_calf_joint','l_elbow_joint', 'r_calf_joint', 'r_elbow_joint', 
+'l_ankle_pitch_joint','l_wrist_joint', 'r_ankle_pitch_joint', 'r_wrist_joint',
+'l_ankle_roll_joint', 'r_ankle_roll_joint']
+
+# policy顺序
+clip_actions_lower: [-12, -12, -12, -12,
+                     -12, -12, -12, -12,
+                     -12, -12, -12, -12,
+                     -12, -12, -12, -12,
+                     -12, -12, -12, -12,
+                     -12, -12]
+clip_actions_upper: [ 12,  12,  12,  12,
+                      12,  12,  12,  12,
+                      12,  12,  12,  12,
+                      12,  12,  12,  12,
+                      12,  12,  12,  12,
+                      12,  12]
+
+clip_output_lower:  [-3.14,  -3.14,  -3.14,  -3.14,
+                     -3.14,  -3.14,  -3.14,  -3.14,
+                     -3.14,  -3.14,  -3.14,  -3.14,
+                     -3.14,  -3.14,  -3.14,  -3.14,
+                     -3.14,  -3.14,  -3.14,  -3.14,
+                     -3.14,  -3.14]
+clip_output_upper:  [ 3.14,   3.14,   3.14,   3.14,
+                      3.14,   3.14,   3.14,   3.14,
+                      3.14,   3.14,   3.14,   3.14,
+                      3.14,   3.14,   3.14,   3.14,
+                      3.14,   3.14,   3.14,   3.14,
+                      3.14,   3.14]
+
+kp: [80.000,30.000,80.000,30.000,
+     80.000,30.000,80.000,30.000,
+     80.000,30.000,80.000,30.000,
+     80.000,30.000,80.000,30.000,
+     80.000,30.000,80.000,30.000,
+     80.000,80.000]
+
+kd: [1.100,0.600,1.100,0.600,
+     1.100,0.600,1.100,0.600,
+     1.100,0.600,1.100,0.600,
+     1.100,0.600,1.100,0.600,
+     1.100,0.600,1.100,0.600,
+     1.100,1.100]
+
+urdf_offset: [ 0.00,  1.57,  0.00,  1.57,
+               0.00, -1.57,  0.00,  1.57,
+               0.00,  0.00,  0.00,  0.00,
+               0.00,  0.00,  0.00,  0.00,
+               0.00,  0.00,  0.00,  0.00, 
+               0.00,  0.00]
+
+default_pose: [-0.250,0.000,-0.250,0.000,
+                0.000,0.000, 0.000,0.000,
+                0.000,0.000, 0.000,0.000,
+                0.650,0.000, 0.650,0.000,
+               -0.400,0.000,-0.400,0.000,
+                0.000,0.000]

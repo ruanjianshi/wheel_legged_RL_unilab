@@ -1,0 +1,500 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<root>
+ <tabbed_widget parent="main_window" name="Main Window">
+  <Tab containers="1" tab_name="mtr_pos">
+   <Container>
+    <DockSplitter sizes="1" orientation="-" count="1">
+     <DockSplitter sizes="0.25015;0.24985;0.25015;0.24985" orientation="|" count="4">
+      <DockSplitter sizes="0.333479;0.333041;0.333479" orientation="-" count="3">
+       <DockArea name="...">
+        <plot mode="TimeSeries" flip_x="false" style="Lines" flip_y="false">
+         <range top="1.000000" right="34.744838" left="29.745013" bottom="-1.000000"/>
+         <limitY max="1" min="-1"/>
+         <curve color="#1f77b4" name="/mtr_state/q[0]"/>
+         <curve color="#f14cc1" name="/mtr_target/q[0]"/>
+        </plot>
+       </DockArea>
+       <DockArea name="...">
+        <plot mode="TimeSeries" flip_x="false" style="Lines" flip_y="false">
+         <range top="1.000000" right="34.744838" left="29.745013" bottom="-1.000000"/>
+         <limitY max="1" min="-1"/>
+         <curve color="#1ac938" name="/mtr_state/q[2]"/>
+         <curve color="#17becf" name="/mtr_target/q[2]"/>
+        </plot>
+       </DockArea>
+       <DockArea name="...">
+        <plot mode="TimeSeries" flip_x="false" style="Lines" flip_y="false">
+         <range top="1.000000" right="34.744838" left="29.745013" bottom="-1.000000"/>
+         <limitY max="1" min="-1"/>
+         <curve color="#f14cc1" name="/mtr_state/q[4]"/>
+         <curve color="#1f77b4" name="/mtr_target/q[4]"/>
+        </plot>
+       </DockArea>
+      </DockSplitter>
+      <DockSplitter sizes="0.333479;0.333041;0.333479" orientation="-" count="3">
+       <DockArea name="...">
+        <plot mode="TimeSeries" flip_x="false" style="Lines" flip_y="false">
+         <range top="1.000000" right="34.744838" left="29.745013" bottom="-1.000000"/>
+         <limitY max="1" min="-1"/>
+         <curve color="#17becf" name="/mtr_state/q[6]"/>
+         <curve color="#1ac938" name="/mtr_target/q[6]"/>
+        </plot>
+       </DockArea>
+       <DockArea name="...">
+        <plot mode="TimeSeries" flip_x="false" style="Lines" flip_y="false">
+         <range top="1.000000" right="34.744838" left="29.745013" bottom="-1.000000"/>
+         <limitY max="1" min="-1"/>
+         <curve color="#1f77b4" name="/mtr_state/q[8]"/>
+         <curve color="#f14cc1" name="/mtr_target/q[8]"/>
+        </plot>
+       </DockArea>
+       <DockArea name="...">
+        <plot mode="TimeSeries" flip_x="false" style="Lines" flip_y="false">
+         <range top="1.000000" right="34.744838" left="29.745013" bottom="-1.000000"/>
+         <limitY max="1" min="-1"/>
+         <curve color="#1ac938" name="/mtr_state/q[10]"/>
+         <curve color="#17becf" name="/mtr_target/q[10]"/>
+        </plot>
+       </DockArea>
+      </DockSplitter>
+      <DockSplitter sizes="0.333479;0.333041;0.333479" orientation="-" count="3">
+       <DockArea name="...">
+        <plot mode="TimeSeries" flip_x="false" style="Lines" flip_y="false">
+         <range top="1.000000" right="34.744838" left="29.745013" bottom="-1.000000"/>
+         <limitY max="1" min="-1"/>
+         <curve color="#d62728" name="/mtr_state/q[1]"/>
+         <curve color="#9467bd" name="/mtr_target/q[1]"/>
+        </plot>
+       </DockArea>
+       <DockArea name="...">
+        <plot mode="TimeSeries" flip_x="false" style="Lines" flip_y="false">
+         <range top="1.000000" right="34.744838" left="29.745013" bottom="-1.000000"/>
+         <limitY max="1" min="-1"/>
+         <curve color="#ff7f0e" name="/mtr_state/q[3]"/>
+         <curve color="#bcbd22" name="/mtr_target/q[3]"/>
+        </plot>
+       </DockArea>
+       <DockArea name="...">
+        <plot mode="TimeSeries" flip_x="false" style="Lines" flip_y="false">
+         <range top="1.000000" right="34.744838" left="29.745013" bottom="-1.000000"/>
+         <limitY max="1" min="-1"/>
+         <curve color="#9467bd" name="/mtr_state/q[5]"/>
+         <curve color="#d62728" name="/mtr_target/q[5]"/>
+        </plot>
+       </DockArea>
+      </DockSplitter>
+      <DockSplitter sizes="0.333479;0.333041;0.333479" orientation="-" count="3">
+       <DockArea name="...">
+        <plot mode="TimeSeries" flip_x="false" style="Lines" flip_y="false">
+         <range top="1.000000" right="34.744838" left="29.745013" bottom="-1.000000"/>
+         <limitY max="1" min="-1"/>
+         <curve color="#bcbd22" name="/mtr_state/q[7]"/>
+         <curve color="#ff7f0e" name="/mtr_target/q[7]"/>
+        </plot>
+       </DockArea>
+       <DockArea name="...">
+        <plot mode="TimeSeries" flip_x="false" style="Lines" flip_y="false">
+         <range top="1.000000" right="34.744838" left="29.745013" bottom="-1.000000"/>
+         <limitY max="1" min="-1"/>
+         <curve color="#d62728" name="/mtr_state/q[9]"/>
+         <curve color="#9467bd" name="/mtr_target/q[9]"/>
+        </plot>
+       </DockArea>
+       <DockArea name="...">
+        <plot mode="TimeSeries" flip_x="false" style="Lines" flip_y="false">
+         <range top="1.000000" right="34.744838" left="29.745013" bottom="-1.000000"/>
+         <limitY max="1" min="-1"/>
+         <curve color="#ff7f0e" name="/mtr_state/q[11]"/>
+         <curve color="#bcbd22" name="/mtr_target/q[11]"/>
+        </plot>
+       </DockArea>
+      </DockSplitter>
+     </DockSplitter>
+    </DockSplitter>
+   </Container>
+  </Tab>
+  <Tab containers="1" tab_name="rbt_pos">
+   <Container>
+    <DockSplitter sizes="1" orientation="-" count="1">
+     <DockSplitter sizes="0.25015;0.24985;0.25015;0.24985" orientation="|" count="4">
+      <DockSplitter sizes="0.333479;0.333041;0.333479" orientation="-" count="3">
+       <DockArea name="...">
+        <plot mode="TimeSeries" flip_x="false" style="Lines" flip_y="false">
+         <range top="1.000000" right="34.744847" left="29.745020" bottom="-1.000000"/>
+         <limitY max="1" min="-1"/>
+         <curve color="#1f77b4" name="/rbt_state/q[0]"/>
+         <curve color="#f14cc1" name="/rbt_target/q[0]"/>
+        </plot>
+       </DockArea>
+       <DockArea name="...">
+        <plot mode="TimeSeries" flip_x="false" style="Lines" flip_y="false">
+         <range top="1.000000" right="34.744847" left="29.745020" bottom="-1.000000"/>
+         <limitY max="1" min="-1"/>
+         <curve color="#1ac938" name="/rbt_state/q[2]"/>
+         <curve color="#17becf" name="/rbt_target/q[2]"/>
+        </plot>
+       </DockArea>
+       <DockArea name="...">
+        <plot mode="TimeSeries" flip_x="false" style="Lines" flip_y="false">
+         <range top="1.000000" right="34.744847" left="29.745020" bottom="-1.000000"/>
+         <limitY max="1" min="-1"/>
+         <curve color="#f14cc1" name="/rbt_state/q[4]"/>
+         <curve color="#1f77b4" name="/rbt_target/q[4]"/>
+        </plot>
+       </DockArea>
+      </DockSplitter>
+      <DockSplitter sizes="0.333479;0.333041;0.333479" orientation="-" count="3">
+       <DockArea name="...">
+        <plot mode="TimeSeries" flip_x="false" style="Lines" flip_y="false">
+         <range top="1.000000" right="34.744847" left="29.745020" bottom="-1.000000"/>
+         <limitY max="1" min="-1"/>
+         <curve color="#17becf" name="/rbt_state/q[6]"/>
+         <curve color="#1ac938" name="/rbt_target/q[6]"/>
+        </plot>
+       </DockArea>
+       <DockArea name="...">
+        <plot mode="TimeSeries" flip_x="false" style="Lines" flip_y="false">
+         <range top="1.000000" right="34.744847" left="29.745020" bottom="-1.000000"/>
+         <limitY max="1" min="-1"/>
+         <curve color="#1f77b4" name="/rbt_state/q[8]"/>
+         <curve color="#f14cc1" name="/rbt_target/q[8]"/>
+        </plot>
+       </DockArea>
+       <DockArea name="...">
+        <plot mode="TimeSeries" flip_x="false" style="Lines" flip_y="false">
+         <range top="1.000000" right="34.744847" left="29.745020" bottom="-1.000000"/>
+         <limitY max="1" min="-1"/>
+         <curve color="#1ac938" name="/rbt_state/q[10]"/>
+         <curve color="#17becf" name="/rbt_target/q[10]"/>
+        </plot>
+       </DockArea>
+      </DockSplitter>
+      <DockSplitter sizes="0.333479;0.333041;0.333479" orientation="-" count="3">
+       <DockArea name="...">
+        <plot mode="TimeSeries" flip_x="false" style="Lines" flip_y="false">
+         <range top="1.000000" right="34.744847" left="29.745020" bottom="-1.000000"/>
+         <limitY max="1" min="-1"/>
+         <curve color="#d62728" name="/rbt_state/q[1]"/>
+         <curve color="#9467bd" name="/rbt_target/q[1]"/>
+        </plot>
+       </DockArea>
+       <DockArea name="...">
+        <plot mode="TimeSeries" flip_x="false" style="Lines" flip_y="false">
+         <range top="1.000000" right="34.744847" left="29.745020" bottom="-1.000000"/>
+         <limitY max="1" min="-1"/>
+         <curve color="#ff7f0e" name="/rbt_state/q[3]"/>
+         <curve color="#bcbd22" name="/rbt_target/q[3]"/>
+        </plot>
+       </DockArea>
+       <DockArea name="...">
+        <plot mode="TimeSeries" flip_x="false" style="Lines" flip_y="false">
+         <range top="1.000000" right="34.744847" left="29.745020" bottom="-1.000000"/>
+         <limitY max="1" min="-1"/>
+         <curve color="#9467bd" name="/rbt_state/q[5]"/>
+         <curve color="#d62728" name="/rbt_target/q[5]"/>
+        </plot>
+       </DockArea>
+      </DockSplitter>
+      <DockSplitter sizes="0.333479;0.333041;0.333479" orientation="-" count="3">
+       <DockArea name="...">
+        <plot mode="TimeSeries" flip_x="false" style="Lines" flip_y="false">
+         <range top="1.000000" right="34.744847" left="29.745020" bottom="-1.000000"/>
+         <limitY max="1" min="-1"/>
+         <curve color="#bcbd22" name="/rbt_state/q[7]"/>
+         <curve color="#ff7f0e" name="/rbt_target/q[7]"/>
+        </plot>
+       </DockArea>
+       <DockArea name="...">
+        <plot mode="TimeSeries" flip_x="false" style="Lines" flip_y="false">
+         <range top="1.000000" right="34.744847" left="29.745020" bottom="-1.000000"/>
+         <limitY max="1" min="-1"/>
+         <curve color="#d62728" name="/rbt_state/q[9]"/>
+         <curve color="#9467bd" name="/rbt_target/q[9]"/>
+        </plot>
+       </DockArea>
+       <DockArea name="...">
+        <plot mode="TimeSeries" flip_x="false" style="Lines" flip_y="false">
+         <range top="1.000000" right="34.744847" left="29.745020" bottom="-1.000000"/>
+         <limitY max="1" min="-1"/>
+         <curve color="#ff7f0e" name="/rbt_state/q[11]"/>
+         <curve color="#bcbd22" name="/rbt_target/q[11]"/>
+        </plot>
+       </DockArea>
+      </DockSplitter>
+     </DockSplitter>
+    </DockSplitter>
+   </Container>
+  </Tab>
+  <Tab containers="1" tab_name="mtr_rbt_vel">
+   <Container>
+    <DockSplitter sizes="1" orientation="-" count="1">
+     <DockSplitter sizes="0.25015;0.24985;0.25015;0.24985" orientation="|" count="4">
+      <DockSplitter sizes="0.333479;0.333041;0.333479" orientation="-" count="3">
+       <DockArea name="...">
+        <plot mode="TimeSeries" flip_x="false" style="Lines" flip_y="false">
+         <range top="0.006597" right="34.744830" left="29.745013" bottom="-0.006597"/>
+         <limitY/>
+         <curve color="#1f77b4" name="/mtr_state/dq[0]"/>
+         <curve color="#d62728" name="/rbt_state/dq[0]"/>
+        </plot>
+       </DockArea>
+       <DockArea name="...">
+        <plot mode="TimeSeries" flip_x="false" style="Lines" flip_y="false">
+         <range top="0.016493" right="34.744830" left="29.745013" bottom="-0.016493"/>
+         <limitY/>
+         <curve color="#ff7f0e" name="/mtr_state/dq[2]"/>
+         <curve color="#17becf" name="/rbt_state/dq[2]"/>
+        </plot>
+       </DockArea>
+       <DockArea name="...">
+        <plot mode="TimeSeries" flip_x="false" style="Lines" flip_y="false">
+         <range top="0.008247" right="34.744830" left="29.745013" bottom="-0.008247"/>
+         <limitY/>
+         <curve color="#9467bd" name="/mtr_state/dq[4]"/>
+         <curve color="#1f77b4" name="/rbt_state/dq[4]"/>
+        </plot>
+       </DockArea>
+      </DockSplitter>
+      <DockSplitter sizes="0.333479;0.333041;0.333479" orientation="-" count="3">
+       <DockArea name="...">
+        <plot mode="TimeSeries" flip_x="false" style="Lines" flip_y="false">
+         <range top="0.006597" right="34.744830" left="29.745013" bottom="-0.006597"/>
+         <limitY/>
+         <curve color="#bcbd22" name="/mtr_state/dq[6]"/>
+         <curve color="#1ac938" name="/rbt_state/dq[6]"/>
+        </plot>
+       </DockArea>
+       <DockArea name="...">
+        <plot mode="TimeSeries" flip_x="false" style="Lines" flip_y="false">
+         <range top="0.016493" right="34.744830" left="29.745013" bottom="-0.016493"/>
+         <limitY/>
+         <curve color="#d62728" name="/mtr_state/dq[8]"/>
+         <curve color="#f14cc1" name="/rbt_state/dq[8]"/>
+        </plot>
+       </DockArea>
+       <DockArea name="...">
+        <plot mode="TimeSeries" flip_x="false" style="Lines" flip_y="false">
+         <range top="0.004987" right="34.744830" left="29.745013" bottom="-0.006558"/>
+         <limitY/>
+         <curve color="#ff7f0e" name="/mtr_state/dq[10]"/>
+         <curve color="#17becf" name="/rbt_state/dq[10]"/>
+        </plot>
+       </DockArea>
+      </DockSplitter>
+      <DockSplitter sizes="0.333479;0.333041;0.333479" orientation="-" count="3">
+       <DockArea name="...">
+        <plot mode="TimeSeries" flip_x="false" style="Lines" flip_y="false">
+         <range top="0.009896" right="34.744830" left="29.745013" bottom="-0.009896"/>
+         <limitY/>
+         <curve color="#1ac938" name="/mtr_state/dq[1]"/>
+         <curve color="#9467bd" name="/rbt_state/dq[1]"/>
+        </plot>
+       </DockArea>
+       <DockArea name="...">
+        <plot mode="TimeSeries" flip_x="false" style="Lines" flip_y="false">
+         <range top="0.021363" right="34.744830" left="29.745013" bottom="-0.018221"/>
+         <limitY/>
+         <curve color="#f14cc1" name="/mtr_state/dq[3]"/>
+         <curve color="#bcbd22" name="/rbt_state/dq[3]"/>
+        </plot>
+       </DockArea>
+       <DockArea name="...">
+        <plot mode="TimeSeries" flip_x="false" style="Lines" flip_y="false">
+         <range top="0.019753" right="34.744830" left="29.745013" bottom="-0.018182"/>
+         <limitY/>
+         <curve color="#17becf" name="/mtr_state/dq[5]"/>
+         <curve color="#d62728" name="/rbt_state/dq[5]"/>
+        </plot>
+       </DockArea>
+      </DockSplitter>
+      <DockSplitter sizes="0.333479;0.333041;0.333479" orientation="-" count="3">
+       <DockArea name="...">
+        <plot mode="TimeSeries" flip_x="false" style="Lines" flip_y="false">
+         <range top="0.054389" right="34.744830" left="29.745013" bottom="-0.052818"/>
+         <limitY/>
+         <curve color="#1f77b4" name="/mtr_state/dq[7]"/>
+         <curve color="#ff7f0e" name="/rbt_state/dq[7]"/>
+        </plot>
+       </DockArea>
+       <DockArea name="...">
+        <plot mode="TimeSeries" flip_x="false" style="Lines" flip_y="false">
+         <range top="0.024779" right="34.744830" left="29.745013" bottom="-0.026350"/>
+         <limitY/>
+         <curve color="#1ac938" name="/mtr_state/dq[9]"/>
+         <curve color="#9467bd" name="/rbt_state/dq[9]"/>
+        </plot>
+       </DockArea>
+       <DockArea name="...">
+        <plot mode="TimeSeries" flip_x="false" style="Lines" flip_y="false">
+         <range top="0.004948" right="34.744830" left="29.745013" bottom="-0.004948"/>
+         <limitY/>
+         <curve color="#f14cc1" name="/mtr_state/dq[11]"/>
+         <curve color="#bcbd22" name="/rbt_state/dq[11]"/>
+        </plot>
+       </DockArea>
+      </DockSplitter>
+     </DockSplitter>
+    </DockSplitter>
+   </Container>
+  </Tab>
+  <Tab containers="1" tab_name="mtr_tau">
+   <Container>
+    <DockSplitter sizes="1" orientation="-" count="1">
+     <DockSplitter sizes="0.25015;0.24985;0.25015;0.24985" orientation="|" count="4">
+      <DockSplitter sizes="0.333479;0.333041;0.333479" orientation="-" count="3">
+       <DockArea name="...">
+        <plot mode="TimeSeries" flip_x="false" style="Lines" flip_y="false">
+         <range top="0.590169" right="34.744838" left="29.745013" bottom="-0.493475"/>
+         <limitY/>
+         <curve color="#1f77b4" name="/mtr_state/tau[0]"/>
+         <curve color="#f14cc1" name="/mtr_target/tau[0]"/>
+        </plot>
+       </DockArea>
+       <DockArea name="...">
+        <plot mode="TimeSeries" flip_x="false" style="Lines" flip_y="false">
+         <range top="0.661770" right="34.744838" left="29.745013" bottom="-0.525572"/>
+         <limitY/>
+         <curve color="#1ac938" name="/mtr_state/tau[2]"/>
+         <curve color="#17becf" name="/mtr_target/tau[2]"/>
+        </plot>
+       </DockArea>
+       <DockArea name="...">
+        <plot mode="TimeSeries" flip_x="false" style="Lines" flip_y="false">
+         <range top="2.174192" right="34.744838" left="29.745013" bottom="-1.631024"/>
+         <limitY/>
+         <curve color="#f14cc1" name="/mtr_state/tau[4]"/>
+         <curve color="#1f77b4" name="/mtr_target/tau[4]"/>
+        </plot>
+       </DockArea>
+      </DockSplitter>
+      <DockSplitter sizes="0.333479;0.333041;0.333479" orientation="-" count="3">
+       <DockArea name="...">
+        <plot mode="TimeSeries" flip_x="false" style="Lines" flip_y="false">
+         <range top="0.451782" right="34.744838" left="29.745013" bottom="-0.419282"/>
+         <limitY/>
+         <curve color="#17becf" name="/mtr_state/tau[6]"/>
+         <curve color="#1ac938" name="/mtr_target/tau[6]"/>
+        </plot>
+       </DockArea>
+       <DockArea name="...">
+        <plot mode="TimeSeries" flip_x="false" style="Lines" flip_y="false">
+         <range top="0.562763" right="34.744838" left="29.745013" bottom="-1.029001"/>
+         <limitY/>
+         <curve color="#1f77b4" name="/mtr_state/tau[8]"/>
+         <curve color="#f14cc1" name="/mtr_target/tau[8]"/>
+        </plot>
+       </DockArea>
+       <DockArea name="...">
+        <plot mode="TimeSeries" flip_x="false" style="Lines" flip_y="false">
+         <range top="0.048643" right="34.744838" left="29.745013" bottom="-0.086211"/>
+         <limitY/>
+         <curve color="#1ac938" name="/mtr_state/tau[10]"/>
+         <curve color="#17becf" name="/mtr_target/tau[10]"/>
+        </plot>
+       </DockArea>
+      </DockSplitter>
+      <DockSplitter sizes="0.333479;0.333041;0.333479" orientation="-" count="3">
+       <DockArea name="...">
+        <plot mode="TimeSeries" flip_x="false" style="Lines" flip_y="false">
+         <range top="0.442523" right="34.744838" left="29.745013" bottom="-0.454465"/>
+         <limitY/>
+         <curve color="#d62728" name="/mtr_state/tau[1]"/>
+         <curve color="#9467bd" name="/mtr_target/tau[1]"/>
+        </plot>
+       </DockArea>
+       <DockArea name="...">
+        <plot mode="TimeSeries" flip_x="false" style="Lines" flip_y="false">
+         <range top="0.448942" right="34.744838" left="29.745013" bottom="-0.510264"/>
+         <limitY/>
+         <curve color="#ff7f0e" name="/mtr_state/tau[3]"/>
+         <curve color="#bcbd22" name="/mtr_target/tau[3]"/>
+        </plot>
+       </DockArea>
+       <DockArea name="...">
+        <plot mode="TimeSeries" flip_x="false" style="Lines" flip_y="false">
+         <range top="1.000575" right="34.744838" left="29.745013" bottom="-0.887375"/>
+         <limitY/>
+         <curve color="#9467bd" name="/mtr_state/tau[5]"/>
+         <curve color="#d62728" name="/mtr_target/tau[5]"/>
+        </plot>
+       </DockArea>
+      </DockSplitter>
+      <DockSplitter sizes="0.333479;0.333041;0.333479" orientation="-" count="3">
+       <DockArea name="...">
+        <plot mode="TimeSeries" flip_x="false" style="Lines" flip_y="false">
+         <range top="0.484372" right="34.744838" left="29.745013" bottom="-0.511128"/>
+         <limitY/>
+         <curve color="#bcbd22" name="/mtr_state/tau[7]"/>
+         <curve color="#ff7f0e" name="/mtr_target/tau[7]"/>
+        </plot>
+       </DockArea>
+       <DockArea name="...">
+        <plot mode="TimeSeries" flip_x="false" style="Lines" flip_y="false">
+         <range top="0.466966" right="34.744838" left="29.745013" bottom="-0.419652"/>
+         <limitY/>
+         <curve color="#d62728" name="/mtr_state/tau[9]"/>
+         <curve color="#9467bd" name="/mtr_target/tau[9]"/>
+        </plot>
+       </DockArea>
+       <DockArea name="...">
+        <plot mode="TimeSeries" flip_x="false" style="Lines" flip_y="false">
+         <range top="0.083124" right="34.744838" left="29.745013" bottom="-0.092772"/>
+         <limitY/>
+         <curve color="#ff7f0e" name="/mtr_state/tau[11]"/>
+         <curve color="#bcbd22" name="/mtr_target/tau[11]"/>
+        </plot>
+       </DockArea>
+      </DockSplitter>
+     </DockSplitter>
+    </DockSplitter>
+   </Container>
+  </Tab>
+  <currentTabIndex index="0"/>
+ </tabbed_widget>
+ <use_relative_time_offset enabled="1"/>
+ <!-- - - - - - - - - - - - - - - -->
+ <!-- - - - - - - - - - - - - - - -->
+ <Plugins>
+  <plugin ID="DataLoad CSV">
+   <parameters delimiter="0" time_axis=""/>
+  </plugin>
+  <plugin ID="DataLoad MCAP"/>
+  <plugin ID="DataLoad ROS bags">
+   <use_header_stamp value="false"/>
+   <discard_large_arrays value="true"/>
+   <max_array_size value="100"/>
+   <boolean_strings_to_number value="true"/>
+   <remove_suffix_from_strings value="true"/>
+   <selected_topics value=""/>
+  </plugin>
+  <plugin ID="DataLoad ULog"/>
+  <plugin ID="ROS Topic Subscriber">
+   <use_header_stamp value="false"/>
+   <discard_large_arrays value="true"/>
+   <max_array_size value="100"/>
+   <boolean_strings_to_number value="true"/>
+   <remove_suffix_from_strings value="true"/>
+   <selected_topics value="/mtr_state;/mtr_target;/rbt_state;/rbt_target"/>
+  </plugin>
+  <plugin ID="UDP Server"/>
+  <plugin ID="WebSocket Server"/>
+  <plugin ID="ZMQ Subscriber"/>
+  <plugin ID="Fast Fourier Transform"/>
+  <plugin ID="Quaternion to RPY"/>
+  <plugin ID="Reactive Script Editor">
+   <library code="--[[ Helper function to create a series from arrays&#xa;&#xa; new_series: a series previously created with ScatterXY.new(name)&#xa; prefix:     prefix of the timeseries, before the index of the array&#xa; suffix_X:   suffix to complete the name of the series containing the X value. If [nil], use the index of the array.&#xa; suffix_Y:   suffix to complete the name of the series containing the Y value&#xa; timestamp:   usually the tracker_time variable&#xa;              &#xa; Example:&#xa; &#xa; Assuming we have multiple series in the form:&#xa; &#xa;   /trajectory/node.{X}/position/x&#xa;   /trajectory/node.{X}/position/y&#xa;   &#xa; where {N} is the index of the array (integer). We can create a reactive series from the array with:&#xa; &#xa;   new_series = ScatterXY.new(&quot;my_trajectory&quot;) &#xa;   CreateSeriesFromArray( new_series, &quot;/trajectory/node&quot;, &quot;position/x&quot;, &quot;position/y&quot;, tracker_time );&#xa;--]]&#xa;&#xa;function CreateSeriesFromArray( new_series, prefix, suffix_X, suffix_Y, timestamp )&#xa;  &#xa;  --- clear previous values&#xa;  new_series:clear()&#xa;  &#xa;  --- Append points to new_series&#xa;  index = 0&#xa;  while(true) do&#xa;&#xa;    x = index;&#xa;    -- if not nil, get the X coordinate from a series&#xa;    if suffix_X ~= nil then &#xa;      series_x = TimeseriesView.find( string.format( &quot;%s.%d/%s&quot;, prefix, index, suffix_X) )&#xa;      if series_x == nil then break end&#xa;      x = series_x:atTime(timestamp)&#x9; &#xa;    end&#xa;    &#xa;    series_y = TimeseriesView.find( string.format( &quot;%s.%d/%s&quot;, prefix, index, suffix_Y) )&#xa;    if series_y == nil then break end &#xa;    y = series_y:atTime(timestamp)&#xa;    &#xa;    new_series:push_back(x,y)&#xa;    index = index+1&#xa;  end&#xa;end&#xa;&#xa;--[[ Similar to the built-in function GetSeriesNames(), but select only the names with a give prefix. --]]&#xa;&#xa;function GetSeriesNamesByPrefix(prefix)&#xa;  -- GetSeriesNames(9 is a built-in function&#xa;  all_names = GetSeriesNames()&#xa;  filtered_names = {}&#xa;  for i, name in ipairs(all_names)  do&#xa;    -- check the prefix&#xa;    if name:find(prefix, 1, #prefix) then&#xa;      table.insert(filtered_names, name);&#xa;    end&#xa;  end&#xa;  return filtered_names&#xa;end&#xa;&#xa;--[[ Modify an existing series, applying offsets to all their X and Y values&#xa;&#xa; series: an existing timeseries, obtained with TimeseriesView.find(name)&#xa; delta_x: offset to apply to each x value&#xa; delta_y: offset to apply to each y value &#xa;  &#xa;--]]&#xa;&#xa;function ApplyOffsetInPlace(series, delta_x, delta_y)&#xa;  -- use C++ indeces, not Lua indeces&#xa;  for index=0, series:size()-1 do&#xa;    x,y = series:at(index)&#xa;    series:set(index, x + delta_x, y + delta_y)&#xa;  end&#xa;end&#xa;"/>
+   <scripts/>
+  </plugin>
+  <plugin ID="CSV Exporter"/>
+  <plugin ID="ROS /rosout Visualization"/>
+  <plugin ID="ROS Topic Re-Publisher"/>
+ </Plugins>
+ <!-- - - - - - - - - - - - - - - -->
+ <previouslyLoaded_Datafiles/>
+ <previouslyLoaded_Streamer name="ROS Topic Subscriber"/>
+ <!-- - - - - - - - - - - - - - - -->
+ <customMathEquations/>
+ <snippets/>
+ <!-- - - - - - - - - - - - - - - -->
+</root>
+

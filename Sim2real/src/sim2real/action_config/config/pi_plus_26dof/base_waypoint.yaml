@@ -1,0 +1,30 @@
+multi_waypoint_config:
+  - name: "cheer"
+    path: "action_config/cheer_6.boost"
+    remark: "双手欢呼"
+    type: 5
+    duration: 0.013125
+    # duration: 0.1
+    torque: 0.0 # 最大力矩
+    velocity: 0.00 # boost文件每个点的时间间隔
+    back_to_zero: true
+    back_to_walk: true
+    loop: true
+    # type5用的参数
+    time_interval: 0.05 # boost文件每个点的时间间隔 * boost文件点的数量等于执行时间
+
+  - name: "hello"
+    path: "action_config/hello_6.boost"
+    remark: "右手招手"
+    type: 5
+    duration: 0.013125
+    # duration: 0.1
+    torque: 0.0 # 最大力矩
+    velocity: 0.00 # boost文件每个点的时间间隔
+    back_to_zero: true
+    back_to_walk: true
+    loop: true
+    # type5用的参数
+    time_interval: 0.07 # boost文件每个点的时间间隔 * boost文件点的数量等于执行时间
+
+series_waypoint_config:

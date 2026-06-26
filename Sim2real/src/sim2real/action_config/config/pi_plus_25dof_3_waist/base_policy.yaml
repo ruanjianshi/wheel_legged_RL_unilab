@@ -1,0 +1,113 @@
+# 按键说明
+# abxy对应abxy
+# r l 遥感按下
+# rb lb 肩键
+# dpl 十字键左 
+# dpr 十字键右
+# dpu 十字键上
+# dpd 十字键下
+# back back键
+# start start键
+# center 开机键
+policy_change_config:
+  - name: "set_ball_kick"
+    policy: "set_ball_kick" # 对应rl.yaml的name字段
+    path: "motion/byd_set_ball_kick.yaml"
+    remark: "定位球"
+    back_to_walk: true
+    back_to_zero: true
+    loop: false
+
+  - name: "small_kick"
+    policy: "small_kick"
+    path: "motion/byd_small_kick.yaml"
+    remark: "小脚踢球"
+    back_to_walk: true
+    back_to_zero: true
+    loop: false
+    pre_policy_change_condition: "velocity more than 0.0" # 触发下面的动作前的条件: 速度大于0
+    pre_policy_change_description: "left leg front" # 条件描述: 需要左腿在前
+
+  - name: "big_kick"
+    policy: "big_kick"
+    path: "motion/byd_big_kick.yaml"
+    remark: "大脚踢球"
+    back_to_walk: true
+    back_to_zero: true
+    loop: false
+    pre_policy_change_condition: "velocity more than 0.0" # 触发下面的动作前的条件: 速度大于0
+    pre_policy_change_description: "left leg front" # 条件描述: 需要左腿在前
+
+  - name: "tackle"
+    policy: "tackle"
+    path: "motion/byd_tackle.yaml"
+    remark: "抢断"
+    back_to_walk: true
+    back_to_zero: true
+    loop: false
+
+  - name: "confrontation"
+    policy: "confrontation"
+    path: "motion/byd_confrontation.yaml"
+    remark: "对抗"
+    back_to_walk: true
+    back_to_zero: true
+    loop: false
+
+  - name: "bydticao"
+    policy: "bydticao"
+    path: "motion/byd_ticao_pi.yaml"
+    remark: "旭日东升"
+    back_to_walk: true
+    back_to_zero: true
+    loop: false
+
+  - name: "byd_pi_flip"
+    policy: "byd_pi_flip"
+    path: "motion/byd_pi_flip.yaml"
+    remark: "pi侧手翻"
+    back_to_walk: true
+    back_to_zero: true
+    loop: false
+
+  - name: "byd_pi_S_kick"
+    policy: "byd_pi_S_kick"
+    path: "motion/byd_pi_S_kick.yaml"
+    remark: "S过人"
+    back_to_walk: true
+    back_to_zero: true
+    loop: false
+
+  - name: "byd_pi_fangshou"
+    policy: "byd_pi_fangshou"
+    path: "motion/byd_pi_fangshou.yaml"
+    remark: "防守"
+    back_to_walk: true
+    back_to_zero: true
+    loop: false
+
+##############################舞蹈##########################
+  - name: "byd_pi_waist_dance1_subject2"
+    policy: "byd_pi_waist_dance1_subject2"
+    path: "motion/byd_pi_waist_dance1_subject2.yaml"
+    remark: "舞蹈1"
+    back_to_walk: true
+    back_to_zero: true
+    loop: false
+
+  - name: "byd_pi_waist_dance1_subject2_lab"
+    policy: "byd_pi_waist_dance1_subject2_lab"
+    path: "motion/byd_pi_waist_dance1_subject2_lab.yaml"
+    remark: "舞蹈1 lab"
+    back_to_walk: true
+    back_to_zero: true
+    loop: false
+
+  - name: "byd_dance1_subject1_pi_flip_cut1"
+    policy: "byd_dance1_subject1_pi_flip_cut1"
+    path: "motion/byd_dance1_subject1_pi_flip_cut1.yaml"
+    remark: "来回走加侧手翻"
+    back_to_walk: true
+    back_to_zero: true
+    loop: false
+

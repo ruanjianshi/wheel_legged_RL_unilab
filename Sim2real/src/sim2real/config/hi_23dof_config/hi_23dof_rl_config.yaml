@@ -1,0 +1,10 @@
+walk:
+  # - name: "footstep"
+  #   path: "walk/footstep_hi20dof.yaml"
+motion:
+  # - name: "test"
+  #   path: "motion/testHi.yaml"
+  - name: "tpose"
+    path: "motion/tposehi.yaml"
+  - name: "form1"
+    path: "motion/byd_form1_hi.yaml"

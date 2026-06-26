@@ -1,0 +1,70 @@
+# @package _global_
+# =============================================================================
+# XqRobotV2 两轮腿机器人 PPO 训练配置 (MuJoCo 后端)
+# 基于 wheel_legged_genesis (Albusgive/CJ-003) 参考设计
+# 含: 9帧历史堆叠, 课程学习, 域随机化, 触地终止
+# =============================================================================
+training:
+  task_name: XqRobotV2WalkFlat
+  sim_backend: mujoco
+
+algo:
+  num_envs: 1024
+  num_steps_per_env: 25
+  max_iterations: 5000
+  empirical_normalization: false
+  obs_groups:
+    default:
+      - actor
+  policy:
+    activation: elu
+    actor_hidden_dims: [512, 512, 256, 128]
+    critic_hidden_dims: [512, 512, 256, 128]
+    init_noise_std: 0.5                   # 降低: 参考 1.5 太高导致初始乱动
+  algorithm:
+    learning_rate: 1.0e-4
+    entropy_coef: 0.01
+    clip_param: 0.2
+    gamma: 0.99
+    lam: 0.95
+    desired_kl: 0.01
+    max_grad_norm: 1.0
+
+env:
+  control_config:
+    action_scale: 0.5
+    wheel_action_scale: 10.0
+    clip_actions: 100.0
+  commands:
+    # 课程学习从 30% 起步, 动态扩展到全范围
+    vel_limit:
+      - [0.0, 0.0, 0.0, -0.1]            # tsk 缩小到 ±0.1, 减少不对称
+      - [0.6, 0.0, 1.0, 0.1]             # max: ang_vel 初始小, 由逆比控制
+    resampling_time: 3.0
+  curriculum:
+    enabled: true
+  domain_rand:
+    randomize_base_mass: false            # 先关闭, 稳定后再开
+    randomize_ground_friction: false
+    randomize_kp: false
+    randomize_kd: false
+    random_com: false
+
+reward:
+  only_positive_rewards: false
+  scales:
+    tracking_lin_vel: 1.5
+    tracking_ang_vel: 1.5
+    lin_vel_z: -0.2
+    ang_vel_xy: -0.02
+    base_height: -5.0                   # 从 -10 降低, 允许加速时微蹲
+    orientation: -5.0                    # 从 -14 降低, 允许加速时微倾
+    joint_action_rate: -0.1
+    wheel_action_rate: -0.015
+    similar_calf: -0.3
+    tsk: -2.0
+    alive: 1.0
+  tracking_sigma: 0.3
+  base_height_target: 0.65
+  max_tilt_deg: 60.0
+  min_base_height: 0.20

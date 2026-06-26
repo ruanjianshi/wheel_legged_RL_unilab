@@ -1,0 +1,116 @@
+# policy_name: "up/model_13000_Pi_yangwoup_fut_nowaist_0826.rknn"
+# policy_name: "up/model_10000_Pi_yangwoup_fut_nowaist_0831.rknn"
+# policy_name: "up/model_12000_Pi_fanyangwoup_fut_nowaist3_50_noise4_1_0907.rknn"
+policy_name: "up/model_12000_Pi_fanyangwoup_fut_nowaist3_50_noise4_1a_0911.rknn"
+# policy_name: "up/model_12000_Pi_fanyangwoup_fut_nowaist3_50_noise4_1a_0911.trt"
+
+# future_file_name: "up/yangwo_0826.json"
+# future_file_name: "up/yangwo_0831.json"
+# future_file_name: "up/fanyangwo_0907.json"
+future_file_name: "up/fanyangwo_0911.json"
+
+algorithm: "pbhc_future"
+
+motor_group: "all-pi_plus_pbhc_future"
+
+dofs: 20
+
+frame_stack: 5
+
+num_single_obs: 66
+
+# motion_len: 7.1 # 0826 0831
+# motion_len: 4.27 # 0907
+motion_len: 4.75 # 0911
+
+cmd_lin_vel_scale: 2.0
+cmd_ang_vel_scale: 0.25
+rbt_lin_pos_scale: 1.0
+rbt_lin_vel_scale: 0.05
+rbt_ang_vel_scale: 0.25
+
+clip_obs: 100.0
+
+pd_ctrl_f: 200 
+rl_ctrl_f: 50
+
+action_scale: 0.25
+
+joint_names: [ 
+'l_hip_pitch_joint', 'l_hip_roll_joint', 'l_thigh_joint', 'l_calf_joint', 'l_ankle_pitch_joint', 'l_ankle_roll_joint',
+'l_shoulder_pitch_joint', 'l_shoulder_roll_joint', 'l_upper_arm_joint', 'l_elbow_joint',
+'r_hip_pitch_joint', 'r_hip_roll_joint', 'r_thigh_joint', 'r_calf_joint', 'r_ankle_pitch_joint', 'r_ankle_roll_joint',
+'r_shoulder_pitch_joint', 'r_shoulder_roll_joint', 'r_upper_arm_joint', 'r_elbow_joint']
+
+# policy顺序
+clip_actions_lower: [-12, -12, -12, -12, -12, -12,
+                     -12, -12, -12, -12,
+                     -12, -12, -12, -12, -12, -12,
+                     -12, -12, -12, -12]
+clip_actions_upper: [ 12,  12,  12,  12,  12,  12,
+                      12,  12,  12,  12,
+                      12,  12,  12,  12,  12,  12,
+                      12,  12,  12,  12]
+
+# clip_output_lower:  [-3.14, -3.14, -3.14, -3.14, -3.14, -3.14,
+#                      -3.14, -3.14, -3.14, -3.14,
+#                      -3.14, -3.14, -3.14, -3.14, -3.14, -3.14,
+#                      -3.14, -3.14, -3.14, -3.14]
+# clip_output_upper: [  3.14,  3.14, 3.14, 3.14, 3.14, 3.14,
+#                       3.14,  3.14, 3.14, 3.14,
+#                       3.14,  3.14, 3.14, 3.14, 3.14, 3.14,
+#                       3.14,  3.14, 3.14, 3.14,]
+
+# clip_output_lower:  [-3.12, -0.31, -2.87, -2.49, -0.92, -0.78,
+#                      -4.18, -0.36, -2.61, -1.91,
+#                      -3.12, -3.14, -2.87, -2.49, -0.97, -0.92,
+#                      -4.18, -3.40, -2.61, -2.61]
+# clip_output_upper: [  2.94,  3.14,  2.87,  2.49,  0.92,  0.78,
+#                       1.04,  3.40,  2.61,  1.91,
+#                       2.94,  0.31,  2.87,  2.49,  0.92,  0.79,
+#                       1.04,  0.36,  2.61, 1.91 ]
+#
+clip_output_lower:  [-3.12, -0.31, -2.87, -2.49, -0.92, -0.78,
+                     # -4.18, -3.40, -2.61, -1.91,
+                     -3.0892, -2.2882, -1.88, -1.88,
+                     -3.12, -3.14, -2.87, -2.49, -0.97, -0.92,
+                     # -4.18, -3.40, -2.61, -2.61]
+                     -3.0892, -2.2882, -1.88, -1.88]
+clip_output_upper: [  2.94,  3.14,  2.87,  2.49,  0.92,  0.78,
+                      # 1.04,  0.36,  2.61,  1.91,
+                      1.2, 2.2882, 1.88, 1.88,
+                      2.94,  0.31,  2.87,  2.49,  0.92,  0.79,
+                      # 1.04,  0.36,  2.61,  1.91]
+                      1.2, 2.2882, 1.88, 1.88 ]
+#
+# kp: [00, 00, 00, 00, 00, 00,
+#      00, 00, 00, 00,
+#      00, 00, 00, 00, 00, 00,
+#      00, 00, 00, 00]
+# kd: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+#      0.0, 0.0, 0.0, 0.0,
+#      0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+#      0.0, 0.0, 0.0, 0.0]
+#
+kp: [80, 80, 80, 80, 80, 80,
+     30, 30, 15, 30,
+     80, 80, 80, 80, 80, 80,
+     30, 30, 15, 30]
+kd: [1.1, 1.1, 1.1, 1.1, 1.1, 1.1,
+     0.6, 0.6, 0.6, 0.6,
+     1.1, 1.1, 1.1, 1.1, 1.1, 1.1,
+     0.6, 0.6, 0.6, 0.6]
+
+# 2.0.0机器人
+urdf_offset: [ 0.00,  0.00,  0.00,  0.00,  0.00,  0.00,
+               1.57, -1.57,  0.00,  0.00,
+               # 0.00,  0.00,  0.00,  0.00,
+               0.00,  0.00,  0.00,  0.00,  0.00,  0.00,
+               1.57,  1.57,  0.00,  0.00]
+               # 0.00,  0.00, -0.00,  0.00]
+
+# 2.0.0 之前的机器人
+# urdf_offset: [ 0.00,  0.00,  0.00,  0.00,  0.00,  0.00,
+#                1.57, -1.57,  1.57,  0.00,
+#                0.00,  0.00,  0.00,  0.00,  0.00,  0.00,
+#                1.57,  1.57, -1.57,  0.00]

@@ -1,0 +1,3 @@
+walk:
+  - name: "lr"
+    path: "walk/lr.yaml"

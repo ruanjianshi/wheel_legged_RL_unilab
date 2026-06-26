@@ -1,0 +1,60 @@
+
+      
+      
+      终端运行
+      sudo killall -9 rosmaster
+      sim2real_pi_plus_dance.sh
+
+
+以下是商演跳舞键位：
+production_type: "Business performance"
+  multi_waypoint_config:
+    - name: "cheer"
+      key: "rt+a"
+      remark: "双手欢呼"
+
+    - name: "hello"
+      key: "rt+r"
+      remark: "右手招手"
+
+    - name: "woshou"
+      key: "rt+y"
+      remark: "握手"
+
+  series_waypoint_config:
+    - name: "xuridongsheng"
+      key: "rt+b"
+      remark: "旭日东升"
+
+  policy_change_config:
+    - name: "bydticao"
+      key: "lt+b"
+      remark: "旭日东升"
+
+    - name: "byddance"
+      remark: "charlies舞蹈"
+      key: "lt+rt+y"
+    
+    - name: "byd_bb"
+      remark: "bb"
+      key: "lt+rt+dpu"
+
+    - name: "byd_demo22"
+      remark: "demo22"
+      key: "lt+rt+dpl"
+
+    - name: "byd_sp8"
+      remark: "sp8"
+      key: "lt+rt+dpd"
+
+    - name: "byd_zzx3"
+      remark: "zzx3"
+      key: "lt+rt+dpr"
+
+    - name: "byd_kongfu"
+      remark: "功夫打拳"
+      key: "rt+dpd"
+
+    - name: "byd_bf4"
+      remark: "后手翻"
+      key: "rt+dpr"

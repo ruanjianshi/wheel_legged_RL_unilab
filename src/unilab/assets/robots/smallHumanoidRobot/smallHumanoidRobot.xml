@@ -1,0 +1,258 @@
+<mujoco model="smallHumanoidRobot">
+  <default>
+    <default class="robot">
+      <joint damping="2" armature="0.01" frictionloss="0.2" />
+      <default class="visual">
+        <geom contype="0" conaffinity="0" group="2" />
+      </default>
+      <default class="collision">
+        <geom contype="0" conaffinity="1" group="3" />
+      </default>
+    </default>
+  </default>
+  <compiler angle="radian" meshdir="assets" balanceinertia="true" />
+  <worldbody>
+    <body name="base_link" childclass="robot" pos="0 0 0.55">
+      <inertial pos="0.0018724 0.1500827 0.0055986" mass="4.1670462" diaginertia="0.0503469 0.0136779 0.0497359" />
+      <site name="imu_in_base" size="0.01" />
+      <geom name="base_link_collision" type="mesh" mesh="base_link_collision_base_link" class="collision" />
+      <geom name="base_link_visual" type="mesh" mesh="base_link_base_link" class="visual" />
+      <!-- Left Leg -->
+      <body name="left_leg_link_1" pos="0.0475 0 -0.30668" quat="0.7071 0.7071 0 0">
+        <inertial pos="0.0296336 -0.0001458 0.0009635" mass="0.2715211" diaginertia="0.0001764 0.0001918 0.0001915" />
+        <joint name="left_leg_joint_1" type="hinge" range="-1.05 1.05" axis="1 0 0" />
+        <geom name="left_leg_link_1_collision" type="mesh" mesh="left_leg_link_1_collision_left_leg_roll_link_1" class="collision" />
+        <geom name="left_leg_link_1_visual" type="mesh" mesh="left_leg_link_1_left_leg_roll_link_1" class="visual" />
+        <body name="left_leg_link_2" pos="0.034 0 0.02415">
+          <inertial pos="0.0000501 -0.0515095 -0.0226771" mass="0.3690773" diaginertia="0.0006117 0.0003386 0.0004883" />
+          <joint name="left_leg_joint_2" type="hinge" range="-0.95 0.95" axis="0 0 1" />
+          <geom name="left_leg_link_2_collision" type="mesh" mesh="left_leg_link_2_collision_left_leg_roll_link_2" class="collision" />
+          <geom name="left_leg_link_2_visual" type="mesh" mesh="left_leg_link_2_left_leg_roll_link_2" class="visual" />
+          <body name="left_leg_link_3" pos="0 -0.0974 -0.024483">
+            <inertial pos="0.0007201 -0.020769650785889 0.0007505" mass="0.1619561" diaginertia="0.0001068 0.0001711 0.000198" />
+            <joint name="left_leg_joint_3" type="hinge" range="-1.05 1.05" axis="0 1 0" />
+            <geom name="left_leg_link_3_collision" type="mesh" mesh="left_leg_link_3_collision_left_leg_roll_link_3" class="collision" />
+            <geom name="left_leg_link_3_visual" type="mesh" mesh="left_leg_link_3_left_leg_roll_link_3" class="visual" />
+            <body name="left_leg_link_4" pos="0.033 -0.045 -1.6844E-05">
+              <inertial pos="-0.0295098 -0.0701551 0.0000251" mass="0.4637839" diaginertia="0.0020014 0.0002305 0.0020325" />
+              <joint name="left_leg_joint_4" type="hinge" range="-1.05 1.05" axis="1 0 0" />
+              <geom name="left_leg_link_4_collision" type="mesh" mesh="left_leg_link_4_collision_left_leg_roll_link_4" class="collision" />
+              <geom name="left_leg_link_4_visual" type="mesh" mesh="left_leg_link_4_left_leg_roll_link_4" class="visual" />
+              <body name="left_leg_link_5" pos="-0.2235 -0.14 0">
+                <inertial pos="-0.0276151 -0.0122482 0.0350664" mass="0.5703455" diaginertia="0.0016737 0.0016062 0.0005409" />
+                <joint name="left_leg_joint_5" type="hinge" range="-1.05 1.05" axis="1 0 0" />
+                <geom name="left_leg_link_5_collision" type="mesh" mesh="left_leg_link_5_collision_left_leg_roll_link_5" class="collision" />
+                <geom name="left_leg_link_5_visual" type="mesh" mesh="left_leg_link_5_left_leg_roll_link_5" class="visual" />
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+      <!-- Right Leg -->
+      <body name="right_leg_link_1" pos="-0.0475 0 -0.30668" quat="0.7071 0.7071 0 0">
+        <inertial pos="-0.025507 -0.00012289 -0.0018071" mass="0.14175" diaginertia="0.0001135 0.0001234 0.0001258" />
+        <joint name="right_leg_joint_1" type="hinge" range="-1.05 1.05" axis="1 0 0" />
+        <geom name="right_leg_link_1_collision" type="mesh" mesh="right_leg_link_1_collision_right_leg_roll_link_1" class="collision" />
+        <geom name="right_leg_link_1_visual" type="mesh" mesh="right_leg_link_1_right_leg_roll_link_1" class="visual" />
+        <body name="right_leg_link_2" pos="-0.034 0 0.02415">
+          <inertial pos="-0.0004654 -0.051653 -0.0225199" mass="0.3703427" diaginertia="0.0006142 0.0003393 0.000491" />
+          <joint name="right_leg_joint_2" type="hinge" range="-0.95 0.95" axis="0 0 1" />
+          <geom name="right_leg_link_2_collision" type="mesh" mesh="right_leg_link_2_collision_right_leg_roll_link_2" class="collision" />
+          <geom name="right_leg_link_2_visual" type="mesh" mesh="right_leg_link_2_right_leg_roll_link_2" class="visual" />
+          <body name="right_leg_link_3" pos="0 -0.0974 -0.024483">
+            <inertial pos="-0.00071991363656633 -0.0207696203093677 0.000683405700740188" mass="0.1619565" diaginertia="0.0001069 0.0001712 0.000198" />
+            <joint name="right_leg_joint_3" type="hinge" range="-1.05 1.05" axis="0 1 0" />
+            <geom name="right_leg_link_3_collision" type="mesh" mesh="right_leg_link_3_collision_right_leg_roll_link_3" class="collision" />
+            <geom name="right_leg_link_3_visual" type="mesh" mesh="right_leg_link_3_right_leg_roll_link_3" class="visual" />
+            <body name="right_leg_link_4" pos="-0.033 -0.045 -1.6844E-05">
+              <inertial pos="0.0294697 -0.07 -0.0000229" mass="0.4640424" diaginertia="0.0020024 0.0002313 0.0020333" />
+              <joint name="right_leg_joint_4" type="hinge" range="-1.05 1.05" axis="1 0 0" />
+              <geom name="right_leg_link_4_collision" type="mesh" mesh="right_leg_link_4_collision_right_leg_roll_link_4" class="collision" />
+              <geom name="right_leg_link_4_visual" type="mesh" mesh="right_leg_link_4_right_leg_roll_link_4" class="visual" />
+              <body name="right_leg_link_5" pos="0.0055 -0.14 0">
+                <inertial pos="0.0276835 -0.012457 0.0363235" mass="0.5574138" diaginertia="0.0016151 0.0015485 0.0005377" />
+                <joint name="right_leg_joint_5" type="hinge" range="-1.05 1.05" axis="1 0 0" />
+                <geom name="right_leg_link_5_collision" type="mesh" mesh="right_leg_link_5_collision_right_leg_roll_link_5" class="collision" />
+                <geom name="right_leg_link_5_visual" type="mesh" mesh="right_leg_link_5_right_leg_roll_link_5" class="visual" />
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+      <!-- Left Arm -->
+      <body name="left_arm_link_1" pos="0.1084 0 -0.14618" quat="0.7071 0.7071 0 0">
+        <inertial pos="0.0170177 -0.0021915 -0.0002472" mass="0.1445562" diaginertia="0.0001281 7.98e-05 0.0001522" />
+        <joint name="left_arm_joint_1" type="hinge" range="-1.05 1.05" axis="1 0 0" />
+        <geom name="left_arm_link_1_collision" type="mesh" mesh="left_arm_link_1_collision_left_arm_roll_link_1" class="collision" />
+        <geom name="left_arm_link_1_visual" type="mesh" mesh="left_arm_link_1_left_arm_roll_link_1" class="visual" />
+        <body name="left_arm_link_2" pos="0.037999 -0.02345 0">
+          <inertial pos="0.0232426 0.0218784 0.0003" mass="0.3228631" diaginertia="0.000153 0.0003394 0.0003404" />
+          <joint name="left_arm_joint_2" type="hinge" range="-1.15 0.95" axis="0 1 0" />
+          <geom name="left_arm_link_2_collision" type="mesh" mesh="left_arm_link_2_collision_left_arm_roll_link_2" class="collision" />
+          <geom name="left_arm_link_2_visual" type="mesh" mesh="left_arm_link_2_left_arm_roll_link_2" class="visual" />
+          <body name="left_arm_link_3" pos="0.072401 0.023451 0">
+            <inertial pos="0.0115729699481561 -0.000136576735254135 -0.00119339311703739" mass="0.159649" diaginertia="0.0001503 0.000187 0.0001216" />
+            <joint name="left_arm_joint_3" type="hinge" range="-1.15 0.95" axis="1 0 0" />
+            <geom name="left_arm_link_3_collision" type="mesh" mesh="left_arm_link_3_collision_left_arm_roll_link_3" class="collision" />
+            <geom name="left_arm_link_3_visual" type="mesh" mesh="left_arm_link_3_left_arm_roll_link_3" class="visual" />
+            <body name="left_arm_link_4" pos="0.038001 0 -0.023451">
+              <inertial pos="0.02913 0.0000243 0.0218956" mass="0.3841067" diaginertia="0.0001278 0.0003858 0.0003793" />
+              <joint name="left_arm_joint_4" type="hinge" range="-1.05 1.05" axis="0 0 1" />
+              <geom name="left_arm_link_4_collision" type="mesh" mesh="left_arm_link_4_collision_left_arm_roll_link_4" class="collision" />
+              <geom name="left_arm_link_4_visual" type="mesh" mesh="left_arm_link_4_left_arm_roll_link_4" class="visual" />
+              <body name="left_arm_link_5" pos="0.072399 0 0.02345">
+                <inertial pos="0.0413703038739432 0.00263396763694079 0.00013873537640311" mass="0.1395434" diaginertia="7.39e-05 0.0001379 0.0001393" />
+                <joint name="left_arm_joint_5" type="hinge" range="-1.05 1.05" axis="1 0 0" />
+                <geom name="left_arm_link_5_collision" type="mesh" mesh="left_arm_link_5_collision_left_arm_roll_link_5" class="collision" />
+                <geom name="left_arm_link_5_visual" type="mesh" mesh="left_arm_link_5_left_arm_roll_link_5" class="visual" />
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+      <!-- Right Arm -->
+      <body name="right_arm_link_1" pos="-0.1084 0 -0.14618" quat="0.7071 0.7071 0 0">
+        <inertial pos="-0.0170177516832803 0.000247202056602086 -0.00227600913786212" mass="0.1445561" diaginertia="0.0001273 0.0001515 7.98e-05" />
+        <joint name="right_arm_joint_1" type="hinge" range="-1.05 1.05" axis="1 0 0" />
+        <geom name="right_arm_link_1_collision" type="mesh" mesh="right_arm_link_1_collision_right_arm_roll_link_1" class="collision" />
+        <geom name="right_arm_link_1_visual" type="mesh" mesh="right_arm_link_1_right_arm_roll_link_1" class="visual" />
+        <body name="right_arm_link_2" pos="-0.037999 0 -0.02345">
+          <inertial pos="-0.0003502 -0.0232632 0.0217002" mass="0.3219147" diaginertia="0.0003396 0.000152 0.000339" />
+          <joint name="right_arm_joint_2" type="hinge" range="-1.05 1.05" axis="0 0 1" />
+          <geom name="right_arm_link_2_collision" type="mesh" mesh="right_arm_link_2_collision_right_arm_roll_link_2" class="collision" />
+          <geom name="right_arm_link_2_visual" type="mesh" mesh="right_arm_link_2_right_arm_roll_link_2" class="visual" />
+          <body name="right_arm_link_3" pos="0 -0.072401 0.023451">
+            <inertial pos="-0.00128647301796159 -0.0115719190948319 -4.97501234396632E-05" mass="0.1596691147409" diaginertia="0.0001218 0.0001503 0.0001867" />
+            <joint name="right_arm_joint_3" type="hinge" range="-1.05 1.05" axis="0 1 0" />
+            <geom name="right_arm_link_3_collision" type="mesh" mesh="right_arm_link_3_collision_right_arm_roll_link_3" class="collision" />
+            <geom name="right_arm_link_3_visual" type="mesh" mesh="right_arm_link_3_right_arm_roll_link_3" class="visual" />
+            <body name="right_arm_link_4" pos="-0.023412 -0.038 -0.0013206">
+              <inertial pos="0.0232370436429875 -0.0293447198612357 0.00124502228231063" mass="0.171844830531404" diaginertia="0.0001807 8.49e-05 0.0001865" />
+              <joint name="right_arm_joint_4" type="hinge" range="-1.05 1.05" axis="0.99841 0 0.056293" />
+              <geom name="right_arm_link_4_collision" type="mesh" mesh="right_arm_link_4_collision_right_arm_roll_link_4" class="collision" />
+              <geom name="right_arm_link_4_visual" type="mesh" mesh="right_arm_link_4_right_arm_roll_link_4" class="visual" />
+              <body name="right_arm_link_5" pos="0.023413 -0.0724 0.0013201">
+                <inertial pos="-0.00229726933629162 -0.0390233933717345 0.000491177203369308" mass="0.192601946549048" diaginertia="0.0001706 9.45e-05 0.0001732" />
+                <joint name="right_arm_joint_5" type="hinge" range="-1.05 1.05" axis="0 1 0" />
+                <geom name="right_arm_link_5_collision" type="mesh" mesh="right_arm_link_5_collision_right_arm_roll_link_5" class="collision" />
+                <geom name="right_arm_link_5_visual" type="mesh" mesh="right_arm_link_5_right_arm_roll_link_5" class="visual" />
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+      <freejoint name="floating_base" />
+    </body>
+  </worldbody>
+  <asset>
+    <mesh name="base_link_collision_base_link" file="base_link.STL" />
+    <mesh name="base_link_base_link" file="base_link.STL" />
+    <mesh name="left_leg_link_1_collision_left_leg_roll_link_1" file="left_leg_roll_link_1.STL" />
+    <mesh name="left_leg_link_1_left_leg_roll_link_1" file="left_leg_roll_link_1.STL" />
+    <mesh name="left_leg_link_2_collision_left_leg_roll_link_2" file="left_leg_roll_link_2.STL" />
+    <mesh name="left_leg_link_2_left_leg_roll_link_2" file="left_leg_roll_link_2.STL" />
+    <mesh name="left_leg_link_3_collision_left_leg_roll_link_3" file="left_leg_roll_link_3.STL" />
+    <mesh name="left_leg_link_3_left_leg_roll_link_3" file="left_leg_roll_link_3.STL" />
+    <mesh name="left_leg_link_4_collision_left_leg_roll_link_4" file="left_leg_roll_link_4.STL" />
+    <mesh name="left_leg_link_4_left_leg_roll_link_4" file="left_leg_roll_link_4.STL" />
+    <mesh name="left_leg_link_5_collision_left_leg_roll_link_5" file="left_leg_roll_link_5.STL" />
+    <mesh name="left_leg_link_5_left_leg_roll_link_5" file="left_leg_roll_link_5.STL" />
+    <mesh name="right_leg_link_1_collision_right_leg_roll_link_1" file="right_leg_roll_link_1.STL" />
+    <mesh name="right_leg_link_1_right_leg_roll_link_1" file="right_leg_roll_link_1.STL" />
+    <mesh name="right_leg_link_2_collision_right_leg_roll_link_2" file="right_leg_roll_link_2.STL" />
+    <mesh name="right_leg_link_2_right_leg_roll_link_2" file="right_leg_roll_link_2.STL" />
+    <mesh name="right_leg_link_3_collision_right_leg_roll_link_3" file="right_leg_roll_link_3.STL" />
+    <mesh name="right_leg_link_3_right_leg_roll_link_3" file="right_leg_roll_link_3.STL" />
+    <mesh name="right_leg_link_4_collision_right_leg_roll_link_4" file="right_leg_roll_link_4.STL" />
+    <mesh name="right_leg_link_4_right_leg_roll_link_4" file="right_leg_roll_link_4.STL" />
+    <mesh name="right_leg_link_5_collision_right_leg_roll_link_5" file="right_leg_roll_link_5.STL" />
+    <mesh name="right_leg_link_5_right_leg_roll_link_5" file="right_leg_roll_link_5.STL" />
+    <mesh name="left_arm_link_1_collision_left_arm_roll_link_1" file="left_arm_roll_link_1.STL" />
+    <mesh name="left_arm_link_1_left_arm_roll_link_1" file="left_arm_roll_link_1.STL" />
+    <mesh name="left_arm_link_2_collision_left_arm_roll_link_2" file="left_arm_roll_link_2.STL" />
+    <mesh name="left_arm_link_2_left_arm_roll_link_2" file="left_arm_roll_link_2.STL" />
+    <mesh name="left_arm_link_3_collision_left_arm_roll_link_3" file="left_arm_roll_link_3.STL" />
+    <mesh name="left_arm_link_3_left_arm_roll_link_3" file="left_arm_roll_link_3.STL" />
+    <mesh name="left_arm_link_4_collision_left_arm_roll_link_4" file="left_arm_roll_link_4.STL" />
+    <mesh name="left_arm_link_4_left_arm_roll_link_4" file="left_arm_roll_link_4.STL" />
+    <mesh name="left_arm_link_5_collision_left_arm_roll_link_5" file="left_arm_roll_link_5.STL" />
+    <mesh name="left_arm_link_5_left_arm_roll_link_5" file="left_arm_roll_link_5.STL" />
+    <mesh name="right_arm_link_1_collision_right_arm_roll_link_1" file="right_arm_roll_link_1.STL" />
+    <mesh name="right_arm_link_1_right_arm_roll_link_1" file="right_arm_roll_link_1.STL" />
+    <mesh name="right_arm_link_2_collision_right_arm_roll_link_2" file="right_arm_roll_link_2.STL" />
+    <mesh name="right_arm_link_2_right_arm_roll_link_2" file="right_arm_roll_link_2.STL" />
+    <mesh name="right_arm_link_3_collision_right_arm_roll_link_3" file="right_arm_roll_link_3.STL" />
+    <mesh name="right_arm_link_3_right_arm_roll_link_3" file="right_arm_roll_link_3.STL" />
+    <mesh name="right_arm_link_4_collision_right_arm_roll_link_4" file="right_arm_roll_link_4.STL" />
+    <mesh name="right_arm_link_4_right_arm_roll_link_4" file="right_arm_roll_link_4.STL" />
+    <mesh name="right_arm_link_5_collision_right_arm_roll_link_5" file="right_arm_roll_link_5.STL" />
+    <mesh name="right_arm_link_5_right_arm_roll_link_5" file="right_arm_roll_link_5.STL" />
+  </asset>
+  <actuator>
+    <position name="left_leg_joint_1" joint="left_leg_joint_1" kp="80" />
+    <position name="left_leg_joint_2" joint="left_leg_joint_2" kp="80" />
+    <position name="left_leg_joint_3" joint="left_leg_joint_3" kp="80" />
+    <position name="left_leg_joint_4" joint="left_leg_joint_4" kp="80" />
+    <position name="left_leg_joint_5" joint="left_leg_joint_5" kp="80" />
+    <position name="right_leg_joint_1" joint="right_leg_joint_1" kp="80" />
+    <position name="right_leg_joint_2" joint="right_leg_joint_2" kp="80" />
+    <position name="right_leg_joint_3" joint="right_leg_joint_3" kp="80" />
+    <position name="right_leg_joint_4" joint="right_leg_joint_4" kp="80" />
+    <position name="right_leg_joint_5" joint="right_leg_joint_5" kp="80" />
+    <position name="left_arm_joint_1" joint="left_arm_joint_1" kp="40" />
+    <position name="left_arm_joint_2" joint="left_arm_joint_2" kp="40" />
+    <position name="left_arm_joint_3" joint="left_arm_joint_3" kp="40" />
+    <position name="left_arm_joint_4" joint="left_arm_joint_4" kp="40" />
+    <position name="left_arm_joint_5" joint="left_arm_joint_5" kp="40" />
+    <position name="right_arm_joint_1" joint="right_arm_joint_1" kp="40" />
+    <position name="right_arm_joint_2" joint="right_arm_joint_2" kp="40" />
+    <position name="right_arm_joint_3" joint="right_arm_joint_3" kp="40" />
+    <position name="right_arm_joint_4" joint="right_arm_joint_4" kp="40" />
+    <position name="right_arm_joint_5" joint="right_arm_joint_5" kp="40" />
+  </actuator>
+  <sensor>
+    <framelinvel name="local_linvel" objtype="body" objname="base_link" />
+    <gyro name="gyro" site="imu_in_base" />
+    <framezaxis name="upvector" objtype="body" objname="base_link" />
+    <jointpos name="left_leg_joint_1_pos" joint="left_leg_joint_1" />
+    <jointvel name="left_leg_joint_1_vel" joint="left_leg_joint_1" />
+    <jointpos name="left_leg_joint_2_pos" joint="left_leg_joint_2" />
+    <jointvel name="left_leg_joint_2_vel" joint="left_leg_joint_2" />
+    <jointpos name="left_leg_joint_3_pos" joint="left_leg_joint_3" />
+    <jointvel name="left_leg_joint_3_vel" joint="left_leg_joint_3" />
+    <jointpos name="left_leg_joint_4_pos" joint="left_leg_joint_4" />
+    <jointvel name="left_leg_joint_4_vel" joint="left_leg_joint_4" />
+    <jointpos name="left_leg_joint_5_pos" joint="left_leg_joint_5" />
+    <jointvel name="left_leg_joint_5_vel" joint="left_leg_joint_5" />
+    <jointpos name="right_leg_joint_1_pos" joint="right_leg_joint_1" />
+    <jointvel name="right_leg_joint_1_vel" joint="right_leg_joint_1" />
+    <jointpos name="right_leg_joint_2_pos" joint="right_leg_joint_2" />
+    <jointvel name="right_leg_joint_2_vel" joint="right_leg_joint_2" />
+    <jointpos name="right_leg_joint_3_pos" joint="right_leg_joint_3" />
+    <jointvel name="right_leg_joint_3_vel" joint="right_leg_joint_3" />
+    <jointpos name="right_leg_joint_4_pos" joint="right_leg_joint_4" />
+    <jointvel name="right_leg_joint_4_vel" joint="right_leg_joint_4" />
+    <jointpos name="right_leg_joint_5_pos" joint="right_leg_joint_5" />
+    <jointvel name="right_leg_joint_5_vel" joint="right_leg_joint_5" />
+    <jointpos name="left_arm_joint_1_pos" joint="left_arm_joint_1" />
+    <jointvel name="left_arm_joint_1_vel" joint="left_arm_joint_1" />
+    <jointpos name="left_arm_joint_2_pos" joint="left_arm_joint_2" />
+    <jointvel name="left_arm_joint_2_vel" joint="left_arm_joint_2" />
+    <jointpos name="left_arm_joint_3_pos" joint="left_arm_joint_3" />
+    <jointvel name="left_arm_joint_3_vel" joint="left_arm_joint_3" />
+    <jointpos name="left_arm_joint_4_pos" joint="left_arm_joint_4" />
+    <jointvel name="left_arm_joint_4_vel" joint="left_arm_joint_4" />
+    <jointpos name="left_arm_joint_5_pos" joint="left_arm_joint_5" />
+    <jointvel name="left_arm_joint_5_vel" joint="left_arm_joint_5" />
+    <jointpos name="right_arm_joint_1_pos" joint="right_arm_joint_1" />
+    <jointvel name="right_arm_joint_1_vel" joint="right_arm_joint_1" />
+    <jointpos name="right_arm_joint_2_pos" joint="right_arm_joint_2" />
+    <jointvel name="right_arm_joint_2_vel" joint="right_arm_joint_2" />
+    <jointpos name="right_arm_joint_3_pos" joint="right_arm_joint_3" />
+    <jointvel name="right_arm_joint_3_vel" joint="right_arm_joint_3" />
+    <jointpos name="right_arm_joint_4_pos" joint="right_arm_joint_4" />
+    <jointvel name="right_arm_joint_4_vel" joint="right_arm_joint_4" />
+    <jointpos name="right_arm_joint_5_pos" joint="right_arm_joint_5" />
+    <jointvel name="right_arm_joint_5_vel" joint="right_arm_joint_5" />
+  </sensor>
+</mujoco>

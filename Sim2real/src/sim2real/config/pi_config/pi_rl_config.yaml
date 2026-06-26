@@ -1,0 +1,13 @@
+walk:
+  - name: "lr"
+    path: "walk/lr.yaml"
+  # - name: "dreamwaq"
+  #   path: "walk/dreamwaq.yaml"
+  - name: "footstep"
+    path: "walk/footstep.yaml"
+  # - name: "footstep_jz"
+  #   path: "walk/footstep_jz.yaml"
+up:
+  # - name: "host"
+  #   path: "up/host.yaml"
+

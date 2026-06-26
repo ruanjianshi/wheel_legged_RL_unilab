@@ -1,0 +1,7 @@
+walk:
+  - name: "lr"
+    path: "walk/lr.yaml"
+  # - name: "footstep"
+  #   path: "walk/footstep.yaml"
+motion:
+up:

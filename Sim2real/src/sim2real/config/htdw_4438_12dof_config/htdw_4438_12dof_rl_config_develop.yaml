@@ -1,0 +1,5 @@
+# Develop 模式：RL 策略配置
+
+walk:
+  - name: "himloco"
+    path: "walk/htdw_4438_himloco.yaml"

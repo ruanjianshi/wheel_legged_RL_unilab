@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>sim2real_dev</name>
+  <version>0.0.0</version>
+  <description>the remote controller example for sim2real develop mode</description>
+  <maintainer email="595259789@qq.com">dgz</maintainer>
+  <license>TODO</license>
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <build_depend>roscpp</build_depend>
+  <build_depend>sensor_msgs</build_depend>
+  <exec_depend>roscpp</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+
+</package>

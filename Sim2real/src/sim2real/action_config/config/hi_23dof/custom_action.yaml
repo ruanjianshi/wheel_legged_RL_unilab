@@ -1,0 +1,10 @@
+- production_type: "football"
+  multi_waypoint_config:
+  series_waypoint_config:
+  policy_change_config:
+
+- production_type: "Business performance"
+  multi_waypoint_config:
+  series_waypoint_config:
+  policy_change_config:
+ 

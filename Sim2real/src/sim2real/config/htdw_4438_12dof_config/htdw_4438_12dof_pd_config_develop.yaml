@@ -1,0 +1,33 @@
+name: "htdw_4438_develop"
+
+dofs: 12
+
+max_power: 300.0
+max_power_duration: 3.0
+
+joint_names: [
+ "FL_hip_joint", "FL_thigh_joint", "FL_calf_joint",
+ "FR_hip_joint", "FR_thigh_joint", "FR_calf_joint",
+ "RL_hip_joint", "RL_thigh_joint", "RL_calf_joint",
+ "RR_hip_joint", "RR_thigh_joint", "RR_calf_joint"]
+
+map_index: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+
+direction: [1, 1, 1,
+           -1, -1, -1,
+           -1, 1, 1,
+            1, -1, -1]
+
+lower: [-1.05, -1.57, -2.71,
+        -1.05, -1.57, -2.71,
+        -1.05, -1.57, -2.71,
+        -1.05, -1.57, -2.71]
+upper: [ 1.05,  3.49, -0.84,
+         1.05,  3.49, -0.84,
+         1.05,  3.49, -0.84,
+         1.05,  3.49, -0.84]
+
+kp: [30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30]
+kd: [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
+
+urdf_offset: [0.0, 0.9, -1.5, 0.0, 0.9, -1.5, 0.0, 0.9, -1.5, 0.0, 0.9, -1.5]

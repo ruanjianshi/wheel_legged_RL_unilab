@@ -1,0 +1,73 @@
+<?xml version="1.0" ?>
+<launch>
+  <arg name = "devel_level" value = "low"/> <!-- low|high|mix -->
+  <arg name = "model_type" value ="pi_plus"/> <!-- pi|pi_plus|hi -->
+  <!-- robot description -->
+  <arg name = "dof_type" default = "22"/>
+  <arg name = "head" default = ""/>
+  <arg name = "mcu_type" default = "STM32H730"/>
+  <arg name = "design" default = "ctrl"/>   
+  <rosparam file = "$(find sim2real)/robot_param/$(arg dof_type)dof_$(arg head)$(arg mcu_type)_$(arg model_type)_$(arg design)_params.yaml" command="load" />
+
+  <!-- <param name="robot_description" command="$(find xacro)/xacro '$(find sim2real)/resources/pi_plus_24dof_250828/urdf/pi_plus_24dof_250828.urdf'"/> -->
+
+  <include file="$(find lr_control)/launch/lr_control.launch"/>
+  <!-- 启动logger节点 -->
+  <node pkg="livelybot_logger" type="livelybot_logger_node" name="livelybot_logger" output="screen"/>
+  <!-- Please note that this is only an example!
+     It is not guaranteed to work with your setup but can be used as a starting point. -->
+  <node pkg="livelybot_power" type="power_node" name="power_node" output="screen"/>
+  <node pkg="livelybot_oled" type="livelybot_oled_node" name="livelybot_oled_node" output="screen">
+        <param name="oled_uart_dev_name" type="string" value="/dev/ttyS4"/>
+  </node>
+  <node pkg="yesense_imu" type="yesense_imu_node" name="yesense_imu_node" required="false" output = "screen" respawn = "true" respawn_delay = "3">
+    <param name="yesense_port" type="string" value="/dev/ttyS7"/>
+    <param name="yesense_baudrate" type="int" value="460800"/>
+  </node>
+
+  <!-- <node pkg="joy" type="joy_node" name="joy_node"/> -->
+  <include file="$(find sim2real_master)/launch/joy_teleop.launch">
+    <arg name = "use_filter" default = "true"/>
+  </include>
+
+  <!-- <node pkg="sim2real_master" type="joy_control.py" name="fsm_control" output="screen"/> -->
+  <arg name="hightorque_hardware_sdk_node" default="false" />
+
+    <group if="$(arg hightorque_hardware_sdk_node)">
+        <node name="usr" pkg="hightorque_hardware_sdk" type="hightorque_hardware_sdk_node" output="screen" />
+    </group>
+  <node pkg="sim2real_master" type="sim2real_master_node" name="sim2real_master_node" output="screen" required="false" respawn = "true" respawn_delay = "3" >
+    <param name="model_type" type="str" value="$(arg model_type)" />
+    <param name="production_type" type="str" value="custom" />
+    <param name="devel_level" type="str" value="$(arg devel_level)" />
+    <param name="kick_duration" type="double" value="0.23" />
+    <param name="use_fell_down_policy" type="bool" value="false" />
+    <param name="use_fell_down_action" type="bool" value="true" />
+
+    <param name="config_path" value="$(find sim2real)/config/" />
+    <!-- 正常模式配置文件 -->
+    <param name="pd_config_file" value="$(find sim2real)/config/$(arg model_type)_$(arg dof_type)dof_config/$(arg model_type)_$(arg dof_type)dof_$(arg head)pd_config.yaml" />
+    <param name="rl_config_file" value="$(find sim2real)/config/$(arg model_type)_$(arg dof_type)dof_config/$(arg model_type)_$(arg dof_type)dof_$(arg head)rl_config.yaml" />
+    <!-- Develop 模式专用配置文件 -->
+    <param name="devel_pd_config_file" value="$(find sim2real)/config/$(arg model_type)_$(arg dof_type)dof_config/$(arg model_type)_$(arg dof_type)dof_pd_config_develop.yaml" />
+    <param name="devel_rl_config_file" value="$(find sim2real)/config/$(arg model_type)_$(arg dof_type)dof_config/$(arg model_type)_$(arg dof_type)dof_rl_config_develop.yaml" />
+    
+    <param name="custom_rl_config_file" value="$(find sim2real)/config/$(arg model_type)_$(arg dof_type)dof_config/$(arg model_type)_$(arg dof_type)dof_rl_config_custom.yaml" />
+    <param name="action_path" value="$(find sim2real)/action_config/config/$(arg model_type)_$(arg dof_type)dof/" />
+    <param name="policy_path" value="$(find sim2real)/policy/"/>
+
+    <!-- <param name="config_file" value="$(find sim2real)/config/config_footstep.yaml"/> -->
+    <param name="dynamic_config_file" value="$(find sim2real)/config/dynamic_config.yaml"/>
+    <param name="resources_dir" value="$(find sim2real)/resources"/>
+    <param name="urdf_path" value="$(find sim2real)/resources/clpai_12dof_0905/urdf/clpai_12dof_0905.urdf"/>
+    <param name="mesh_path" value="$(find sim2real)/resources/clpai_12dof_0905/meshes"/>
+  </node>
+
+  <!-- <node pkg="robot_state_publisher" type="robot_state_publisher" name="robot_state_publisher"> -->
+  <!--     <remap from="/joint_states" to="/sim2real_master_node/rbt_state"/> -->
+  <!-- </node> -->
+
+  <!-- <include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch"> -->
+  <!-- </include> -->
+
+</launch>

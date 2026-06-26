@@ -1,0 +1,123 @@
+# policy_name: "motion/model_40500_action_2025-10-05_09-26-05_wba_pi_plus_waist_dance1_subject2_base_cut.rknn" # 四元数
+# policy_name: "motion/model_50000_action_2025-11-10_09-12-25_dance1_subject2_pi_waist_fat5_0.45.rknn" # 四元数
+# policy_name: "motion/model_73000_action_2025-11-10_22-08-40_dance1_subject2_pi_waist_fat5_0.45.rknn" # 四元数
+# policy_name: "motion/model_73500_action_2025-11-12_15-21-02_dance1_subject2_pi_waist_fat5_0.0305.rknn" # 四元数 好点
+# policy_name: "motion/model_85000_action_2025-11-12_18-24-14_dance1_subject2_pi_waist_fat5_0.0305.rknn" # 四元数
+#
+# policy_name: "motion/model_91000_action_2025-11-13_16-00-21_dance1_subject2_pi_waist_fat5_0.0305.rknn" # 四元数
+# policy_name: "motion/model_114000_action_2025-11-13_22-06-28_dance1_subject2_pi_waist_fat5_0.0305f.rknn" # 四元数
+# policy_name: "motion/model_75000_action_2025-11-14_15-14-59_dance1_subject2_pi_waist_fat5_0.0305ff.rknn" # 四元数
+# policy_name: "motion/model_80500_action_2025-11-14_22-52-06_dance1_subject2_pi_waist_fat5_0.0305ff7.rknn" # 四元数
+
+policy_name: "motion/model_79500_action_2025-11-17_15-01-35_dance1_subject2_pi_waist_fat5_0.0305ff9.rknn" # 四元数
+# policy_name: "motion/model_86500_action_2025-11-17_15-01-35_dance1_subject2_pi_waist_fat5_0.0305ff9.rknn" # 四元数
+detect_falls: false
+
+algorithm: "bydmmc"
+
+# future_file_name: "motion/pi_plus_waist_dance1_subject2_base_cut.json"
+# future_file_name: "motion/dance1_subject2_pi_waist_fat5_0.45.json"
+# future_file_name: "motion/dance1_subject2_pi_waist_fat5_0.0305.json"
+# future_file_name: "motion/dance1_subject2_pi_waist_fat5_0.0305_cut_5003.json" # 裁切
+future_file_name: "motion/dance1_subject2_pi_waist_fat5_0.0305_cut_1552.json" # 裁切
+
+
+motor_group: "all-pi_plus_bydmmc"
+
+dofs: 23
+
+# 四元数
+# ref_pos(dofs) + ref_vel(dofs) + ref_ori(6) + angle_vel(3) + pos(dofs) + vel(dofs) + actions(dofs)
+num_single_obs: 124
+# 重力投影加yaw
+# ref_pos(dofs) + ref_vel(dofs) + ref_pg(3) +ref_yaw(1) + rbt_pg(3) + rbt_yaw(1) + angle_vel(3) + pos(dofs) + vel(dofs) + actions(dofs)
+# num_single_obs: 121
+# 四元数 加 重力投影
+# ref_pos(dofs) + ref_vel(dofs) + ref_ori(6) + ref_pg(3) + rbt_pg(3) + angle_vel(3) + pos(dofs) + vel(dofs) + actions(dofs)
+# num_single_obs: 125
+
+motion_len: 1000.2 # 通过json的数据判断 ，无需在此处写
+
+cmd_lin_vel_scale: 1.0
+cmd_ang_vel_scale: 1.0
+rbt_lin_pos_scale: 1.0
+rbt_lin_vel_scale: 1.0
+rbt_ang_vel_scale: 1.0
+
+clip_obs: 100.0
+
+pd_ctrl_f: 200 
+rl_ctrl_f: 50
+
+action_scale: 1.00
+
+action_scales: [
+0.094,0.094,0.094,
+0.094,0.094,0.167,0.167,
+0.094,0.094,0.167,0.167,
+0.094,0.094,0.167,0.167,
+0.094,0.094,0.167,0.167,
+0.094,0.094,0.167,0.167]
+
+joint_names: [ 
+'l_hip_pitch_joint', 'r_hip_pitch_joint', 'waist_yaw_joint',
+'l_hip_roll_joint', 'r_hip_roll_joint', 'l_shoulder_pitch_joint', 'r_shoulder_pitch_joint', 
+'l_thigh_joint', 'r_thigh_joint', 'l_shoulder_roll_joint', 'r_shoulder_roll_joint', 
+'l_calf_joint', 'r_calf_joint', 'l_upper_arm_joint', 'r_upper_arm_joint', 
+'l_ankle_pitch_joint', 'r_ankle_pitch_joint', 'l_elbow_joint', 'r_elbow_joint', 
+'l_ankle_roll_joint','r_ankle_roll_joint', 'l_wrist_joint', 'r_wrist_joint']
+
+# policy顺序
+clip_actions_lower: [-32, -32, -32,
+                     -32, -32, -32, -32,
+                     -32, -32, -32, -32,
+                     -32, -32, -32, -32,
+                     -32, -32, -32, -32,
+                     -32, -32, -32, -32]
+clip_actions_upper: [ 32,  32,  32,
+                      32,  32,  32,  32,
+                      32,  32,  32,  32,
+                      32,  32,  32,  32,
+                      32,  32,  32,  32,
+                      32,  32,  32,  32]
+
+clip_output_lower:  [-3.14,  -3.14,  -3.14,
+                     -3.14,  -3.14,  -3.14,  -3.14,
+                     -3.14,  -3.14,  -3.14,  -3.14,
+                     -3.14,  -3.14,  -3.14,  -3.14,
+                     -3.14,  -3.14,  -3.14,  -3.14,
+                     -3.14,  -3.14,  -3.14,  -3.14]
+clip_output_upper:  [ 3.14,   3.14,   3.14,
+                      3.14,   3.14,   3.14,   3.14,
+                      3.14,   3.14,   3.14,   3.14,
+                      3.14,   3.14,   3.14,   3.14,
+                      3.14,   3.14,   3.14,   3.14,
+                      3.14,   3.14,   3.14,   3.14]
+
+kp: [80.000,80.000,80.000,
+     80.000,80.000,80.000,80.000,
+     80.000,80.000,80.000,80.000,
+     80.000,80.000,80.000,80.000,
+     80.000,80.000,80.000,80.000,
+     80.000,80.000,80.000,80.000]
+
+kd: [1.100,1.100,1.100,1.100,
+     1.100,1.100,1.100,1.100,
+     1.100,1.100,1.100,1.100,
+     1.100,1.100,1.100,1.100,
+     1.100,1.100,1.100,1.100,
+     1.100,1.100,1.100,1.100]
+
+urdf_offset: [ 0.00,  0.00,  0.00,
+               0.00,  0.00,  1.57,  1.57,
+               0.00,  0.00, -1.57,  1.57,
+               0.00,  0.00,  0.00,  0.00, 
+               0.00,  0.00,  0.00,  0.00, 
+               0.00,  0.00,  0.00,  0.00]
+
+default_pose: [-0.250,-0.250, 0.000,
+                0.000, 0.000, 0.000, 0.000,
+                0.000, 0.000, 0.000, 0.000,
+                0.650, 0.650, 0.000, 0.000,
+               -0.400,-0.400, 0.000, 0.000,
+                0.000, 0.000, 0.000, 0.000]

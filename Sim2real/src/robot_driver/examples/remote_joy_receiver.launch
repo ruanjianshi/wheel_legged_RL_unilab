@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<launch>
+    <!-- 远端Joy消息接收器启动文件 -->
+    
+    <!-- 参数配置 -->
+    <arg name="input_topic" default="/joy" />
+    <arg name="output_topic" default="/cmd_vel" />
+    <arg name="max_linear_vel" default="1.0" />
+    <arg name="max_angular_vel" default="1.0" />
+    
+    <!-- 启动ROSBridge Server -->
+    <include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch">
+        <arg name="port" value="9090" />
+    </include>
+    
+    <!-- 启动Joy接收器 -->
+    <node name="remote_joy_receiver" pkg="robot_driver" type="remote_joy_receiver.py" output="screen">
+        <param name="input_topic" value="$(arg input_topic)" />
+        <param name="output_topic" value="$(arg output_topic)" />
+        <param name="max_linear_vel" value="$(arg max_linear_vel)" />
+        <param name="max_angular_vel" value="$(arg max_angular_vel)" />
+    </node>
+    
+</launch> 

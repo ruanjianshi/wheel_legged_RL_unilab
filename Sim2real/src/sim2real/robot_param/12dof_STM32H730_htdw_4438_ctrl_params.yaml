@@ -1,0 +1,167 @@
+robot:
+  SDK_version: 2
+  robot_name: "HTDW_4438"
+  arm_dof: 0
+  leg_dof: 3
+  Serial_Type: "/dev/ttyACM"
+  Seial_baudrate: 4000000
+  canport_error_output_flag: false
+  CAN_Type: "CAN-FD BRS"
+  control_type: 12
+  imu_limt_flag: false
+  imu_dir: false
+  imu_limt_num: 1.0
+  motor_timeout_ms: 0
+  CANboard_num: 1
+  CANboard:
+    No_1_CANboard:
+      CANport_num: 4
+      CANport:
+        CANport_1:
+          serial_id: 1
+          motor_num: 3
+          motor:
+            motor1:
+                type: "4438_30"
+                id: 1
+                name: "FL_hip"
+                num: 1
+                pos_limit_enable: false
+                pos_upper: 5
+                pos_lower: -5
+                tor_limit_enable: false
+                tor_upper: 5
+                tor_lower: -3
+            motor2:
+                type: "4438_30"
+                id: 2
+                name: "FL_thigh"
+                num: 2
+                pos_limit_enable: false
+                pos_upper: 5
+                pos_lower: -5
+                tor_limit_enable: false
+                tor_upper: 5
+                tor_lower: -3
+            motor3:
+                type: "4438_30"
+                id: 3
+                name: "FL_calf"
+                num: 3
+                pos_limit_enable: false
+                pos_upper: 5
+                pos_lower: -5
+                tor_limit_enable: false
+                tor_upper: 5
+                tor_lower: -3
+        CANport_2:
+          serial_id: 2
+          motor_num: 3
+          motor:
+            motor1:
+                type: "4438_30"
+                id: 1
+                name: "FR_hip"
+                num: 1
+                pos_limit_enable: false
+                pos_upper: 5
+                pos_lower: -5
+                tor_limit_enable: false
+                tor_upper: 5
+                tor_lower: -3
+            motor2:
+                type: "4438_30"
+                id: 2
+                name: "FR_thigh"
+                num: 2
+                pos_limit_enable: false
+                pos_upper: 5
+                pos_lower: -5
+                tor_limit_enable: false
+                tor_upper: 5
+                tor_lower: -3
+            motor3:
+                type: "4438_30"
+                id: 3
+                name: "FR_calf"
+                num: 3
+                pos_limit_enable: false
+                pos_upper: 5
+                pos_lower: -5
+                tor_limit_enable: false
+                tor_upper: 5
+                tor_lower: -3
+        CANport_3:
+          serial_id: 3
+          motor_num: 3
+          motor:
+            motor1:
+                type: "4438_30"
+                id: 1
+                name: "RL_hip"
+                num: 1
+                pos_limit_enable: false
+                pos_upper: 5
+                pos_lower: -5
+                tor_limit_enable: false
+                tor_upper: 5
+                tor_lower: -3
+            motor2:
+                type: "4438_30"
+                id: 2
+                name: "RL_thigh"
+                num: 2
+                pos_limit_enable: false
+                pos_upper: 5
+                pos_lower: -5
+                tor_limit_enable: false
+                tor_upper: 5
+                tor_lower: -3
+            motor3:
+                type: "4438_30"
+                id: 3
+                name: "RL_calf"
+                num: 3
+                pos_limit_enable: false
+                pos_upper: 5
+                pos_lower: -5
+                tor_limit_enable: false
+                tor_upper: 5
+                tor_lower: -3
+        CANport_4:
+          serial_id: 4
+          motor_num: 3
+          motor:
+            motor1:
+                type: "4438_30"
+                id: 1
+                name: "RR_hip"
+                num: 1
+                pos_limit_enable: false
+                pos_upper: 5
+                pos_lower: -5
+                tor_limit_enable: false
+                tor_upper: 5
+                tor_lower: -3
+            motor2:
+                type: "4438_30"
+                id: 2
+                name: "RR_thigh"
+                num: 2
+                pos_limit_enable: false
+                pos_upper: 5
+                pos_lower: -5
+                tor_limit_enable: false
+                tor_upper: 5
+                tor_lower: -3
+            motor3:
+                type: "4438_30"
+                id: 3
+                name: "RR_calf"
+                num: 3
+                pos_limit_enable: false
+                pos_upper: 5
+                pos_lower: -5
+                tor_limit_enable: false
+                tor_upper: 5
+                tor_lower: -3

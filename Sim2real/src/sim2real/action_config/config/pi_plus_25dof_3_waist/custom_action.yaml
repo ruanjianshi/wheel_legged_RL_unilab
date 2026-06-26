@@ -1,0 +1,51 @@
+- production_type: "custom"
+  multi_waypoint_config:
+    # - name: "cheer"
+    #   key: "rt+a"
+    #   remark: "双手欢呼"
+    #
+    # - name: "hello"
+    #   key: "rt+x"
+    #   remark: "单手打招呼"
+    #
+    # - name: "woshou"
+    #   key: "rt+a"
+    #   remark: "握手"
+
+  series_waypoint_config:
+  policy_change_config:
+    # - name: "tackle"
+    #   remark: "抢断"
+    #   key: "a"
+    #
+    # - name: "confrontation"
+    #   remark: "对抗"
+    #   key: "b"
+    #
+    # - name: "small_kick"
+    #   remark: "小脚踢球"
+    #   key: "x"
+    #
+    # - name: "big_kick"
+    #   remark: "大脚踢球"
+    #   key: "y"
+    #
+    # - name: "set_ball_kick"
+    #   remark: "定位球"
+    #   key: "lt+y"
+    #
+    # - name: "byd_pi_flip"
+    #   remark: "pi侧手翻"
+    #   key: "lt+rt+x"
+    #
+    # - name: "byd_pi_S_kick"
+    #   remark: "S过人"
+    #   key: "lt+rt+dpu"
+    #
+    # - name: "byd_pi_fangshou"
+    #   remark: "防守"
+    #   key: "lt+rt+dpd"
+    #
+    # - name: "byd_pi_waist_dance1_subject2"
+    #   remark: "舞蹈"
+    #   key: "lt+rt+y"

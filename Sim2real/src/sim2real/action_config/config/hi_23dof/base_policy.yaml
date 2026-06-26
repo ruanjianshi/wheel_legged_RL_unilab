@@ -1,0 +1,12 @@
+# 按键说明
+# abxy对应abxy
+# r l 遥感按下
+# rb lb 肩键
+# dpl 十字键左 
+# dpr 十字键右
+# dpu 十字键上
+# dpd 十字键下
+# back back键
+# start start键
+# center 开机键
+policy_change_config:

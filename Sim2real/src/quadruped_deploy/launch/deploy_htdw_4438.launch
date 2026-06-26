@@ -1,0 +1,27 @@
+<?xml version="1.0" ?>
+<launch>
+  <arg name="model_type" value="htdw_4438"/>
+  <arg name="dof_type" default="12"/>
+  <arg name="mcu_type" default="STM32H730"/>
+  <arg name="design" default="ctrl"/>
+
+  <!-- 加载 livelybot_serial::robot 所需的硬件参数 (电机/CAN/IMU 配置) -->
+  <rosparam file="$(find sim2real)/robot_param/$(arg dof_type)dof_$(arg mcu_type)_$(arg model_type)_$(arg design)_params.yaml" command="load" />
+
+  <!-- IMU -->
+  <node pkg="yesense_imu" type="yesense_imu_node" name="yesense_imu_node" required="false" output="screen" respawn="true" respawn_delay="3">
+    <param name="yesense_port" type="string" value="/dev/ttyS7"/>
+    <param name="yesense_baudrate" type="int" value="460800"/>
+  </node>
+
+  <!-- 手柄 -->
+  <include file="$(find sim2real_master)/launch/joy_teleop.launch">
+    <arg name="use_filter" default="true"/>
+  </include>
+
+  <!-- 部署节点 -->
+  <node pkg="quadruped_deploy" type="quadruped_deploy_node" name="quadruped_deploy_node" output="screen" required="true">
+    <rosparam file="$(find quadruped_deploy)/config/htdw_4438.yaml" command="load" />
+    <param name="policy_path_full" value="$(find sim2real)/policy/walk/policy_htdw_4438_himloco.rknn" />
+  </node>
+</launch>

@@ -1,0 +1,3 @@
+walk:
+  - name: "footstep"
+    path: "walk/footstep.yaml"

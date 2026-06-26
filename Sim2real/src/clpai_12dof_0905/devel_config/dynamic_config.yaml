@@ -1,0 +1,14 @@
+# #### medium horse
+# dynamic_offset_hip: 0.0
+# dynamic_offset_knee: 0.0
+# dynamic_offset_ankle: 0.0
+
+
+#### test horse
+dynamic_offset_hip: 0.0
+dynamic_offset_knee: 0.0
+dynamic_offset_ankle: 0.0
+#### superior horse
+# dynamic_offset_hip: -0.015
+# dynamic_offset_knee: -0.08
+# dynamic_offset_ankle: 0.0

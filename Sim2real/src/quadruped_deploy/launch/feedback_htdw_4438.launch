@@ -1,0 +1,6 @@
+<?xml version="1.0" ?>
+<launch>
+  <!-- 只读 12 个电机位置, 用于调零后验证. -->
+  <rosparam file="$(find sim2real)/robot_param/12dof_STM32H730_htdw_4438_ctrl_params.yaml" command="load" />
+  <node pkg="livelybot_bringup" name="motor_feedback" type="motor_feedback" output="screen" required="true"/>
+</launch>

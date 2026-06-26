@@ -1,0 +1,73 @@
+multi_waypoint_config:
+  - name: "cheer"
+    path: "action_config/cheer.boost"
+    remark: "双手欢呼"
+    type: 5
+    duration: 0.013125
+    # duration: 0.1
+    torque: 0.0 # 最大力矩
+    velocity: 0.00 # boost文件每个点的时间间隔
+    back_to_zero: true
+    back_to_walk: true
+    loop: true
+    # type5用的参数
+    time_interval: 0.05 # boost文件每个点的时间间隔 * boost文件点的数量等于执行时间
+
+  - name: "hello"
+    path: "action_config/hello.boost"
+    remark: "右手招手"
+    type: 5
+    duration: 0.013125
+    # duration: 0.1
+    torque: 0.0 # 最大力矩
+    velocity: 0.00 # boost文件每个点的时间间隔
+    back_to_zero: true
+    back_to_walk: true
+    loop: true
+    # type5用的参数
+    time_interval: 0.07 # boost文件每个点的时间间隔 * boost文件点的数量等于执行时间
+
+  - name: "woshou"
+    path: "action_config/woshou.boost"
+    remark: "握手"
+    type: 5
+    torque: 0.0
+    velocity: 0.0
+    duration: 0.01
+    back_to_zero: true
+    back_to_walk: true
+    loop: false
+    # type5用的参数
+    time_interval: 0.70 # boost文件每个点的时间间隔
+
+series_waypoint_config:
+  - name: "xuridongsheng"
+    remark: "旭日东升"
+    waypoint_config:
+      - path: "action_config/series_xuridongsheng/xuri1.boost"
+        name: "sa"
+        type: 1
+        torque: 0.0
+        velocity: 0.0
+        duration: 0.20
+
+      - path: "action_config/series_xuridongsheng/xuri2.boost"
+        name: "sb"
+        type: 1
+        torque: 0.0
+        velocity: 0.0
+        duration: 0.2
+
+      - path: "action_config/series_xuridongsheng/xuri3.boost"
+        name: "sc"
+        type: 1
+        torque: 0.0
+        velocity: 0.0
+        duration: 0.2
+
+      - path: "action_config/series_xuridongsheng/xuri4.boost"
+        name: "sd"
+        type: 1
+        torque: 0.0
+        velocity: 0.0
+        duration: 0.185

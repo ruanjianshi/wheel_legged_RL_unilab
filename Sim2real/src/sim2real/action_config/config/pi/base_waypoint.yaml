@@ -1,0 +1,107 @@
+multi_waypoint_config:
+  - key: "rt+a" # 手柄组合按键
+    name: "niuyao" # 动作名称，唯一
+    path: "action_config/niuyao.boost" # boost文件路径
+    # path: "action_config/hello.boost"
+    type: 5 # 1: 线性插帧 2：慢入快出 3：快入慢出 4： 慢入慢出 5：三次样条插值
+    duration: 0.05 # 1~4类型为 boost文件每个点的时间间隔 5类型是先插帧计算，然后最新的插帧数组间隔
+    torque: 0.0 # 最大力矩，0表示不限制
+    velocity: 0.0 # 速度，0表示不限制
+    back_to_zero: false # true回到初始位置站立不动, false 手臂动作后保持当前姿势，腿部进入亮源
+    back_to_walk: true # 暂未启用
+    loop: false # true循环播放，false 播放一次
+    # type5用的参数
+    time_interval: 1.00 # boost文件每个点的时间间隔 * boost文件点的数量等于执行时间
+
+  - key: "rt+b"
+    name: "yizima"
+    path: "action_config/yizima.boost"
+    type: 5
+    duration: 0.05
+    torque: 0.0
+    velocity: 0.0
+    back_to_zero: false
+    back_to_walk: true
+    loop: false
+    # type5用的参数
+    time_interval: 1.00
+
+  - key: "rt+x"
+    name: "zhiliyaobai"
+    path: "action_config/zhiliyaobai.boost"
+    type: 5
+    duration: 0.05
+    torque: 0.0
+    velocity: 0.0
+    back_to_zero: false
+    back_to_walk: true 
+    loop: false 
+    # type5用的参数
+    time_interval: 1.00 
+
+  - key: "rt+y" 
+    name: "yatui" 
+    path: "action_config/yatui.boost" 
+    type: 5 
+    duration: 0.05 
+    torque: 0.0 
+    velocity: 0.0 
+    back_to_zero: false 
+    back_to_walk: true 
+    loop: false 
+    # type5用的参数
+    time_interval: 1.00 
+
+  - key: "null" 
+    name: "fuwo" 
+    path: "action_config/pi_stand_up/fuwo.boost" 
+    type: 5 
+    duration: 0.05 
+    torque: 0.0 
+    velocity: 0.0 
+    back_to_zero: false 
+    back_to_walk: true 
+    loop: false 
+    # type5用的参数
+    time_interval: 1.00 
+
+  - key: "null" 
+    name: "yangwo" 
+    path: "action_config/pi_stand_up/yangwo.boost" 
+    type: 5 
+    duration: 0.05 
+    torque: 0.0 
+    velocity: 0.0 
+    back_to_zero: false 
+    back_to_walk: true 
+    loop: false 
+    # type5用的参数
+    time_interval: 1.00 
+  
+  - key: "null" 
+    name: "zuocewo" 
+    path: "action_config/pi_stand_up/zuocewo.boost" 
+    type: 5 
+    duration: 0.05 
+    torque: 0.0 
+    velocity: 0.0 
+    back_to_zero: false 
+    back_to_walk: true 
+    loop: false 
+    # type5用的参数
+    time_interval: 1.00 
+  
+  - key: "null" 
+    name: "youcewo" 
+    path: "action_config/pi_stand_up/youcewo.boost" 
+    type: 5 
+    duration: 0.05 
+    torque: 0.0 
+    velocity: 0.0 
+    back_to_zero: false 
+    back_to_walk: true 
+    loop: false 
+    # type5用的参数
+    time_interval: 1.00 
+
+

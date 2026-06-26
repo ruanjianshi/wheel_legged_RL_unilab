@@ -1,0 +1,1735 @@
+#include "sim2real.h"
+#include "common.h"
+#include "impl/utils.h"
+#include "motor/pi_motor_group.h"
+#include "policy/footstep_policy_jz.h"
+#include "policy/host_policy.h"
+#include "policy/pbhc_future_policy.h"
+#include "policy/bydmmc_policy.h"
+#include "policy/himloco_policy.h"
+#include "policy/amp_policy.h"
+#include "robot_data.h"
+#include "ros/init.h"
+#include "ros/package.h"
+#include "std_msgs/Float32.h"
+#include "std_msgs/Int32.h"
+#include "std_msgs/String.h"
+#include <cstdlib>
+#include <mutex>
+#include <nlohmann/json.hpp>
+#include <shared_mutex>
+#include <cmath>
+
+namespace hightorque
+{
+    Sim2Real::Sim2Real(std::shared_ptr<livelybot_serial::robot> rbPtr, std::shared_ptr<ros::NodeHandle> nh) : rbPtr_(rbPtr), nh_(nh)
+    {
+        ROS_INFO("Sim2Real %s()", __FUNCTION__);
+
+        std::string configPath, pdConfigFile, rlConfigFile, policyPath, actionConfigPath;
+        nh->param<std::string>("config_path", configPath, "config/");
+        nh->param<std::string>("pd_config_file", pdConfigFile, ".yaml");
+        nh->param<std::string>("rl_config_file", rlConfigFile, ".yaml");
+        nh->param<std::string>("policy_path", policyPath, ".yaml");
+        nh->param<std::string>("action_path", actionConfigPath, "");
+
+        pdInfo_.loadFromYaml(pdConfigFile, actionConfigPath);
+        rlConfigGroup_.loadFromYaml(configPath, policyPath, rlConfigFile, actionConfigPath);
+        ROS_INFO("Sim2Real after loadFromYaml");
+        // rlConfigGroup_.print();
+        rlInfo_ = rlConfigGroup_.getCurrentRLConfig();
+        ROS_INFO("Sim2Real got current RL config: %s", rlInfo_.name.c_str());
+        // rlInfo_.print();
+        pdInfo_.refreshRLConfig(rlInfo_);
+        pdInfo_.refreshByMotorIdVec();
+        // pdInfo_.print();
+        // rlConfigGroup_.print();
+
+        robotState_.resize(pdInfo_.dofs);
+        robotOutput_.resize(pdInfo_.dofs);
+        motorOutput_.resize(pdInfo_.dofs);
+        customMode_ = false;
+        engineMap_.clear();
+
+        dynamicOffset_ = {0, 0, 0};
+
+        int waist;
+        ROS_INFO("namespace: %s", nh_->getNamespace().c_str());
+        nh_->param<std::string>("model_type", modelType_, "pi");
+        nh_->param<std::string>("production_type", productionType_, "test");
+        nh_->param<int>("waist", waist, -1);
+
+        nlohmann::json robotInfoJson;
+        robotInfoJson["config_path"] = configPath;
+        robotInfoJson["action_path"] = actionConfigPath;
+        robotInfoJson["robot_type"] = modelType_ + "_" + std::to_string(pdInfo_.dofs) + "dof" + (waist < 0 ? "" : ("_" + std::to_string(waist) + "_waist"));
+        std::string homeDir = std::getenv("HOME");
+        common::saveStringToFile(homeDir + "/.sim2real_info.json", robotInfoJson.dump());
+    }
+
+    Sim2Real::Sim2Real(std::shared_ptr<livelybot_serial::robot> rbPtr,
+                       std::shared_ptr<ros::NodeHandle> nh,
+                       const std::string& rlConfigFile) : rbPtr_(rbPtr), nh_(nh)
+    {
+        ROS_INFO("Sim2Real new config %s()", __FUNCTION__);
+        std::string configPath, pdConfigFile, policyPath, actionConfigPath;
+        nh->param<std::string>("config_path", configPath, "config/");
+        nh->param<std::string>("pd_config_file", pdConfigFile, ".yaml");
+        nh->param<std::string>("policy_path", policyPath, ".yaml");
+        nh->param<std::string>("action_path", actionConfigPath, "");
+        pdInfo_.loadFromYaml(pdConfigFile, actionConfigPath);
+        rlConfigGroup_.loadFromYaml(configPath, policyPath, rlConfigFile, actionConfigPath);
+        // rlConfigGroup_.print();
+        rlInfo_ = rlConfigGroup_.getCurrentRLConfig();
+        // rlInfo_.print();
+        pdInfo_.refreshRLConfig(rlInfo_);
+        pdInfo_.refreshByMotorIdVec();
+        // pdInfo_.print();
+
+        robotState_.resize(pdInfo_.dofs);
+        robotOutput_.resize(pdInfo_.dofs);
+        motorOutput_.resize(pdInfo_.dofs);
+        engineMap_.clear();
+        customMode_ = true;
+
+        dynamicOffset_ = {0, 0, 0};
+
+        ROS_INFO("namespace: %s", nh_->getNamespace().c_str());
+        nh_->param<std::string>("model_type", modelType_, "pi");
+        nh->param<std::string>("production_type", productionType_, "test");
+    }
+
+    bool Sim2Real::init()
+    {
+        ROS_INFO("Sim2Real %s()", __FUNCTION__);
+        initRos();
+        initPinocchio();
+        initTrajectory();
+        initMotor();
+        initPolicy(policy_, pdInfo_, rlInfo_);
+        initEngine();
+        initObs();
+        return true;
+    }
+
+    bool Sim2Real::initPinocchio()
+    {
+        // pinocchio
+        ROS_INFO("Sim2Real %s()", __FUNCTION__);
+        std::string urdfPath, meshPath;
+        nh_->param<std::string>("urdf_path", urdfPath, "");
+        nh_->param<std::string>("mesh_path", meshPath, "");
+        pinocchio::urdf::buildModel(urdfPath, pinocchioModel_);
+        pinocchioData_ = pinocchio::Data(pinocchioModel_);
+        return true;
+    }
+
+    bool Sim2Real::initRos()
+    {
+        // ros
+        ROS_INFO("Sim2Real %s()", __FUNCTION__);
+        imuSub_ = nh_->subscribe<sensor_msgs::Imu>("/imu/data", 1, &Sim2Real::imuCallback, this);
+        cmdVelSub_ = nh_->subscribe<geometry_msgs::Twist>("/cmd_vel", 10, &Sim2Real::cmdVelCallback, this);
+        robotStatePub_ = nh_->advertise<sensor_msgs::JointState>("rbt_state", 100);
+        motorStatePub_ = nh_->advertise<sensor_msgs::JointState>("mtr_state", 100);
+        motorOutputPub_ = nh_->advertise<sensor_msgs::JointState>("mtr_output", 100);
+
+        joySub_ = nh_->subscribe<sim2real_msg::Joy>("/joy_msg", 2, &Sim2Real::joyCallback, this);
+        testStringSub_ = nh_->subscribe<std_msgs::String>("test", 10, [this](const std_msgs::String::ConstPtr& msg) {
+            this->testString_ = msg->data;
+            ROS_INFO("================%s:%s==================", testString_.c_str(), rlInfo_.name.c_str());
+        });
+        testIntSub_ = nh_->subscribe<std_msgs::Int32>("test_int", 10, [this](const std_msgs::Int32::ConstPtr& msg) {
+            this->testInt_ = msg->data;
+            ROS_INFO("================%s:%s==================", testString_.c_str(), rlInfo_.name.c_str());
+        });
+
+        iSub_ = nh_->subscribe<std_msgs::Float32>("/battery_current", 10, [this](const std_msgs::Float32::ConstPtr& msg) {
+            this->I_ = msg->data;
+        });
+
+        uSub_ = nh_->subscribe<std_msgs::Float32>("/battery_voltage", 10, [this](const std_msgs::Float32::ConstPtr& msg) {
+            this->U_ = msg->data;
+        });
+
+        jointAbsoluteSub_ = nh_->subscribe<sensor_msgs::JointState>("/" + modelType_ + "_absolute", 10,
+                                                                    std::bind(&Sim2Real::robotJointCommandCallback,
+                                                                              this, std::placeholders::_1,
+                                                                              "absolute"));
+        jointRelativeSub_ = nh_->subscribe<sensor_msgs::JointState>("/" + modelType_ + "_relative", 10,
+                                                                    std::bind(&Sim2Real::robotJointCommandCallback,
+                                                                              this, std::placeholders::_1,
+                                                                              "relative"));
+        return true;
+    }
+
+    bool Sim2Real::initTrajectory()
+    {
+        // trajectory
+        ROS_INFO("Sim2Real %s()", __FUNCTION__);
+        std::string packagePath = ros::package::getPath("sim2real");
+        std::vector<config::MultiWaypointConfig> waypoints;
+        for (auto& config : pdInfo_.multi_configs[productionType_])
+        {
+            config.second.path = (packagePath + "/" + config.second.path);
+            waypoints.push_back(config.second);
+            ROS_INFO("Sim2Real trajectory (%s) file: %s", config.first.c_str(), config.second.path.c_str());
+        }
+        for (auto series : pdInfo_.series_configs[productionType_])
+        {
+            auto seriesName = series.first;
+            for (auto& config : series.second.waypointVec)
+            {
+                config.path = (packagePath + "/" + config.path);
+                waypoints.push_back(config);
+                ROS_INFO("Sim2Real series trajectory (%s) file: %s", config.name.c_str(), config.path.c_str());
+            }
+        }
+
+        trajectory_ = &utils::TrajectoryGenerator::getInstance(pdInfo_.urdf_offset, pdInfo_.direction, waypoints, modelType_);
+        trajectory_->refreshSingle(pdInfo_.urdf_offset, pdInfo_.direction, modelType_);
+        return true;
+    }
+
+    bool Sim2Real::initMotor()
+    {
+        ROS_INFO("Sim2Real %s()", __FUNCTION__);
+        // motor
+        if (modelType_ == "pi")
+        {
+            robotMotor_ = std::make_shared<PiMotorGroup>(rbPtr_, pdInfo_.map_index, pdInfo_.joint_names, pdInfo_.lower, pdInfo_.upper);
+        }
+        else if (modelType_ == "pi_plus")
+        {
+            robotMotor_ = std::make_shared<PiPlusMotorGroup>(rbPtr_, pdInfo_.map_index, pdInfo_.joint_names, pdInfo_.lower, pdInfo_.upper);
+        }
+        else if (modelType_ == "hi")
+        {
+            robotMotor_ = std::make_shared<HiMotorGroup>(rbPtr_, pdInfo_.map_index, pdInfo_.joint_names, pdInfo_.lower, pdInfo_.upper);
+        }
+        else if (modelType_ == "htdw_4438")
+        {
+            robotMotor_ = std::make_shared<PiPlusMotorGroup>(rbPtr_, pdInfo_.map_index, pdInfo_.joint_names, pdInfo_.lower, pdInfo_.upper);
+        }
+        else
+        {
+            ROS_ERROR("Sim2Real not such model type: %s", modelType_.c_str());
+        }
+
+        if (modelType_ == "pi" || modelType_ == "pi_plus" || modelType_ == "hi")
+        {
+            std::vector<std::shared_ptr<MotorBase>> leftAnkleMotors, rightAnkleMotors, ankleMotors, hipMotors, thighMotors, armMotors;
+            leftAnkleMotors.push_back(robotMotor_->getMotorByName("l_ankle_pitch_joint"));
+            leftAnkleMotors.push_back(robotMotor_->getMotorByName("l_ankle_roll_joint"));
+
+            rightAnkleMotors.push_back(robotMotor_->getMotorByName("r_ankle_pitch_joint"));
+            rightAnkleMotors.push_back(robotMotor_->getMotorByName("r_ankle_roll_joint"));
+
+            // 注册脚踝关节组
+            ankleMotors.push_back(robotMotor_->getMotorByName("l_ankle_pitch_joint"));
+            ankleMotors.push_back(robotMotor_->getMotorByName("l_ankle_roll_joint"));
+            ankleMotors.push_back(robotMotor_->getMotorByName("r_ankle_pitch_joint"));
+            ankleMotors.push_back(robotMotor_->getMotorByName("r_ankle_roll_joint"));
+
+            // 注册臀部关节组
+            hipMotors.push_back(robotMotor_->getMotorByName("l_hip_pitch_joint"));
+            hipMotors.push_back(robotMotor_->getMotorByName("l_hip_roll_joint"));
+            hipMotors.push_back(robotMotor_->getMotorByName("r_hip_pitch_joint"));
+            hipMotors.push_back(robotMotor_->getMotorByName("r_hip_roll_joint"));
+
+            // 注册大腿关节组
+            thighMotors.push_back(robotMotor_->getMotorByName("l_thigh_joint"));
+            thighMotors.push_back(robotMotor_->getMotorByName("r_thigh_joint"));
+
+            robotMotor_->registerMotorGroup("left_ankle_joint", leftAnkleMotors);
+            robotMotor_->registerMotorGroup("right_ankle_joint", rightAnkleMotors);
+            robotMotor_->registerMotorGroup("ankle_joint", ankleMotors);
+            robotMotor_->registerMotorGroup("hip_joint", hipMotors);
+            robotMotor_->registerMotorGroup("thigh_joint", thighMotors);
+
+            // 注册手部关节组
+            if (modelType_ == "pi_plus")
+            {
+                auto lowerBodyMotorGroup = robotMotor_->getMotorGroupSizeByName("lowerBody");
+                for (int i = lowerBodyMotorGroup; i < pdInfo_.joint_names.size(); ++i)
+                {
+                    auto name = pdInfo_.joint_names[i];
+                    if (name.find("head") != std::string::npos ||
+                        name.find("waist") != std::string::npos)
+                    {
+                        continue;
+                    }
+                    armMotors.push_back(robotMotor_->getMotorByName(name));
+                }
+                robotMotor_->registerMotorGroup("arm_joint", armMotors);
+            }
+            // TODO:配置需要的关节组
+            if (modelType_ == "hi")
+            {
+            }
+        }
+
+        rlConfigGroup_.foreacheRLConfig([this](const config::RLConfig& rl) {
+            ROS_INFO("rl group resgester: [%s] [%s]", rl.name.c_str(), rl.motor_group.c_str());
+            // 除了默认的
+            if (rl.motor_group == "all" || rl.motor_group == "lowerBody" || rl.motor_group == "upperBody")
+            {
+                return false;
+            }
+            if (robotMotor_->getMotorGroupSizeByName(rl.motor_group) > 0)
+            {
+                return false;
+            }
+            std::vector<std::shared_ptr<MotorBase>> motors;
+            auto rlJointName = rl.joint_names;
+            auto pdJointName = pdInfo_.joint_names;
+            // 按照pd的顺序，找出rl的关节
+            std::vector<std::string> mappedJointNames;
+            for (const auto& pdName : pdJointName)
+            {
+                for (const auto& rlName : rlJointName)
+                {
+                    if (pdName == rlName)
+                    {
+                        mappedJointNames.push_back(rlName);
+                        break;
+                    }
+                }
+            }
+            for (const auto& name : mappedJointNames)
+            {
+                motors.push_back(robotMotor_->getMotorByName(name));
+            }
+            ROS_INFO("%s registerMotorGroup: [%s](%zu)", __FUNCTION__, rl.motor_group.c_str(), motors.size());
+            robotMotor_->registerMotorGroup(rl.motor_group, motors);
+            return false;
+        });
+
+        // ROS_INFO("%s",robotMotor_->getAllMotorGroupsStateString().c_str());
+
+        return true;
+    }
+
+    bool Sim2Real::initEngine()
+    {
+        std::string policyCtrlName = rlInfo_.motor_group;
+        if (rlInfo_.algorithm == "lr")
+        {
+            rlInfo_.policy_file_name = "lr";
+            engine_ = std::make_shared<LrInferenceEngine>(rlInfo_.policy_service_name, rlInfo_.dofs, rlInfo_.num_single_obs, rlInfo_.clip_actions_lower, rlInfo_.clip_actions_upper, rlInfo_.normal_mode, rlInfo_.fast_mode);
+            return true;
+        }
+        int obsSize = policy_->getObsSize();
+        // engine
+        if (engineMap_.find(rlInfo_.policy_path) != engineMap_.end())
+        {
+            engine_ = engineMap_[rlInfo_.policy_path];
+            ROS_INFO("Sim2Real %s(), reuse engine for policy: %s", __FUNCTION__, rlInfo_.policy_path.c_str());
+            return true;
+        }
+#if defined(PLATFORM_X86_64)
+        engine_ = std::make_shared<OpenvinoInferenceEngine>(rlInfo_.policy_path, "CPU", rlInfo_.dofs, rlInfo_.clip_actions_lower, rlInfo_.clip_actions_upper);
+#elif defined(PLATFORM_RK)
+        engine_ = std::make_shared<RKNNInferenceEngine>(rlInfo_.policy_path, obsSize, rlInfo_.dofs, rlInfo_.clip_actions_lower, rlInfo_.clip_actions_upper);
+#elif defined(PLATFORM_JETSON)
+        engine_ = std::make_shared<TensorRTInferenceEngine>(rlInfo_.policy_path, obsSize, rlInfo_.dofs, rlInfo_.clip_actions_lower, rlInfo_.clip_actions_upper);
+#endif
+        engineMap_[rlInfo_.policy_path] = engine_;
+        return true;
+    }
+
+    bool Sim2Real::initPolicy(std::shared_ptr<PolicyBase>& policy, const config::PDConfig& pd, const config::RLConfig& rl)
+    {
+        auto oldPolicy = policy;
+        ROS_INFO("Sim2Real %s()", __FUNCTION__);
+        // policy
+        ROS_INFO("Sim2Real algorithm: [%s], policy name: [%s], policy file: --[%s]--", rl.algorithm.c_str(), rl.name.c_str(), rl.policy_file_name.c_str());
+        if (rl.algorithm == "dreamwaq")
+        {
+            policy = std::make_shared<DreaWaQPolicy>(rl, pd);
+        }
+        else if (rl.algorithm == "footstep")
+        {
+            policy = std::make_shared<FootStepPolicy>(rl, pd);
+        }
+        else if (rl.algorithm == "footstep_jz")
+        {
+            policy = std::make_shared<FootStepPolicyJz>(rl, pd);
+        }
+        else if (rl.algorithm == "humanoidgym")
+        {
+            policy = std::make_shared<HumanoidgymPolicy>(rl, pd);
+        }
+        else if (rl.algorithm == "pbhc")
+        {
+            policy = std::make_shared<PBHCPolicy>(rl, pd);
+        }
+        else if (rl.algorithm == "pbhc_future")
+        {
+            policy = std::make_shared<PBHCFuturePolicy>(rl, pd);
+        }
+        else if (rl.algorithm == "lr")
+        {
+            policy = std::make_shared<LrPolicy>(rl, pd);
+        }
+        else if (rl.algorithm == "host")
+        {
+            policy = std::make_shared<HostPolicy>(rl, pd);
+        }
+        else if (rl.algorithm == "bydmmc")
+        {
+            policy = std::make_shared<BYDMMCFuturePolicy>(rl, pd);
+        }
+        else if (rl.algorithm == "amp")
+        {
+            policy = std::make_shared<AMPPolicy>(rl, pd);
+        }
+        else if (rl.algorithm == "himloco")
+        {
+            policy = std::make_shared<HIMlocoPolicy>(rl, pd);
+        }
+        else
+        {
+            ROS_INFO("sim2real not such algorithm: %s", rl.algorithm.c_str());
+            quit_ = true;
+            return false;
+        }
+        if (!policy->isReady())
+        {
+            policy = oldPolicy;
+            return false;
+        }
+        return true;
+    }
+
+    bool Sim2Real::initObs()
+    {
+        ROS_INFO("Sim2Real %s()", __FUNCTION__);
+        // observations
+        obs.observations = Eigen::VectorXd::Zero(rlInfo_.num_single_obs);
+        for (int i = 0; i < rlInfo_.frame_stack; ++i)
+        {
+            obs.hist_obs.push_back(Eigen::VectorXd::Zero(rlInfo_.num_single_obs));
+        }
+        obs.input = Eigen::MatrixXd::Zero(1, rlInfo_.num_single_obs * rlInfo_.frame_stack);
+        return true;
+    }
+
+    bool Sim2Real::start()
+    {
+        quit_ = false;
+        state_ = sim2Real::INIT;
+        try
+        {
+            // 创建新线程
+            pdThreadExecPtr_.reset(new std::thread(&Sim2Real::execPdLoop, this));
+            rlThreadExecPtr_.reset(new std::thread(&Sim2Real::execRlLoop, this));
+            trajThreadExecPtr_.reset(new std::thread(&Sim2Real::execTrajLoop, this));
+            ROS_INFO("Sim2Real started successfully");
+            return true;
+        }
+        catch (const std::exception& e)
+        {
+            ROS_ERROR("Failed to start Sim2Real thread: %s", e.what());
+            return false;
+        }
+    }
+
+    bool Sim2Real::stop()
+    {
+        // 标记线程退出
+        quit_ = true;
+
+        // 等待线程结束
+        if (pdThreadExecPtr_ && pdThreadExecPtr_->joinable())
+        {
+            ROS_INFO("stop thread");
+            try
+            {
+                // 设置超时，避免无限等待
+                auto timeout = std::chrono::seconds(5);
+                auto future = std::async(std::launch::async, [this]() {
+                    pdThreadExecPtr_->join();
+                });
+
+                if (future.wait_for(timeout) == std::future_status::timeout)
+                {
+                    ROS_WARN("Sim2Real thread join timed out after 5 seconds");
+                    return false;
+                }
+
+                ROS_INFO("Sim2Real stopped Pd successfully");
+            }
+            catch (const std::exception& e)
+            {
+                ROS_ERROR("Error while stopping Sim2Real thread: %s", e.what());
+                return false;
+            }
+        }
+        if (rlThreadExecPtr_ && rlThreadExecPtr_->joinable())
+        {
+            try
+            {
+                rlThreadExecPtr_->join();
+                ROS_INFO("RL thread stopped successfully");
+            }
+            catch (const std::exception& e)
+            {
+                ROS_ERROR("Error while stopping RL thread: %s", e.what());
+                return false;
+            }
+        }
+        if (trajThreadExecPtr_ && trajThreadExecPtr_->joinable())
+        {
+            try
+            {
+                trajThreadExecPtr_->join();
+                ROS_INFO("Trajectory thread stopped successfully");
+            }
+            catch (const std::exception& e)
+            {
+                ROS_ERROR("Error while stopping Trajectory thread: %s", e.what());
+                return false;
+            }
+        }
+
+        if (trajectory_)
+        {
+            ROS_INFO("stop trajectory");
+            trajectory_->stopMulti();
+            trajectory_->stopSingle();
+        }
+
+        // 重置状态
+        state_ = sim2Real::INIT;
+        return true;
+    }
+
+    void Sim2Real::robotJointCommandCallback(const sensor_msgs::JointState::ConstPtr& msg, const std::string& type)
+    {
+        auto jointsNum = msg->name.size();
+        bool v = (msg->velocity.size() == jointsNum), t = (msg->effort.size() == jointsNum);
+        if (msg->position.size() != jointsNum && jointsNum > 0)
+        {
+            ROS_ERROR("position size:(%zu) != joint size:(%zu)", msg->position.size(), jointsNum);
+            return;
+        }
+
+        for (auto i = 0; i < jointsNum; i++)
+        {
+            auto name = msg->name[i];
+            const auto motor = robotMotor_->getMotorByName(name);
+            if (!motor)
+            {
+                return;
+            }
+            MotorControlCmd cmd;
+            cmd.position = msg->position[i];
+            cmd.velocity = v ? msg->velocity[i] : 0.0;
+            cmd.torque = t ? msg->effort[i] : 0.0;
+            cmd.kp = pdInfo_.byMotorId.kp[motor->getIndex()];
+            cmd.kd = pdInfo_.byMotorId.kd[motor->getIndex()];
+            ROS_INFO_THROTTLE(2, "%s : %s", name.c_str(), cmd.toString().c_str());
+            if (type == "absolute")
+            {
+                motor->setMotor(cmd);
+            }
+            else if (type == "relative")
+            {
+                motor->setMotorRelative(cmd);
+            }
+            robotMotor_->sendMotors();
+        }
+    }
+
+    void Sim2Real::motorGroupRecover(const std::string& group, const double duration)
+    {
+        auto size = robotMotor_->getMotorGroupSizeByName(group);
+        auto index = robotMotor_->getMotorGroupIndexByName(group);
+        Robot_Output rZero(size);
+        Motor_Output mZero(size);
+        common::transformRobotOutputToMotorOutput(rZero, mZero, pdInfo_.byMotorId.urdf_offset, pdInfo_.byMotorId.direction, index, modelType_ == "hi" ? 1 : 0);
+        trajectory_->setSingle(robotMotor_->getMotorGroupStateByName(group), mZero, duration, group, utils::TransitionType::SmoothStep);
+    }
+
+    bool Sim2Real::changePolicy(const std::string& policyName, const std::string& policyType, bool next)
+    {
+        if (policyName == rlInfo_.name)
+        {
+            ROS_WARN("Sim2Real already in policy: %s", policyName.c_str());
+            return true;
+        }
+        try
+        {
+            // 切换指定策略
+            if (!policyName.empty())
+            {
+                ROS_INFO("Sim2Real change policy to %s", policyName.c_str());
+                rlInfo_ = rlConfigGroup_.getRLConfigByName(policyName);
+                if (rlInfo_.name != policyName)
+                {
+                    ROS_ERROR("Sim2Real not such policy name: %s", policyName.c_str());
+                    return false;
+                }
+            }
+            else if (policyType == "walk")
+            {
+                rlInfo_ = rlConfigGroup_.getWalkCurrentRLConfig();
+                ROS_INFO("Sim2Real change policy to next walk");
+            }
+            else if (policyType == "motion")
+            {
+                rlInfo_ = rlConfigGroup_.getMotionCurrentRLConfig();
+                ROS_INFO("Sim2Real change policy to next walk");
+            }
+            else
+            {
+                if (next)
+                {
+                    rlInfo_ = rlConfigGroup_.getNextRLConfig();
+                    ROS_INFO("Sim2Real change policy to next");
+                }
+                else
+                {
+                    rlInfo_ = rlConfigGroup_.getPrevRLConfig();
+                    ROS_INFO("Sim2Real change policy to Prev");
+                }
+            }
+            // 切换指定
+            pdInfo_.refreshRLConfig(rlInfo_);
+            pdInfo_.refreshByMotorIdVec();
+            // pdInfo_.print();
+            // rlInfo_.print();
+            if (!initPolicy(policy_, pdInfo_, rlInfo_))
+            {
+                ROS_ERROR("init policy error");
+                return false;
+            }
+            initEngine();
+            // 通知策略：进入 RUNNING，策略可自行处理初始 yaw
+            // policy_->onEnterRunning(robotState_);
+            trajectory_->refreshSingle(pdInfo_.urdf_offset, pdInfo_.direction, modelType_);
+            ROS_INFO("urdf: %s urdf by motor id: %s direction by motor id: %s", common::toString(pdInfo_.urdf_offset).c_str(), common::toString(pdInfo_.byMotorId.urdf_offset).c_str(), common::toString(pdInfo_.byMotorId.direction).c_str());
+
+            std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
+            std::time_t now_time_t = std::chrono::system_clock::to_time_t(now);
+            std::tm now_tm = *std::localtime(&now_time_t);
+            char buffer[100];
+            std::strftime(buffer, sizeof(buffer), "-%Y-%m-%d-%H-%M", &now_tm);
+            savedFile_ = "/tmp/sim2real/" + rlInfo_.policy_file_name + std::string(buffer);
+        }
+        catch (const std::exception& e)
+        {
+            ROS_ERROR("Error changing policy: %s", e.what());
+            return false;
+        }
+        return true;
+    }
+
+    bool Sim2Real::motorGroupRecoverByPolicyConfig(const std::string& policyName, const std::string& group, double duration)
+    {
+        auto rl = rlConfigGroup_.getRLConfigByName(policyName);
+        auto pd = pdInfo_;
+        pd.refreshRLConfig(rl);
+        pd.refreshByMotorIdVec();
+        if (rl.name != policyName)
+        {
+            return false;
+        }
+        std::shared_ptr<PolicyBase> policy;
+        if (!initPolicy(policy, pd, rl))
+        {
+            ROS_ERROR("init policy error");
+            return false;
+        }
+
+        ROS_INFO("policy :%d %d %s %d", policy->pdDofs_, policy->rlDofs_, policyName.c_str(), policy->frameStack_);
+        auto robotOutput = policy->getFirstRobotOutput();
+        auto index = robotMotor_->getMotorGroupIndexByName(group);
+        if (group == "upperBody")
+        {
+            auto lowerBodySize = robotMotor_->getMotorGroupIndexByName("lowerBody").size();
+            robotOutput.target_q = robotOutput.target_q.tail(robotOutput.target_q.size() - lowerBodySize);
+        }
+        ROS_INFO("DefaultControllerNode prePolicyChange [%s] target_q size: %zu %s", group.c_str(), robotOutput.target_q.size(), robotOutput.toString().c_str());
+        Motor_Output motorOutput(index.size());
+        common::transformRobotOutputToMotorOutput(robotOutput, motorOutput, pd.byMotorId.urdf_offset, pd.byMotorId.direction, index, modelType_ == "hi" ? 1 : 0);
+        trajectory_->setSingle(robotMotor_->getMotorGroupStateByName(group), motorOutput, duration, group, utils::TransitionType::SmoothStep);
+        return true;
+    }
+
+    bool Sim2Real::isMostionFinished()
+    {
+        if (policy_->isMotionFinished())
+        {
+            policy_->refreshObservation();
+            // 跌倒爬起
+            if (state_ == sim2Real::State::POLICY_STANDING)
+            {
+                ROS_INFO("sim2real up policy %s motion finished, back to %s(%s)", rlInfo_.name.c_str(), beforeFellPolicyName_.c_str(), beforeFellPolicyType_.c_str());
+                // changePolicy("", "walk");
+                // ROS_INFO("back to running");
+                // state_ = sim2Real::State::RUNNING;
+                // upperBodyRecover();
+                motorGroupRecoverByPolicyConfig(rlConfigGroup_.getWalkCurrentRLConfig().name, "all");
+                state_ = sim2Real::State::POST_POLICY_CHANGE;
+            }
+            // 执行动作
+            // 如果是通过按键切换的
+            else if (policyChangeByKeyPtr_)
+            {
+                if (policyChangeByKeyPtr_->loop)
+                {
+                    ROS_INFO("sim2real policy %s loop", rlInfo_.name.c_str());
+                }
+                else if (policyChangeByKeyPtr_->back_to_walk)
+                {
+                    if (policyChangeByKeyPtr_->back_to_zero)
+                    {
+                        auto preparedPolicy = policyChangeDefautePolicy.empty() ? rlConfigGroup_.getAllBodyWalkPolicy() : rlConfigGroup_.getRLConfigByName(policyChangeDefautePolicy);
+                        motorGroupRecoverByPolicyConfig(preparedPolicy.name, "all", 0.25);
+                        state_ = sim2Real::State::POST_POLICY_CHANGE;
+                        policyChangeByKeyPtr_.reset();
+                        return true;
+                    }
+                    //
+                    ROS_INFO("sim2real policy %s motion finished, change to walk type policy", rlInfo_.name.c_str());
+                    changePolicy("", "walk");
+                    policyChangeByKeyPtr_.reset();
+                    if (rlInfo_.motor_group != "all")
+                    {
+                        motorGroupRecover();
+                    }
+                }
+                else
+                {
+                    ROS_INFO("sim2real policy %s motion finished, back to standing", rlInfo_.name.c_str());
+                    trajectory_->setSingle(robotMotor_->getMotorGroupStateByName("all"), "zero", 1, "all", utils::TransitionType::SmoothStep);
+                    policyChangeByKeyPtr_.reset();
+                    state_ = sim2Real::State::STANDING;
+                }
+            }
+            // 直接切换的 回到策略的0位
+            else
+            {
+                trajectory_->setSingle(robotMotor_->getMotorGroupStateByName("all"), "zero", 1, "all", utils::TransitionType::SmoothStep);
+                ROS_INFO("back to standing");
+                state_ = sim2Real::State::STANDING;
+            }
+            return true;
+        }
+        return false;
+    }
+
+    void Sim2Real::setKpKd(const std::string& group, MotorControlType type) const
+    {
+        auto out = robotMotor_->getMotorGroupStateByName(group).toOut();
+        out.target_dq.setZero();
+        out.target_tau.setZero();
+        out.target_tau.setConstant(10);
+        common::motorOutputSetKpKd(out, pdInfo_.kp, pdInfo_.kd);
+        robotMotor_->setMotorGroupByName(group, out, type);
+        ROS_INFO("sim2real (%s) set kp kd", group.c_str());
+        robotMotor_->sendMotors();
+    };
+
+    void Sim2Real::cmdVelCallback(const geometry_msgs::Twist::ConstPtr& msg)
+    {
+        std::unique_lock<std::shared_timed_mutex> lk(stateMutex_);
+        if (state_ != sim2Real::State::RUNNING)
+        {
+            return;
+        }
+        lk.unlock();
+
+        // 直接保存原始速度命令，不做任何裁剪
+        // 速度裁剪应该由各个策略算法在自己的 updateObservation 中处理
+        cmdVel_.vx = msg->linear.x;
+        cmdVel_.vy = msg->linear.y;
+        cmdVel_.dyaw = msg->angular.z;
+        cmdVel_.joy = joy_;
+    }
+
+    void Sim2Real::joyCallback(const sim2real_msg::Joy::ConstPtr& msg)
+    {
+        static bool lastSwitched = false;
+        std::unique_lock<std::shared_timed_mutex> lk(stateMutex_);
+        // 如果有输出 则使用输出q
+        auto getMotorState = [&]() {
+            Motor_State state(pdInfo_.dofs);
+            std::unique_lock<std::shared_timed_mutex> outputLk(outputMutex_);
+            if (!motorOutput_.isZero())
+            {
+                state.q = motorOutput_.target_q;
+            }
+            else
+            {
+                state = robotMotor_->getMotorGroupStateByName("all");
+            }
+            outputLk.unlock();
+            return state;
+        };
+
+        if (msg->L == 1)
+        {
+            state_ = sim2Real::State::STANDING;
+            trajectory_->setSingle(getMotorState(), "zero", 3, "all", utils::TransitionType::SmoothStep);
+        }
+        if (msg->rb == 1)
+        {
+            state_ = sim2Real::State::SITTING;
+            trajectory_->setSingle(getMotorState(), "sitdown", 3, "all", utils::TransitionType::SmoothStep);
+        }
+        if (!lastSwitched && msg->lb)
+        {
+            lastSwitched = true;
+            if (state_ == sim2Real::State::RUNNING)
+            {
+                ROS_INFO("sim2real switch to standby state");
+                trajectory_->setSingle(getMotorState(), "zero", 0.4, "all", utils::TransitionType::SmoothStep);
+                state_ = sim2Real::State::STANDING;
+            }
+            else if (state_ == sim2Real::State::STANDBY)
+            {
+                ROS_INFO("sim2real switch to running state");
+                state_ = sim2Real::State::RUNNING;
+            }
+        }
+        else
+        {
+            lastSwitched = false;
+        }
+    }
+    sim2Real::FellDown Sim2Real::isFellDown()
+    {
+        sim2Real::FellDown result = sim2Real::FellDown::NONE;
+        // std::shared_lock<std::shared_timed_mutex> lk(imuMutex_);
+        auto imu = imu_;
+        // lk.unlock();
+        static int frontCount = 0;
+        static int backCount = 0;
+        static int leftCount = 0;
+        static int rightCount = 0;
+        constexpr int FELL_DOWN_PITCH_THRESHOLD(16); // 前后
+        constexpr int FELL_DOWN_ROLL_THRESHOLD(12);  // 左右
+        static auto reset = [&]() {
+            frontCount = 0;
+            backCount = 0;
+            leftCount = 0;
+            rightCount = 0;
+        };
+        static auto subtraction = [](int& count) {
+            if (count > 0)
+            {
+                count -= 1;
+            }
+        };
+        if (!rlInfo_.detect_falls)
+        {
+            return result;
+        }
+
+        // 前倒检测
+        if (imu.linear_acceleration.x < -5.0 && robotState_.eu_ang[1] > 1.0)
+        {
+            frontCount++;
+            ROS_INFO_THROTTLE(0.5, "Front fall down %d linear_acceleration.x %f eu_ang[1] %f ", frontCount, imu.linear_acceleration.x, robotState_.eu_ang[1]);
+            if (frontCount >= FELL_DOWN_PITCH_THRESHOLD)
+            {
+                // ROS_INFO("sim2real Front fall down detected");
+                result = sim2Real::FellDown::FRONT;
+            }
+        }
+        else
+        {
+            subtraction(frontCount);
+        }
+
+        // 后倒检测
+        if (imu.linear_acceleration.x > 5.0 && robotState_.eu_ang[1] < -1.0)
+        {
+            backCount++;
+            ROS_INFO_THROTTLE(0.5, "Back fall down %d linear_acceleration.x %f eu_ang[1] %f ", backCount, imu.linear_acceleration.x, robotState_.eu_ang[1]);
+            if (backCount >= FELL_DOWN_PITCH_THRESHOLD)
+            {
+                // ROS_INFO("sim2real Back fall down detected");
+                result = sim2Real::FellDown::BACK;
+            }
+        }
+        else
+        {
+            subtraction(backCount);
+        }
+
+        // 左倒检测
+        if (imu.linear_acceleration.y < -5.0 && robotState_.eu_ang[0] < -1.0)
+        {
+            leftCount++;
+            ROS_INFO_THROTTLE(0.5, "Left fall down %d linear_acceleration.y %f eu_ang[0] %f ", leftCount, imu.linear_acceleration.y, robotState_.eu_ang[0]);
+            if (leftCount >= FELL_DOWN_ROLL_THRESHOLD)
+            {
+                // ROS_INFO("sim2real Left fall down detected");
+                result = sim2Real::FellDown::LEFT;
+            }
+        }
+        else
+        {
+            subtraction(leftCount);
+        }
+
+        // 右倒检测
+        if (imu.linear_acceleration.y > 5.0 && robotState_.eu_ang[0] > 1.0)
+        {
+            rightCount++;
+            ROS_INFO_THROTTLE(0.5, "Right fall down %d linear_acceleration.y %f eu_ang[0] %f ", rightCount, imu.linear_acceleration.y, robotState_.eu_ang[0]);
+            if (rightCount >= FELL_DOWN_ROLL_THRESHOLD)
+            {
+                // ROS_INFO("sim2real Right fall down detected");
+                result = sim2Real::FellDown::RIGHT;
+            }
+        }
+        else
+        {
+            subtraction(rightCount);
+        }
+
+        return result;
+    }
+    void Sim2Real::imuCallback(const sensor_msgs::Imu::ConstPtr& msg)
+    {
+        // std::unique_lock<std::shared_timed_mutex> lk(imuMutex_);
+        robotState_.quat.x() = msg->orientation.x;
+        robotState_.quat.y() = msg->orientation.y;
+        robotState_.quat.z() = msg->orientation.z;
+        robotState_.quat.w() = msg->orientation.w;
+        robotState_.eu_ang = common::quatToEulerZYX(robotState_.quat);
+        robotState_.base_ang_vel[0] = msg->angular_velocity.x;
+        robotState_.base_ang_vel[1] = msg->angular_velocity.y;
+        robotState_.base_ang_vel[2] = msg->angular_velocity.z;
+        imu_ = *msg;
+    }
+
+    void Sim2Real::publish() const
+    {
+        sensor_msgs::JointState robotMsg, motorStateMsg, motorOutMsg;
+        auto jointsNum = robotMotor_->getMotorGroupSizeByName("all");
+        auto policyCtrlName = rlInfo_.motor_group;
+        auto policyCtrlJointsNum = rlInfo_.dofs;
+        if (jointsNum <= 0)
+        {
+            ROS_ERROR("Sim2Real all's size is %zu", jointsNum);
+            return;
+        }
+        ros::Time now = ros::Time::now();
+        robotMsg.header.stamp = now;
+        motorStateMsg.header.stamp = now;
+        motorOutMsg.header.stamp = now;
+
+        robotMsg.position.reserve(jointsNum);
+        robotMsg.velocity.reserve(jointsNum);
+        robotMsg.effort.reserve(jointsNum);
+        robotMsg.name = pdInfo_.joint_names;
+
+        motorStateMsg.position.reserve(jointsNum);
+        motorStateMsg.velocity.reserve(jointsNum);
+        motorStateMsg.effort.reserve(jointsNum);
+        motorStateMsg.name = pdInfo_.joint_names;
+
+        motorOutMsg.position.resize(jointsNum, 0.0);
+        motorOutMsg.velocity.resize(jointsNum, 0.0);
+        motorOutMsg.effort.resize(jointsNum, 0.0);
+        motorOutMsg.name = pdInfo_.joint_names;
+
+        auto motorState = robotMotor_->getMotorGroupStateByName("all");
+        Robot_State robotState(jointsNum);
+        common::transformMotorStateToRobotState(motorState, robotState, pdInfo_.urdf_offset, pdInfo_.direction, modelType_ == "hi" ? 1 : 0);
+        for (auto i = 0; i < jointsNum; i++)
+        {
+            if (robotState.q.size() == jointsNum)
+            {
+                robotMsg.position.push_back(robotState.q[i]);
+                robotMsg.velocity.push_back(robotState.dq[i]);
+                robotMsg.effort.push_back(robotState.tau[i]);
+            }
+
+            if (motorState.q.size() == jointsNum)
+            {
+                motorStateMsg.position.push_back(motorState.q[i]);
+                motorStateMsg.velocity.push_back(motorState.dq[i]);
+                motorStateMsg.effort.push_back(motorState.tau[i]);
+            }
+            else
+            {
+                ROS_WARN_THROTTLE(1.0, "motorState.q size %zu is not equal to jointsNum %zu", motorState.q.size(), jointsNum);
+            }
+
+            if (motorOutput_.target_q.size() > i)
+            {
+                motorOutMsg.position[i] = (motorOutput_.target_q[i]);
+                motorOutMsg.velocity[i] = (motorOutput_.target_dq[i]);
+                double effort = (motorOutput_.target_q[i] - motorState.q[i]) * pdInfo_.kp[i] + (0 - motorState.dq[i]) * pdInfo_.kd[i];
+                motorOutMsg.effort[i] = (effort);
+            }
+        }
+        if (robotStatePub_)
+        {
+            robotStatePub_.publish(robotMsg);
+        }
+        if (motorStatePub_)
+        {
+            motorStatePub_.publish(motorStateMsg);
+        }
+        if (motorOutputPub_)
+        {
+            motorOutputPub_.publish(motorOutMsg);
+        }
+    }
+
+    void Sim2Real::keepMotor(const std::string& group)
+    {
+        auto state = robotMotor_->getMotorGroupStateByName(group);
+        auto out = state.toOut();
+        auto index = robotMotor_->getMotorGroupIndexByName(group);
+        common::motorOutputSetKpKd(out, pdInfo_.byMotorId.kp, pdInfo_.byMotorId.kd, index);
+        robotMotor_->setMotorGroupByName(group, out);
+        robotMotor_->sendMotors();
+    }
+
+    void Sim2Real::execTrajLoop()
+    {
+        auto pdHz = rlInfo_.pd_ctrl_f;
+        ros::Rate rate(pdHz);
+        while (!quit_ && ros::ok())
+        {
+            if (state_ != sim2Real::State::STANDBY && state_ != sim2Real::State::RUNNING)
+            {
+                rate.sleep();
+                continue;
+            }
+            if (trajectory_->isSingleRunning())
+            {
+                auto group = trajectory_->getSingleGroup();
+                if (modelType_ != "pi" && group != "all")
+                {
+                    auto out = trajectory_->generatorSingle();
+                    auto index = robotMotor_->getMotorGroupIndexByName(group);
+                    if (!out.isZero())
+                    {
+                        common::motorOutputSetKpKd(out, pdInfo_.byMotorId.kp, pdInfo_.byMotorId.kd, index);
+                        robotMotor_->setMotorGroupByName(group, out);
+                        ROS_INFO_THROTTLE(1, "single %s: %s", group.c_str(), out.toString().c_str());
+                    }
+                }
+            }
+            // 需要先判断series 再判断multi
+            else if (trajectory_->isSeriesRunning())
+            {
+                auto group = trajectory_->getMultiGroup();
+                if (modelType_ != "pi" && group != "all")
+                {
+                    auto out = trajectory_->generatorSeries(robotMotor_->getMotorGroupStateByName(group), robotMotor_->getMotorGroupStateByName("all"));
+                    auto index = robotMotor_->getMotorGroupIndexByName(group);
+                    if (!out.isZero())
+                    {
+                        common::motorOutputSetKpKd(out, pdInfo_.byMotorId.kp, pdInfo_.byMotorId.kd, index);
+                        // robotMotor_->setMotorGroupByName(group, out, MotorControlType::POS_VEL_MAX_TQE);
+                        robotMotor_->setMotorGroupByName(group, out);
+                        robotMotor_->sendMotors();
+                        ROS_INFO_THROTTLE(3, "%s Series %s: state:%sout:%s", __FUNCTION__, group.c_str(), robotMotor_->getMotorGroupStateByName(group).toString().c_str(), out.toString().c_str());
+                    }
+                    else
+                    {
+                        ROS_INFO_THROTTLE(1, "Series %s finished, recover upper body", group.c_str());
+                        motorGroupRecover();
+                    }
+                }
+            }
+            else if (trajectory_->isMultiRunning())
+            {
+                auto group = trajectory_->getMultiGroup();
+                if (modelType_ != "pi" && group != "all")
+                {
+                    auto motorState = robotMotor_->getMotorGroupStateByName("all");
+                    auto out = trajectory_->generatorMulti(motorState);
+                    auto index = robotMotor_->getMotorGroupIndexByName(group);
+                    if (!out.isZero())
+                    {
+                        // robotMotor_->setMotorGroupByName(group, out, MotorControlType::POS_VEL_MAX_TQE);
+                        common::motorOutputSetKpKd(out, pdInfo_.byMotorId.kp, pdInfo_.byMotorId.kd, index);
+                        robotMotor_->setMotorGroupByName(group, out);
+                        robotMotor_->sendMotors();
+                        ROS_INFO_THROTTLE(3, "%s Multi %s: state:%sout:%s", __FUNCTION__, group.c_str(), robotMotor_->getMotorGroupStateByName(group).toString().c_str(), out.toString().c_str());
+                    }
+                    else
+                    {
+                        ROS_INFO_THROTTLE(1, "%s Multi %s finished, recover upper body", __FUNCTION__, group.c_str());
+                        auto allBodyPolicy = rlConfigGroup_.getAllBodyWalkPolicy();
+                        if (allBodyPolicy.name.empty() || allBodyPolicy.name == rlInfo_.name)
+                        {
+                            ROS_ERROR("%s No all-body walk policy configured, cannot switch back", __FUNCTION__);
+                            motorGroupRecover();
+                            rate.sleep();
+                            continue;
+                        }
+                        motorGroupRecoverByPolicyConfig(allBodyPolicy.name, "upperBody", 0.5);
+                        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+                        try
+                        {
+                            if (changePolicy(allBodyPolicy.name))
+                            {
+                                ROS_INFO("%s Switched back to all-body walk policy: %s", __FUNCTION__, allBodyPolicy.name.c_str());
+                            }
+                            else
+                            {
+                                ROS_ERROR("%s Failed to switch back to all-body walk policy", __FUNCTION__);
+                            }
+                        }
+                        catch (const std::exception& e)
+                        {
+                            ROS_ERROR("%s Error switching back to all-body policy: %s", __FUNCTION__, e.what());
+                        }
+                    }
+                }
+            }
+            rate.sleep();
+        }
+    }
+
+    void Sim2Real::execRlLoop()
+    {
+        int errorTime = 0;
+        auto rlHz = rlInfo_.rl_ctrl_f;
+        auto policyLoadedTime = rlInfo_.time;
+        auto policyCtrlName = rlInfo_.motor_group;
+        auto policyCtrlIndex = robotMotor_->getMotorGroupIndexByName(policyCtrlName);
+        auto allIndex = robotMotor_->getMotorGroupIndexByName("all");
+        // policy控制的电机数量,不一定与 pdInfo_.dofs 相同，例如不同dof的pi+执行动作的时候，只要pdInfo_.dofs小于policyCtrlJointsNum，且在policyCtrlName中有对应的关节即可
+        auto policyCtrlJointsNum = rlInfo_.dofs;
+        auto policyActualCtrlJointsNum = policyCtrlIndex.size();
+        ROS_INFO("sim2real rl hz:%f , ctrl group:(%s)[%d-actural%zu] policy loaded time %d", rlHz, policyCtrlName.c_str(), policyCtrlJointsNum, policyActualCtrlJointsNum, policyLoadedTime);
+        ros::Rate rate(rlHz);
+        // 如果有输出 则使用输出q
+        auto getMotorState = [&]() {
+            Motor_State state(pdInfo_.dofs);
+            std::unique_lock<std::shared_timed_mutex> outputLk(outputMutex_);
+            if (!motorOutput_.isZero())
+            {
+                state.q = motorOutput_.target_q;
+            }
+            else
+            {
+                state = robotMotor_->getMotorGroupStateByName("all");
+            }
+            outputLk.unlock();
+            return state;
+        };
+
+        while (!quit_ && ros::ok())
+        {
+            std::unique_lock<std::shared_timed_mutex> stateLk(stateMutex_);
+
+            // 切换策略后更新参数
+            if (policyLoadedTime != rlInfo_.time)
+            {
+                policyLoadedTime = rlInfo_.time;
+                rlHz = rlInfo_.rl_ctrl_f;
+                policyCtrlName = rlInfo_.motor_group;
+                policyCtrlIndex = robotMotor_->getMotorGroupIndexByName(policyCtrlName);
+                policyActualCtrlJointsNum = policyCtrlIndex.size();
+                policyCtrlJointsNum = rlInfo_.dofs;
+                rate = ros::Rate(rlHz);
+                ROS_INFO("sim2real rl hz:%f , ctrl group:(%s)[%d-actual%zu] policy loaded time %d, type: %s", rlHz, policyCtrlName.c_str(), policyCtrlJointsNum, policyActualCtrlJointsNum, policyLoadedTime, rlInfo_.type.c_str());
+            }
+
+            // standby不需要计算action的策略
+            if (state_ == sim2Real::STANDBY &&
+                (rlInfo_.algorithm == "pbhc" || rlInfo_.algorithm == "pbhc_future" || rlInfo_.algorithm == "bydmmc" ||
+                 rlInfo_.algorithm == "lr" || rlInfo_.algorithm == "host" || rlInfo_.algorithm == "footstep" || rlInfo_.algorithm == "amp" || rlInfo_.algorithm == "himloco"))
+            {
+                stateLk.unlock();
+                rate.sleep();
+                continue;
+            }
+            // 仅在以下状态下运行RL策略
+            if (state_ != sim2Real::State::STANDBY && state_ != sim2Real::State::RUNNING &&
+                state_ != sim2Real::State::POLICY_STANDING && state_ != sim2Real::State::PRE_POLICY_CHANGE)
+            {
+                // 处于待机状态或运行状态时才执行
+                stateLk.unlock();
+                rate.sleep();
+                continue;
+            }
+
+            // 转robot 只写入q position 和 dq 速度
+            // 速度 和 姿态通过imu获取
+            auto motorState = robotMotor_->getMotorGroupStateByName("all");
+            // 使用走路策略过渡 上半身已经完成动作后
+            if (isMostionFinished())
+            {
+                stateLk.unlock();
+                rate.sleep();
+                continue;
+            }
+
+            double timeDiff = ros::Time::now().toSec();
+            timeDiff -= static_cast<long long>(timeDiff);
+
+            if (state_ == sim2Real::State::RUNNING)
+            {
+                common::saveVectorXdToFile(savedFile_ + "_state_q.txt", motorState.q);
+            }
+            if (rlInfo_.algorithm == "lr")
+            {
+                robotState_.q = motorState.q.head(rlInfo_.dofs);
+                robotState_.dq = motorState.dq.head(rlInfo_.dofs);
+                robotState_.tau = motorState.tau.head(rlInfo_.dofs);
+            }
+            else if (rlInfo_.algorithm == "footstep_jz")
+            {
+                std::vector<double> offset(pdInfo_.byMotorId.urdf_offset.size(), 0.0);
+                common::transformMotorStateToRobotState(motorState, robotState_, offset, pdInfo_.byMotorId.direction, policyCtrlIndex, modelType_ == "hi" ? 1 : 0);
+            }
+            else
+            {
+                // common::transformMotorStateToRobotState(motorState, robotState_, pdInfo_.byMotorId.urdf_offset, pdInfo_.byMotorId.direction, policyCtrlIndex, modelType_ == "hi" ? 1 : 0);
+                common::transformMotorStateToRobotState(motorState, robotState_, pdInfo_.byMotorId.urdf_offset, pdInfo_.byMotorId.direction, allIndex, modelType_ == "hi" ? 1 : 0);
+                ROS_INFO_THROTTLE(10, "urdf: %sdirection: %skp: %skd: %s", common::toString(pdInfo_.byMotorId.urdf_offset).c_str(), common::toString<int>(pdInfo_.byMotorId.direction).c_str(),
+                                  common::toString(pdInfo_.byMotorId.p_kp).c_str(), common::toString(pdInfo_.byMotorId.p_kd).c_str());
+            }
+
+            // 使用走路策略切换到目标策略的过度
+            if (policyChangeByKeyPtr_ && state_ == sim2Real::State::PRE_POLICY_CHANGE && !policyChangeByKeyPtr_->finished(motorState))
+            {
+                cmdVel_.vx = 1.0;
+                cmdVel_.vy = 0;
+                cmdVel_.dyaw = 0;
+                cmdVel_.joy.LT = -1.0;
+            }
+
+            // 更新观测数据
+            if (!policy_->updateObservation(timeDiff, robotState_, robotOutput_, cmdVel_, obs.observations, state_ == sim2Real::State::STANDBY))
+            {
+                ROS_ERROR_THROTTLE(1, "updateObservation error");
+                stateLk.unlock();
+                rate.sleep();
+                continue;
+            }
+            // debug
+            if (state_ == sim2Real::State::RUNNING || state_ == sim2Real::State::POLICY_STANDING)
+            {
+                common::saveVectorXdToFile(savedFile_ + "_obs.txt", obs.observations);
+            }
+
+            obs.input = policy_->getFinalObsInput();
+
+            // debug
+            if (rlInfo_.algorithm != "pbhc_future" && (state_ == sim2Real::State::RUNNING || state_ == sim2Real::State::POLICY_STANDING))
+            {
+                common::saveMatrixXdToFile(savedFile_ + "_input.txt", obs.input);
+            }
+
+            // 计算action
+            robotOutput_.resize(policyCtrlJointsNum);
+            if (!engine_->updateAction(obs.input, robotOutput_, joy_))
+            {
+                errorTime++;
+                ROS_ERROR("updateAction error %d", errorTime);
+                stateLk.unlock();
+                rate.sleep();
+                continue;
+            }
+
+            errorTime = 0;
+
+            // 限位前处理
+            policy_->preModifyOutput(robotOutput_);
+
+            // action限位
+            engine_->clipActions(robotOutput_);
+
+            // debug
+            if (state_ == sim2Real::State::RUNNING || state_ == sim2Real::State::POLICY_STANDING)
+            {
+                common::saveVectorXdToFile(savedFile_ + "_action.txt", robotOutput_.action.head(rlInfo_.dofs));
+            }
+            // 限位后处理 将polcy输出的action 转为实际输出顺序
+            policy_->postModifyOutput(robotOutput_);
+            robotOutput_.target_q.resize(policyActualCtrlJointsNum);
+
+            // 将action写入target_q
+            for (int i = 0, j = 0; i < pdInfo_.dofs && j < policyActualCtrlJointsNum; i++)
+            {
+                if (std::fabs(robotOutput_.action[i] + 999.0) < 1e-6) // action 为 -999 则表示该关节不受policy控制
+                {
+                    continue;
+                }
+                robotOutput_.target_q[j] = robotOutput_.action[i] *
+                                           ((state_ == sim2Real::State::RUNNING || state_ == sim2Real::State::POLICY_STANDING || state_ == sim2Real::State::PRE_POLICY_CHANGE)
+                                                ? rlInfo_.action_scale
+                                                : 0.05);
+                j++;
+            }
+
+            // 将robotOutput_ 转为motorOutput_
+            std::unique_lock<std::shared_timed_mutex> outputLk(outputMutex_);
+            motorOutput_.resize(policyActualCtrlJointsNum);
+            if (rlInfo_.algorithm == "lr")
+            {
+                motorOutput_.target_q = robotOutput_.target_q.head(policyActualCtrlJointsNum);
+                motorOutput_.target_dq.setConstant(0);
+                motorOutput_.target_tau.setConstant(0);
+            }
+            else
+            {
+                robotOutput_.filter(pdInfo_.byMotorId.clip_output_lower, pdInfo_.byMotorId.clip_output_upper, policyCtrlIndex);
+                common::transformRobotOutputToMotorOutput(robotOutput_, motorOutput_, pdInfo_.byMotorId.urdf_offset, pdInfo_.byMotorId.direction, policyCtrlIndex, modelType_ == "hi" ? 1 : 0);
+            }
+
+            // 填入kp kd
+            common::motorOutputSetKpKd(motorOutput_, pdInfo_.byMotorId.p_kp, pdInfo_.byMotorId.p_kd, policyCtrlIndex); // 25
+            if (state_ == sim2Real::State::RUNNING || state_ == sim2Real::State::POLICY_STANDING)
+            {
+                common::saveVectorXdToFile(savedFile_ + "_output_q.txt", robotOutput_.target_q);
+            }
+            // ROS_INFO_THROTTLE(1, "%s", motorOutput_.toString().c_str());
+            stateLk.unlock();
+            outputLk.unlock();
+            // ROS_INFO("rl");
+            rate.sleep();
+        }
+    }
+
+    void Sim2Real::execPdLoop()
+    {
+        auto pdHz = rlInfo_.pd_ctrl_f;
+        // int pubStateDuration = pdHz / 10;
+        int pubStateDuration = 0;
+        unsigned int pubCount = 0;
+        auto policyLoadedTime = rlInfo_.time;
+        auto policyCtrlName = rlInfo_.motor_group;
+        auto policyCtrlIndex = robotMotor_->getMotorGroupIndexByName(policyCtrlName);
+        // policy控制的电机数量,不一定与 pdInfo_.dofs 相同，例如不同dof的pi+执行动作的时候，只要pdInfo_.dofs小于policyCtrlJointsNum，且在policyCtrlName中有对应的关节即可
+        auto policyActualCtrlJointsNum = robotMotor_->getMotorGroupSizeByName(policyCtrlName);
+        ROS_INFO("sim2real pd hz:%f , ctrl group:(%s)[actual%zu-actual%zu] policy loaded time %d, type: %s", pdHz, policyCtrlName.c_str(), policyActualCtrlJointsNum, policyCtrlIndex.size(), policyLoadedTime, rlInfo_.type.c_str());
+
+        // 如果有输出 则使用输出q
+        auto getMotorState = [&]() {
+            Motor_State state(pdInfo_.dofs);
+            if (motorOutput_.target_q.size() == pdInfo_.dofs && !motorOutput_.target_q.isZero())
+            {
+                state.q = motorOutput_.target_q;
+            }
+            else
+            {
+                state = robotMotor_->getMotorGroupStateByName("all");
+            }
+            return state;
+        };
+
+        // TODO
+        auto setFellDown = [&](const sim2Real::FellDown& fell) {
+            bool set = false;
+            if (!useFellDownAction_ && !useFellDownPolicy_)
+            {
+                trajectory_->setSingle(getMotorState(), "zero", 0.5, "all", utils::TransitionType::SmoothStep);
+                state_ = sim2Real::State::STANDING;
+                return;
+            }
+            // 如果策略没有开启跌倒检测 则不处理
+            if (!rlInfo_.detect_falls)
+            {
+                return;
+            }
+            std::unique_lock<std::shared_timed_mutex> stateLk(stateMutex_);
+            std::string name = "";
+            if (fell == sim2Real::FellDown::FRONT)
+            {
+                name = "fuwo";
+            }
+            else if (fell == sim2Real::FellDown::BACK)
+            {
+                name = "yangwo";
+            }
+            else if (fell == sim2Real::FellDown::LEFT)
+            {
+                name = "zuocewo";
+            }
+            else if (fell == sim2Real::FellDown::RIGHT)
+            {
+                name = "youcewo";
+            }
+            else
+            {
+                return;
+            }
+            if (modelType_ == "pi" && useFellDownPolicy_)
+            {
+                name = "host";
+            }
+
+            if (useFellDownAction_)
+            {
+                auto itemMulti = std::find_if(pdInfo_.multi_configs[productionType_].begin(), pdInfo_.multi_configs[productionType_].end(),
+                                              [&name](const std::pair<std::string, config::MultiWaypointConfig>& pair) {
+                                                  return pair.second.name == name;
+                                              });
+                if (itemMulti != pdInfo_.multi_configs[productionType_].end())
+                {
+                    setKpKd();
+                    state_ = sim2Real::State::TRAJ_MULTI;
+                    auto group = trajectory_->getMotorPosesVecGroup(name);
+                    ROS_INFO("--%s %s", group.c_str(), itemMulti->second.toString().c_str());
+                    trajectory_->setMultiConfig(itemMulti->second);
+                    trajectory_->setMulti(robotMotor_->getMotorGroupStateByName(group),
+                                          name, itemMulti->second.duration, -0.01,
+                                          group, utils::TransitionType(itemMulti->second.type),
+                                          itemMulti->second.back_to_zero);
+                    return;
+                }
+                ROS_WARN("Fell down action (%s) not found!", name.c_str());
+            }
+            if (useFellDownPolicy_)
+            {
+                beforeFellPolicyType_ = rlInfo_.type;
+                beforeFellPolicyName_ = rlInfo_.name;
+                if (rlInfo_.name != name && changePolicy(name))
+                {
+                    trajectory_->setSingle(getMotorState(), "zero", 0.5, "all", utils::TransitionType::SmoothStep);
+                    state_ = sim2Real::State::PRE_STANDING;
+                    return;
+                }
+                ROS_WARN("Fell down policy (%s) not found!", name.c_str());
+            }
+            ROS_INFO("Fell down recovery failed, back to standing");
+            trajectory_->setSingle(getMotorState(), "zero", 0.5, "all", utils::TransitionType::SmoothStep);
+            state_ = sim2Real::State::STANDING;
+            return;
+        };
+
+        ros::Rate rate(pdHz);
+        while (!quit_ && ros::ok())
+        {
+            // 尝试上写锁
+            std::unique_lock<std::shared_timed_mutex> stateLk(stateMutex_, std::try_to_lock);
+            if (!stateLk)
+            {
+                robotMotor_->keepMotorGroupLastCmdByName("all");
+                robotMotor_->sendMotors();
+                rate.sleep();
+                continue;
+            }
+
+            bool set = false;
+            if (++pubCount >= pubStateDuration)
+            {
+                pubCount = 0;
+                publish();
+            }
+            if (policyLoadedTime != rlInfo_.time)
+            {
+                policyLoadedTime = rlInfo_.time;
+                pdHz = rlInfo_.pd_ctrl_f;
+                pubStateDuration = pdHz / 10;
+                policyCtrlName = rlInfo_.motor_group;
+                policyCtrlIndex = robotMotor_->getMotorGroupIndexByName(policyCtrlName);
+                policyActualCtrlJointsNum = robotMotor_->getMotorGroupSizeByName(policyCtrlName);
+                rate = ros::Rate(pdHz);
+                ROS_INFO("sim2real pd hz:%f , ctrl group:(%s)[%zu-%zu] policy loaded time %d type:%s", pdHz, policyCtrlName.c_str(), policyActualCtrlJointsNum, policyCtrlIndex.size(), policyLoadedTime, rlInfo_.type.c_str());
+            }
+            switch (state_)
+            {
+                case sim2Real::State::INIT:
+                    {
+                        Motor_Output zero;
+                        zero.resize(robotMotor_->getMotorGroupSizeByName("all"));
+                        robotMotor_->setMotorGroupByName("all", zero);
+                        set = true;
+                        stateLk.unlock();
+                        break;
+                    }
+                case sim2Real::State::STANDING:
+                    {
+                        if (trajectory_->isSingleRunning())
+                        {
+                            motorOutput_ = trajectory_->generatorSingle();
+                            if (!motorOutput_.isZero())
+                            {
+                                common::motorOutputSetKpKd(motorOutput_, pdInfo_.kp, pdInfo_.kd);
+                                robotMotor_->setMotorGroupByName("all", motorOutput_);
+                                set = true;
+                            }
+                        }
+                        else
+                        {
+                            ROS_INFO("STANDING trajectory finished, switch to STANDBY");
+                            state_ = sim2Real::State::STANDBY;
+                        }
+                        stateLk.unlock();
+                        break;
+                    }
+                case sim2Real::State::SITTING:
+                    {
+                        if (trajectory_->isSingleRunning())
+                        {
+                            motorOutput_ = trajectory_->generatorSingle();
+                            if (!motorOutput_.isZero())
+                            {
+                                common::motorOutputSetKpKd(motorOutput_, pdInfo_.kp, pdInfo_.kd);
+                                robotMotor_->setMotorGroupByName("all", motorOutput_);
+                                set = true;
+                            }
+                        }
+                        else
+                        {
+                            state_ = sim2Real::State::INIT;
+                        }
+                        stateLk.unlock();
+                        break;
+                    }
+                case sim2Real::State::TRAJ_SINGLE:
+                case sim2Real::State::POST_POLICY_CHANGE:
+                    {
+                        if (trajectory_->isSingleRunning())
+                        {
+                            motorOutput_ = trajectory_->generatorSingle();
+                            auto group = trajectory_->getSingleGroup();
+                            auto index = robotMotor_->getMotorGroupIndexByName(group);
+                            if (group != "all")
+                            {
+                                robotMotor_->keepMotorGroupLastCmdByName("all"); // 保持其他关节的硬直
+                            }
+                            if (!motorOutput_.isZero())
+                            {
+                                common::motorOutputSetKpKd(motorOutput_, pdInfo_.byMotorId.kp, pdInfo_.byMotorId.kd, index);
+                                robotMotor_->setMotorGroupByName(group, motorOutput_);
+                                set = true;
+                            }
+                        }
+                        else if (state_ == sim2Real::State::POST_POLICY_CHANGE)
+                        {
+                            auto preparedPolicy = policyChangeDefautePolicy.empty() ? rlConfigGroup_.getAllBodyWalkPolicy() : rlConfigGroup_.getRLConfigByName(policyChangeDefautePolicy);
+                            ROS_INFO("POST_POLICY_CHANGE trajectory finished, switch to RUNNING, change policy: %s", preparedPolicy.name.c_str());
+                            changePolicy(preparedPolicy.name);
+                            state_ = sim2Real::State::RUNNING;
+                        }
+                        else
+                        {
+                            state_ = sim2Real::State::STANDBY;
+                        }
+                        stateLk.unlock();
+                        break;
+                    }
+                case sim2Real::State::TRAJ_MULTI:
+                    {
+                        if (trajectory_->isMultiRunning())
+                        {
+                            auto motorState = robotMotor_->getMotorGroupStateByName("all");
+                            motorOutput_ = trajectory_->generatorMulti(motorState);
+                            auto group = trajectory_->getMultiGroup();
+                            auto index = robotMotor_->getMotorGroupIndexByName(group);
+                            if (group != "all")
+                            {
+                                robotMotor_->keepMotorGroupLastCmdByName("all"); // 保持其他关节的硬直
+                            }
+                            if (!motorOutput_.isZero())
+                            {
+                                common::motorOutputSetKpKd(motorOutput_, pdInfo_.byMotorId.kp, pdInfo_.byMotorId.kd, index);
+                                // robotMotor_->setMotorGroupByName(group, motorOutput_, MotorControlType::POS_VEL_MAX_TQE);
+                                robotMotor_->setMotorGroupByName(group, motorOutput_);
+                                ROS_INFO_THROTTLE(3, "%s Multi %s: state:%sout:%s", __FUNCTION__, group.c_str(), robotMotor_->getMotorGroupStateByName(group).toString().c_str(), motorOutput_.toString().c_str());
+                                set = true;
+                            }
+                        }
+                        else
+                        {
+                            // 回到0位
+                            if (trajectory_->isSingleRunning())
+                            {
+                                state_ = sim2Real::State::TRAJ_SINGLE;
+                            }
+                            else
+                            {
+                                policy_->refreshObservation();
+                                auto group = rlInfo_.motor_group;
+                                if (group != "all")
+                                {
+                                    motorGroupRecoverByPolicyConfig(rlInfo_.name, "upperBody", 0.5);
+                                }
+                                state_ = sim2Real::State::RUNNING;
+                            }
+                        }
+                        stateLk.unlock();
+                        break;
+                    }
+                case sim2Real::State::TRAJ_SERIES:
+                    {
+                        if (trajectory_->isSeriesRunning())
+                        {
+                            auto group = trajectory_->getMultiGroup();
+                            motorOutput_ = trajectory_->generatorSeries(robotMotor_->getMotorGroupStateByName(group), robotMotor_->getMotorGroupStateByName("all"));
+                            auto index = robotMotor_->getMotorGroupIndexByName(group);
+                            if (!motorOutput_.isZero())
+                            {
+                                common::motorOutputSetKpKd(motorOutput_, pdInfo_.byMotorId.kp, pdInfo_.byMotorId.kd, index);
+                                robotMotor_->setMotorGroupByName(group, motorOutput_);
+                                ROS_INFO_THROTTLE(3, "%s Series: %s: state:%sout:%s", __FUNCTION__, group.c_str(), robotMotor_->getMotorGroupStateByName(group).toString().c_str(), motorOutput_.toString().c_str());
+                                robotMotor_->sendMotors();
+                            }
+                        }
+                        else
+                        {
+                            // 回到0位 - 类似TRAJ_MULTI的逻辑
+                            if (trajectory_->isSingleRunning())
+                            {
+                                state_ = sim2Real::State::TRAJ_SINGLE;
+                            }
+                            else
+                            {
+                                state_ = sim2Real::State::RUNNING;
+                            }
+                        }
+                        stateLk.unlock();
+                        break;
+                    }
+                case sim2Real::State::PRE_STANDING:
+                    {
+                        if (trajectory_->isSingleRunning())
+                        {
+                            motorOutput_ = trajectory_->generatorSingle();
+                            if (!motorOutput_.isZero())
+                            {
+                                common::motorOutputSetKpKd(motorOutput_, pdInfo_.kp, pdInfo_.kd);
+                                robotMotor_->setMotorGroupByName("all", motorOutput_);
+                                set = true;
+                            }
+                        }
+                        else
+                        {
+                            // 当前格式化为时间 年-月-日 时:分 2025-01-01 12:00
+                            std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
+                            std::time_t now_time_t = std::chrono::system_clock::to_time_t(now);
+                            std::tm now_tm = *std::localtime(&now_time_t);
+                            char buffer[100];
+                            std::strftime(buffer, sizeof(buffer), "-%Y-%m-%d-%H-%M", &now_tm);
+                            savedFile_ = "/tmp/sim2real/" + rlInfo_.policy_file_name + std::string(buffer);
+                            state_ = sim2Real::State::POLICY_STANDING;
+                        }
+                        break;
+                    }
+                case sim2Real::State::STANDBY:
+                    {
+                        // 当前格式化为时间 年-月-日 时:分 2025-01-01 12:00
+                        std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
+                        std::time_t now_time_t = std::chrono::system_clock::to_time_t(now);
+                        std::tm now_tm = *std::localtime(&now_time_t);
+                        char buffer[100];
+                        std::strftime(buffer, sizeof(buffer), "-%Y-%m-%d-%H-%M", &now_tm);
+                        savedFile_ = "/tmp/sim2real/" + rlInfo_.policy_file_name + std::string(buffer);
+                        if (rlInfo_.algorithm == "pbhc" || rlInfo_.algorithm == "pbhc_future" || rlInfo_.algorithm == "footstep" ||
+                            rlInfo_.algorithm == "bydmmc" || rlInfo_.algorithm == "host" || rlInfo_.algorithm == "amp" || rlInfo_.algorithm == "himloco")
+                        {
+                            std::unique_lock<std::shared_timed_mutex> outputLk(outputMutex_);
+                            motorOutput_.resize(pdInfo_.dofs);
+                            policy_->refreshObservation();
+                            outputLk.unlock();
+                            stateLk.unlock();
+                            break;
+                        }
+                    }
+                case sim2Real::PRE_POLICY_CHANGE:
+                    if (state_ == sim2Real::State::PRE_POLICY_CHANGE && policyChangeByKeyPtr_ &&
+                        !trajectory_->isSingleRunning())
+                    {
+                        // 走路达到了结束切换动作的要求了
+                        // ROS_INFO("%s", robotMotor_->getAllMotorGroupsStateString().c_str());
+                        if (policyChangeByKeyPtr_->finished(robotMotor_->getMotorGroupStateByName("all")))
+                        {
+                            ROS_INFO("sim2real pre policy change walk finished, change to target policy %s", policyChangeByKeyPtr_->policy.c_str());
+                            state_ = sim2Real::State::RUNNING;
+                            if (!changePolicy(policyChangeByKeyPtr_->policy))
+                            {
+                                ROS_ERROR("changePolicy to %s failed", policyChangeByKeyPtr_->policy.c_str());
+                                policyChangeByKeyPtr_.reset();
+                            }
+                            continue;
+                        }
+                    }
+
+                case sim2Real::State::POLICY_STANDING:
+                case sim2Real::State::RUNNING:
+                    {
+                        // ROS_WARN_THROTTLE(0.2, "running %s single: %d multi: %d", sim2Real::toString(state_).c_str(), trajectory_->isSingleRunning(), trajectory_->isMultiRunning());
+                        if (state_ == sim2Real::State::RUNNING && rlInfo_.type != "up")
+                        {
+                            auto fellDown = isFellDown();
+                            if (fellDown != sim2Real::FellDown::NONE)
+                            {
+                                stateLk.unlock();
+                                std::thread([this, fellDown, setFellDown]() {
+                                    if (state_ == sim2Real::State::RUNNING)
+                                    {
+                                        setFellDown(fellDown);
+                                    }
+                                }).detach();
+                                break;
+                            }
+                        }
+                        stateLk.unlock();
+                        if (trajectory_->isSingleRunning())
+                        {
+                            auto group = trajectory_->getSingleGroup();
+                            if (modelType_ != "pi" && group != "all")
+                            {
+                                auto out = trajectory_->generatorSingle();
+                                auto index = robotMotor_->getMotorGroupIndexByName(group);
+                                if (!out.isZero())
+                                {
+                                    common::motorOutputSetKpKd(out, pdInfo_.byMotorId.kp, pdInfo_.byMotorId.kd, index);
+                                    robotMotor_->setMotorGroupByName(group, out);
+                                    ROS_INFO_THROTTLE(1, "RUNNING single: %s: %s", group.c_str(), out.toString().c_str());
+                                }
+                            }
+                        }
+                        std::unique_lock<std::shared_timed_mutex> outputLk(outputMutex_);
+
+                        // motorOutput_ 是execRlLoop计算得到的
+                        if (motorOutput_.isZero())
+                        {
+                            outputLk.unlock();
+                            break;
+                        }
+                        // filter
+                        auto motorOutput = motorOutput_; // motorOutput_ 用于发布电机输出
+                        // 切换算法，等待rl计算
+                        if (motorOutput.target_q.size() != policyActualCtrlJointsNum)
+                        {
+                            ROS_ERROR_THROTTLE(1, "motorOutput.target_q size %zu is not equal to policyCtrlJointsNum %zu", motorOutput.target_q.size(), policyActualCtrlJointsNum);
+                            outputLk.unlock();
+                            break;
+                        }
+                        outputLk.unlock();
+                        robotMotor_->setMotorGroupByName(policyCtrlName, motorOutput);
+                        set = true;
+                        break;
+                    }
+                case sim2Real::LYING:
+                case sim2Real::LIE_DOWN:
+                    break;
+            }
+            if (!set)
+            {
+                robotMotor_->keepMotorGroupLastCmdByName("all");
+                // ROS_WARN_THROTTLE(1, "sim2real %s no set motor, keep last cmd", sim2Real::toString(state_).c_str());
+            }
+            // ROS_INFO("pd");
+            robotMotor_->sendMotors();
+            rate.sleep();
+        }
+    }
+
+    Sim2Real::~Sim2Real()
+    {
+        stop();
+        ROS_INFO("Sim2Real %s()", __FUNCTION__);
+    }
+}
