@@ -1,10 +1,11 @@
 #!/bin/bash
 # ============================================================
-# XqRobotV2 点足行走策略验证 (平坦地形 + 键盘控制)
+# XqRobotV2 平坦地形策略验证 (MuJoCo 原生窗口 + 键盘控制)
 # 用法:
-#   bash shell/eval_ppo_toe_walk_flat.sh                          # 最新模型
-#   bash shell/eval_ppo_toe_walk_flat.sh --keyboard                # 键盘遥控
-#   bash shell/eval_ppo_toe_walk_flat.sh <run_id> --keyboard
+#   bash shell/eval_ppo_flat.sh                          # 最新模型, 策略回放
+#   bash shell/eval_ppo_flat.sh --keyboard                # 最新模型, 键盘遥控
+#   bash shell/eval_ppo_flat.sh <run_id>                  # 指定 run, 策略回放
+#   bash shell/eval_ppo_flat.sh <run_id> --keyboard       # 指定 run, 键盘遥控
 # ============================================================
 set -e
 
@@ -38,7 +39,7 @@ for arg in "$@"; do
 done
 
 CMD="uv run scripts/play/play_interactive.py"
-CMD="$CMD --algo ppo --task xqrobotV2_toe_walk_flat --sim mujoco"
+CMD="$CMD --algo ppo --task xqrobotV2_walk_flat --sim mujoco"
 CMD="$CMD interactive.action_mode=${ACTION_MODE}"
 if [ -n "$KEYBOARD" ]; then
     CMD="$CMD interactive.keyboard=true"

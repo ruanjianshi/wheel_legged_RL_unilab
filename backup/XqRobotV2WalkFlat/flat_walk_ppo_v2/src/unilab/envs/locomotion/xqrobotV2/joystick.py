@@ -102,13 +102,6 @@ def _reward_wheel_action_rate(ctx: RewardContext) -> np.ndarray:
     return np.sum(np.square(current - last), axis=1)
 
 
-def _reward_hip_roll(ctx: RewardContext) -> np.ndarray:
-    # 前进时髋外展产生横向力, 惩罚髋角绝对值偏离 0
-    moving = np.abs(ctx.info["commands"][:, 0]) + np.abs(ctx.info["commands"][:, 1])
-    hip_mag = np.square(ctx.dof_pos[:, 0]) + np.square(ctx.dof_pos[:, 3])
-    return hip_mag * np.clip(moving / 0.2, 0.0, 1.0) * 0.3
-
-
 def _reward_similar_calf(ctx: RewardContext) -> np.ndarray:
     # 髋: 镜像 left+right≈0;  大腿/小腿: 平行 left-right≈0
     hip = ctx.dof_pos[:, 0] + ctx.dof_pos[:, 3]
@@ -207,16 +200,10 @@ class XqRobotDRProvider(LocomotionDRProvider):
         low = np.asarray(env._cfg.commands.vel_limit[0], dtype=get_global_dtype())
         high = np.asarray(env._cfg.commands.vel_limit[1], dtype=get_global_dtype())
         cmds = np.asarray(np.random.uniform(low=low, high=high, size=(num_reset, low.shape[0])), dtype=get_global_dtype())
+        # 逆比: 线速度低时限制角速度, 防止原地打转
         safe_linv = np.maximum(np.abs(cmds[:, 0]), 1e-4)
         angv_limit = 2.0 / safe_linv  # inverse_linx_angv
         cmds[:, 2] = np.clip(cmds[:, 2], -angv_limit, angv_limit)
-        # 解耦训练: 每次只激活一个运动轴, 避免策略学出 Vx/Vy 串扰
-        for i in range(num_reset):
-            axis = np.random.choice([0, 1])  # 0=vx, 1=vy
-            if axis == 0:
-                cmds[i, 1] = 0.0
-            else:
-                cmds[i, 0] = 0.0
         return cmds
 
 
@@ -332,7 +319,6 @@ class XqRobotV2WalkFlatEnv(XqRobotBaseEnv):
             "wheel_action_rate": _reward_wheel_action_rate,
             "similar_calf": _reward_similar_calf,
             "tsk": _reward_tsk,
-            "hip_roll": _reward_hip_roll,
             "wheel_symmetry": _reward_wheel_symmetry,
             "feet_distance": _reward_feet_distance,
             "alive": rewards.alive,
@@ -411,12 +397,6 @@ class XqRobotV2WalkFlatEnv(XqRobotBaseEnv):
                 safe_linv = np.maximum(np.abs(sampled[:, 0]), 1e-4)
                 angv_limit = 2.0 / safe_linv
                 sampled[:, 2] = np.clip(sampled[:, 2], -angv_limit, angv_limit)
-                for i in range(num_resample):
-                    axis = np.random.choice([0, 1])
-                    if axis == 0:
-                        sampled[i, 1] = 0.0
-                    else:
-                        sampled[i, 0] = 0.0
                 commands_arr[resample_mask] = sampled
         info["commands"] = commands_arr
 

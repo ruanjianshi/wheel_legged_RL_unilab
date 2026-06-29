@@ -1,7 +1,8 @@
-"""xqrobotV2 toe-walk env: point-foot walking on flat terrain.
+"""xqrobotV2 toe-walk env: sinusoidal trajectory tracking for bipedal stepping.
 
-Differs from joystick walking by encouraging an alternating leg-lifting gait
-where wheels act as feet (intermittent ground contact), not as continuous rollers.
+Uses a phase clock to generate reference joint trajectories, and the RL policy
+learns to track them + add corrections. This is adapted from the HumanoidSW2
+approach (livelybot_pi_rl_baseline).
 """
 from __future__ import annotations
 
@@ -22,14 +23,19 @@ from .joystick import (
     XqRobotDRProvider,
     XqRobotV2WalkFlatCfg,
     XqRobotV2WalkFlatEnv,
+    _reward_feet_distance,
+    _reward_wheel_symmetry,
+    _reward_hip_roll,
 )
-from .base import NUM_LEG_ACTIONS, NUM_WHEEL_ACTIONS
+from .base import DEFAULT_LEG_ANGLES, NUM_LEG_ACTIONS, NUM_WHEEL_ACTIONS
+
+_HISTORY_LEN = 9
 
 
 @dataclass
 class XqRobotToeWalkCommands(Commands):
     vel_limit: list[list[float]] = field(
-        default_factory=lambda: [[-0.5, -0.2, -0.8, -0.1], [0.5, 0.2, 0.8, 0.1]]
+        default_factory=lambda: [[-0.3, -0.1, -0.3, -0.1], [0.3, 0.1, 0.3, 0.1]]
     )
     resampling_time: float = 6.0
 
@@ -42,35 +48,22 @@ class XqRobotToeWalkRewardConfig:
     only_positive_rewards: bool = False
     max_tilt_deg: float = 45.0
     min_base_height: float = 0.15
+    cycle_time: float = 0.5
+    ref_scale: float = 0.15
 
 
-@dataclass
-class XqRobotToeWalkCurriculumConfig(XqRobotCurriculumConfig):
-    enabled: bool = True
-    vel_step: float = 0.0005
-    ang_vel_step: float = 0.001
-    err_threshold: float = 0.4
-
-
-def _reward_step_pattern(ctx: RewardContext) -> np.ndarray:
-    wheel_contact = ctx.info.get("wheel_contact", np.zeros((ctx.num_envs, 2)))
-    left = wheel_contact[:, 0]
-    right = wheel_contact[:, 1]
-    alternating = left * (1.0 - right) + right * (1.0 - left)
-    return alternating * 0.5
-
-
-def _reward_wheel_lift(ctx: RewardContext) -> np.ndarray:
-    wheel_contact = ctx.info.get("wheel_contact", np.ones((ctx.num_envs, 2)))
-    air = 1.0 - np.mean(wheel_contact, axis=1)
-    return air * 0.3
+def _reward_ref_tracking(ctx: RewardContext) -> np.ndarray:
+    ref = ctx.info.get("ref_dof_pos")
+    if ref is None:
+        return np.zeros((ctx.num_envs,), dtype=np.float64)
+    err = np.sum(np.square(ctx.dof_pos[:, :NUM_LEG_ACTIONS] - ref), axis=1)
+    return np.exp(-2.0 * err) * 1.2 - 0.2 * err
 
 
 def _reward_static_wheel(ctx: RewardContext) -> np.ndarray:
     wheel_vel = ctx.dof_vel[:, -NUM_WHEEL_ACTIONS:]
     speed = np.sqrt(np.sum(np.square(wheel_vel), axis=1))
-    stationary = 1.0 / (1.0 + speed)
-    return stationary * 0.2
+    return 1.0 / (1.0 + speed)
 
 
 @registry.envcfg("XqRobotV2ToeWalkFlat")
@@ -78,10 +71,8 @@ def _reward_static_wheel(ctx: RewardContext) -> np.ndarray:
 class XqRobotV2ToeWalkFlatCfg(XqRobotV2WalkFlatCfg):
     commands: XqRobotToeWalkCommands = field(default_factory=XqRobotToeWalkCommands)
     reward_config: XqRobotToeWalkRewardConfig | None = None
-    curriculum: XqRobotToeWalkCurriculumConfig = field(
-        default_factory=XqRobotToeWalkCurriculumConfig
-    )
-    max_episode_seconds: float = 15.0
+    curriculum: XqRobotCurriculumConfig = field(default_factory=lambda: XqRobotCurriculumConfig(enabled=False))
+    max_episode_seconds: float = 12.0
 
 
 class XqRobotToeWalkDRProvider(XqRobotDRProvider):
@@ -106,6 +97,14 @@ class XqRobotV2ToeWalkFlatEnv(XqRobotV2WalkFlatEnv):
         self._toe_cfg = cfg.reward_config
         super().__init__(cfg, num_envs=num_envs, backend_type=backend_type)
         self._dr_manager._provider = XqRobotToeWalkDRProvider()
+        # Phase clock: random offset so half envs start with left leading, half with right
+        self._phase_offset = np.random.uniform(0, 2 * np.pi, (num_envs,)).astype(np.float64)
+        self._ref_dof_pos = np.zeros((num_envs, NUM_LEG_ACTIONS), dtype=np.float64)
+        # Override obs dims: add sin/cos phase (2 dims), 4D commands
+        self._obs_frame_dim = 34  # 32(base 4D) + 2 = 34
+        self._critic_frame_dim = 37  # 35(base 4D) + 2 = 37
+        self._obs_history = np.zeros((num_envs, self._hist_len, self._obs_frame_dim), dtype=self._np_dtype)
+        self._critic_history = np.zeros((num_envs, self._hist_len, self._critic_frame_dim), dtype=self._np_dtype)
 
     def _init_reward_functions(self) -> None:
         self._reward_fns: dict[str, Any] = {
@@ -120,9 +119,11 @@ class XqRobotV2ToeWalkFlatEnv(XqRobotV2WalkFlatEnv):
             "leg_mirror": self._reward_leg_mirror,
             "tsk": self._reward_tsk,
             "alive": rewards.alive,
-            "step_pattern": _reward_step_pattern,
-            "wheel_lift": _reward_wheel_lift,
+            "ref_tracking": _reward_ref_tracking,
             "static_wheel": _reward_static_wheel,
+            "feet_distance": _reward_feet_distance,
+            "wheel_symmetry": _reward_wheel_symmetry,
+            "hip_roll": _reward_hip_roll,
         }
 
     def _reward_joint_action_rate(self, ctx: RewardContext) -> np.ndarray:
@@ -136,44 +137,109 @@ class XqRobotV2ToeWalkFlatEnv(XqRobotV2WalkFlatEnv):
         return np.sum(np.square(current - last), axis=1)
 
     def _reward_leg_mirror(self, ctx: RewardContext) -> np.ndarray:
-        hip_error = ctx.dof_pos[:, 0] + ctx.dof_pos[:, 3]
-        pitch_error = ctx.dof_pos[:, 1:3] - ctx.dof_pos[:, 4:6]
-        return np.square(hip_error) + np.sum(np.square(pitch_error), axis=1)
+        hip = ctx.dof_pos[:, 0] + ctx.dof_pos[:, 3]
+        thigh = ctx.dof_pos[:, 1] - ctx.dof_pos[:, 4]
+        calf = ctx.dof_pos[:, 2] - ctx.dof_pos[:, 5]
+        return np.square(hip) + np.square(thigh) + np.square(calf)
 
     def _reward_tsk(self, ctx: RewardContext) -> np.ndarray:
         tsk_cmd = ctx.info["commands"][:, 3]
-        hip_diff = ctx.dof_pos[:, 0] + ctx.dof_pos[:, 3]
+        hip_diff = ctx.dof_pos[:, 0] - ctx.dof_pos[:, 3]
         return np.square(hip_diff - tsk_cmd)
 
-    def update_state(self, state: NpEnvState) -> NpEnvState:
-        self._update_commands(state.info)
-        linvel = self.get_local_linvel()
-        gyro = self.get_gyro()
-        gravity = self._backend.get_sensor_data(self._cfg.sensor.upvector)
-        dof_pos = self.get_dof_pos()
-        dof_vel = self.get_dof_vel()
-        self._update_wheel_contact(state.info)
-        terminated = self._compute_terminated(gravity, dof_pos)
-        reward = self._compute_reward(state.info, linvel, gyro, gravity, dof_pos, dof_vel)
-        obs = self._compute_obs(state.info, linvel, gyro, gravity, dof_pos, dof_vel)
-        self._update_curriculum(state.info)
-        return state.replace(obs=obs, reward=reward, terminated=terminated)
+    def apply_action(self, actions: np.ndarray, state: NpEnvState) -> np.ndarray:
+        clipped = np.clip(actions, -self._cfg.control_config.clip_actions, self._cfg.control_config.clip_actions)
+        state.info["last_actions"] = state.info.get("current_actions", np.zeros_like(clipped))
+        state.info["current_actions"] = clipped
+        exec_actions = state.info["last_actions"] if self._cfg.control_config.simulate_action_latency else clipped
+        # Leg: correction on top of reference trajectory
+        leg_corr = exec_actions[:, :NUM_LEG_ACTIONS] * self._cfg.control_config.action_scale
+        leg_targets = self._ref_dof_pos[: leg_corr.shape[0]] + leg_corr
+        # Wheel: velocity control, no offset (stays near 0 for toe-walk)
+        wheel_targets = exec_actions[:, NUM_LEG_ACTIONS:] * self._cfg.control_config.wheel_action_scale * 0.2
+        return np.concatenate([leg_targets, wheel_targets], axis=1, dtype=self._np_dtype)
 
-    def _update_wheel_contact(self, info: dict) -> None:
-        try:
-            left = self._backend.get_sensor_data("left_link_wheel_force")
-            right = self._backend.get_sensor_data("right_link_wheel_force")
-            left_f = np.asarray(left, dtype=get_global_dtype())
-            right_f = np.asarray(right, dtype=get_global_dtype())
-            if left_f.ndim == 1:
-                left_f = left_f.reshape(-1, 3)
-            if right_f.ndim == 1:
-                right_f = right_f.reshape(-1, 3)
-            left_contact = (np.linalg.norm(left_f, axis=1) > 0.1).astype(np.float64)[: self._num_envs]
-            right_contact = (np.linalg.norm(right_f, axis=1) > 0.1).astype(np.float64)[: self._num_envs]
-            info["wheel_contact"] = np.stack([left_contact, right_contact], axis=1)
-        except (KeyError, AttributeError):
-            info["wheel_contact"] = np.zeros((self._num_envs, 2), dtype=np.float64)
+    def _compute_ref_dof_pos(self, info: dict) -> None:
+        cycle_time = self._toe_cfg.cycle_time
+        steps = info.get("steps", np.zeros((self._num_envs,), dtype=np.float64))
+        dt = self._cfg.ctrl_dt
+        phase = (steps * dt / cycle_time) + self._phase_offset / (2 * np.pi)
+        sin_pos = np.sin(2 * np.pi * phase)[:, None]  # (num_envs, 1)
+
+        scale = self._toe_cfg.ref_scale
+        # Left leg active when sin < 0
+        left_active = np.clip(-sin_pos, 0, None)
+        # Right leg active when sin >= 0
+        right_active = np.clip(sin_pos, 0, None)
+
+        ref = np.zeros((self._num_envs, NUM_LEG_ACTIONS), dtype=np.float64)
+        # Hip stays at default
+        ref[:, 0] = DEFAULT_LEG_ANGLES[0]
+        ref[:, 3] = DEFAULT_LEG_ANGLES[3]
+        # Thigh: swing forward (positive from default 0.1)
+        ref[:, 1] = DEFAULT_LEG_ANGLES[1] + left_active[:, 0] * scale * 2
+        ref[:, 4] = DEFAULT_LEG_ANGLES[4] + right_active[:, 0] * scale * 2
+        # Calf: flex during swing (more negative from default -0.1)
+        ref[:, 2] = DEFAULT_LEG_ANGLES[2] - left_active[:, 0] * scale * 3
+        ref[:, 5] = DEFAULT_LEG_ANGLES[5] - right_active[:, 0] * scale * 3
+
+        self._ref_dof_pos = ref
+
+    def update_state(self, state: NpEnvState) -> NpEnvState:
+        self._compute_ref_dof_pos(state.info)
+        state.info["ref_dof_pos"] = self._ref_dof_pos
+        return super().update_state(state)
+
+    def _compute_obs(self, info: dict, linvel, gyro, gravity, dof_pos, dof_vel) -> dict[str, np.ndarray]:
+        noise_cfg = self._cfg.noise_config
+        leg_diff = dof_pos[:, :NUM_LEG_ACTIONS] - DEFAULT_LEG_ANGLES[:NUM_LEG_ACTIONS]
+        leg_vel = dof_vel[:, :NUM_LEG_ACTIONS]
+        wheel_vel = dof_vel[:, NUM_LEG_ACTIONS:]
+        noisy_gyro = self._obs_noise(gyro, noise_cfg.scale_gyro)
+        noisy_gravity = self._obs_noise(-gravity, noise_cfg.scale_gravity)
+        noisy_leg_diff = self._obs_noise(leg_diff, noise_cfg.scale_joint_angle)
+        noisy_leg_vel = self._obs_noise(leg_vel, noise_cfg.scale_joint_vel)
+        noisy_wheel_vel = self._obs_noise(wheel_vel, noise_cfg.scale_wheel_vel)
+        last_actions = info.get("current_actions", np.zeros((linvel.shape[0], NUM_LEG_ACTIONS + NUM_WHEEL_ACTIONS)))
+
+        obs_frame = np.concatenate([
+            noisy_gyro, noisy_gravity,
+            noisy_leg_diff, noisy_leg_vel, noisy_wheel_vel,
+            last_actions, info["commands"],
+        ], axis=1, dtype=get_global_dtype())
+
+        critic_frame = np.concatenate([
+            gyro, -gravity,
+            leg_diff, leg_vel, wheel_vel,
+            last_actions, info["commands"], linvel,
+        ], axis=1, dtype=get_global_dtype())
+
+        batch_size = obs_frame.shape[0]
+
+        # Phase encoding
+        steps_p = info.get("steps", np.zeros((batch_size,), dtype=np.float64))
+        phase = (steps_p[:batch_size] * self._cfg.ctrl_dt / self._toe_cfg.cycle_time) + self._phase_offset[:batch_size] / (2 * np.pi)
+        sin_phase = np.sin(2 * np.pi * phase)[:, None]
+        cos_phase = np.cos(2 * np.pi * phase)[:, None]
+
+        obs_frame = np.concatenate([obs_frame, sin_phase, cos_phase], axis=1, dtype=get_global_dtype())
+        critic_frame = np.concatenate([critic_frame, sin_phase, cos_phase], axis=1, dtype=get_global_dtype())
+
+        steps_val = int(info.get("steps", np.zeros(1, dtype=np.uint32))[0])
+
+        if steps_val <= 1:
+            for i in range(self._hist_len):
+                self._obs_history[:batch_size, i, :] = obs_frame
+                self._critic_history[:batch_size, i, :] = critic_frame
+        else:
+            self._obs_history[:batch_size, :-1, :] = self._obs_history[:batch_size, 1:, :]
+            self._obs_history[:batch_size, -1, :] = obs_frame
+            self._critic_history[:batch_size, :-1, :] = self._critic_history[:batch_size, 1:, :]
+            self._critic_history[:batch_size, -1, :] = critic_frame
+
+        obs = self._obs_history[:batch_size].reshape(batch_size, -1)
+        critic = self._critic_history[:batch_size].reshape(batch_size, -1)
+        return {"obs": obs, "critic": critic}
 
     def _compute_terminated(self, gravity: np.ndarray, dof_pos: np.ndarray) -> np.ndarray:
         tilt = np.arccos(np.clip(gravity[:, 2], -1, 1))
@@ -197,7 +263,7 @@ class XqRobotV2ToeWalkFlatEnv(XqRobotV2WalkFlatEnv):
             dof_pos=dof_pos[:, :NUM_LEG_ACTIONS],
             dof_vel=dof_vel,
             num_envs=num_obs,
-            default_angles=self.default_angles[:NUM_LEG_ACTIONS].astype(dtype),
+            default_angles=DEFAULT_LEG_ANGLES[:NUM_LEG_ACTIONS].astype(dtype),
             tracking_sigma=self._toe_cfg.tracking_sigma,
             base_height_target=self._toe_cfg.base_height_target,
             base_height=self._base_height_values(num_obs),

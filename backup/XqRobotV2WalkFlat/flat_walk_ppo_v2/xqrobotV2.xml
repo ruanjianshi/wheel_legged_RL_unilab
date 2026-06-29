@@ -37,7 +37,6 @@
               <joint name="left_joint_wheel" type="hinge" axis="0 1 0" />
               <geom name="left_link_wheel_collision" type="mesh" mesh="left_link_wheel_collision_left_link_wheel" class="collision" />
               <geom name="left_link_wheel_visual" type="mesh" mesh="left_link_wheel_left_link_wheel" class="visual" />
-              <site name="left_wheel_site" size="0.005" />
             </body>
           </body>
         </body>
@@ -62,7 +61,6 @@
               <joint name="right_joint_wheel" type="hinge" axis="0 1 0" />
               <geom name="right_link_wheel_collision" type="mesh" mesh="right_link_wheel_collision_right_link_wheel" class="collision" />
               <geom name="right_link_wheel_visual" type="mesh" mesh="right_link_wheel_right_link_wheel" class="visual" />
-              <site name="right_wheel_site" size="0.005" />
             </body>
           </body>
         </body>

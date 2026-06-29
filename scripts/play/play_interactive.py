@@ -988,10 +988,11 @@ def _policy_obs_contains_command(env: Any, *, reset_fn) -> bool:
 
 
 def _handle_command_key(commander: KeyboardCommander, keycode: int) -> None:
+    vx_or_vy = commander.AXIS_VY if commander.mode == "lateral" else commander.AXIS_VX
     if keycode == _KEY_UP:
-        commander.nudge(commander.AXIS_VX, +1.0)
+        commander.nudge(vx_or_vy, +1.0)
     elif keycode == _KEY_DOWN:
-        commander.nudge(commander.AXIS_VX, -1.0)
+        commander.nudge(vx_or_vy, -1.0)
     elif keycode == _KEY_LEFT:
         commander.nudge(commander.AXIS_VYAW, +1.0)
     elif keycode == _KEY_RIGHT:
@@ -1004,6 +1005,12 @@ def _handle_command_key(commander: KeyboardCommander, keycode: int) -> None:
         commander.nudge_height(-1.0)
     elif keycode == ord("E"):
         commander.nudge_height(+1.0)
+    elif keycode == ord("V"):
+        m = commander.toggle_mode()
+        print(f"[play_interactive] mode: {m}")
+    elif keycode == ord("J"):
+        commander.jump_trigger = 1 if commander.jump_trigger == 0 else 0
+        print(f"[play_interactive] jump: {'ON' if commander.jump_trigger else 'OFF'}")
     elif keycode in (_KEY_ENTER, _KEY_KP_ENTER):
         commander.zero()
     else:
@@ -1013,11 +1020,13 @@ def _handle_command_key(commander: KeyboardCommander, keycode: int) -> None:
 
 def _print_keyboard_legend(args) -> None:
     print("[play_interactive] Keyboard teleop ENABLED (drive style):")
-    print("  Up / Down    : forward / backward (vx)")
-    print("  Left / Right : turn left / right  (vyaw)")
-    print("  A / D        : strafe left / right (vy)")
-    print("  Q / E        : lower / raise  body height")
-    print("  Enter        : full stop")
+    print("  ↑ / ↓       : forward / backward (vx)  [V to switch lateral mode]")
+    print("  ← / →       : turn left / right  (vyaw)")
+    print("  A / D       : strafe left / right (vy)")
+    print("  Q / E       : lower / raise  body height")
+    print("  J           : jump (one-shot)")
+    print("  V           : toggle forward/lateral mode")
+    print("  Enter       : full stop")
     if str(getattr(args, "action_mode", "")) != "policy":
         print("  NOTE: action_mode is not 'policy'; commands will not drive the robot.")
 
@@ -1259,8 +1268,13 @@ def play_interactive(args, cfg: DictConfig | None = None, *, algo: str | None = 
                 # Write the command before stepping so this step's obs follow it.
                 if commander is not None and env.state is not None:
                     env.state.info["commands"][:, :3] = commander.command
-                    if env.state.info["commands"].shape[1] >= 5:
+                    nc = env.state.info["commands"].shape[1]
+                    if nc >= 5 and not str(args.task).startswith("xqrobotV2_jump"):
                         env.state.info["commands"][:, 4] = commander.height_target
+                    if commander.jump_trigger:
+                        if nc >= 5:
+                            env.state.info["commands"][:, 4] = 1.0
+                        commander.jump_trigger = 0
                     reward_cfg = getattr(env, "_reward_cfg", None)
                     if reward_cfg is not None and hasattr(reward_cfg, "base_height_target"):
                         reward_cfg.base_height_target = commander.height_target

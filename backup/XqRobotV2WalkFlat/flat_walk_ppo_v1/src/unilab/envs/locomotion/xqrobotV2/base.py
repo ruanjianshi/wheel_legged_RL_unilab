@@ -66,7 +66,7 @@ class XqRobotBaseCfg(LocomotionBaseCfg):
     sensor: XqRobotSensor = field(default_factory=XqRobotSensor)  # type: ignore[assignment]
     asset: XqRobotAsset = field(default_factory=XqRobotAsset)
     sim_dt: float = 0.005
-    ctrl_dt: float = 0.01
+    ctrl_dt: float = 0.02
     num_observations: int = 8
 
     # These are only for go2-like envs using terrain; keep defaults for flat env.

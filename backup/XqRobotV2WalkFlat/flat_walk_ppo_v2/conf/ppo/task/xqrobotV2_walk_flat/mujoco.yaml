@@ -1,30 +1,22 @@
 # @package _global_
 # =============================================================================
-# XqRobotV2 点足行走 PPO 训练 (正弦轨迹跟踪, 参考 HumanoidSW2)
-# 时钟驱动交替迈步参考轨迹, RL 学习跟踪+修正
+# XqRobotV2 两轮腿机器人 PPO 训练配置 (MuJoCo 后端)
+# 基于 wheel_legged_genesis (Albusgive/CJ-003) 参考设计
+# 含: 9帧历史堆叠, 课程学习, 域随机化, 触地终止
+# 回退至接近原始配置, 排除新增代码干扰
 # =============================================================================
 training:
-  task_name: XqRobotV2ToeWalkFlat
+  task_name: XqRobotV2WalkFlat
   sim_backend: mujoco
-  play_steps: 600
-  play_env_num: 1
-
-interactive:
-  action_mode: policy
-  policy_obs_mode: auto
-  camera_follow_body: true
-  camera_distance: 4.0
 
 algo:
-  num_envs: 2048
-  num_steps_per_env: 24
+  num_envs: 1024
+  num_steps_per_env: 25
   max_iterations: 5000
   empirical_normalization: false
   obs_groups:
-    actor:
+    default:
       - actor
-    critic:
-      - critic
   policy:
     activation: elu
     actor_hidden_dims: [512, 512, 256, 128]
@@ -41,23 +33,24 @@ algo:
 
 env:
   control_config:
-    action_scale: 0.3                    # 修正量缩放 (参考轨迹已提供基础)
+    action_scale: 0.5
     wheel_action_scale: 10.0
     clip_actions: 100.0
   commands:
+    # 5D: [vx, vy, vyaw, tsk, height]
     vel_limit:
-      - [-0.3, -0.1, -0.3, -0.1]
-      - [0.3, 0.1, 0.3, 0.1]
-    resampling_time: 6.0
+      - [-0.6, -0.3, -1.0, -0.1, 0.45]
+      - [0.6, 0.3, 1.0, 0.1, 0.85]
+    resampling_time: 3.0
   curriculum:
-    enabled: false
+    enabled: true
   domain_rand:
     randomize_base_mass: false
     randomize_ground_friction: false
     randomize_kp: false
     randomize_kd: false
     random_com: false
-    randomize_leg_length: false
+    randomize_leg_length: false          # 1024 变体编译慢+动态差异大, 收敛后再开
 
 reward:
   only_positive_rewards: false
@@ -65,22 +58,17 @@ reward:
     tracking_lin_vel: 1.5
     tracking_ang_vel: 1.5
     lin_vel_z: -0.2
-    ang_vel_xy: -0.05
+    ang_vel_xy: -0.02
     base_height: -5.0
-    orientation: -10.0
+    orientation: -10.0                  # 加重: 强制纠正内置倾斜
     joint_action_rate: -0.1
-    wheel_action_rate: -0.005
-    leg_mirror: -0.5
+    wheel_action_rate: -0.005               # 速度控制下放宽
+    similar_calf: -1.0
+    wheel_symmetry: -0.5               # 直行时左右轮速应相等
     tsk: -2.0
-    hip_roll: -2.0
-    wheel_symmetry: -0.5
     feet_distance: -1.0
     alive: 1.0
-    ref_tracking: 1.0                        # 放宽跟踪，让策略自主修正
-    static_wheel: 1.0                        # 轮子可微转辅助平衡
   tracking_sigma: 0.3
   base_height_target: 0.65
-  cycle_time: 0.5                      # 步态周期 0.5s
-  ref_scale: 0.08                     # 参考轨迹幅值(保守)
-  max_tilt_deg: 45.0
-  min_base_height: 0.15
+  max_tilt_deg: 60.0
+  min_base_height: 0.20

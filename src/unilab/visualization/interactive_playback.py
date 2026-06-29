@@ -92,6 +92,8 @@ class KeyboardCommander:
     height_step: float = 0.02
     height_min: float = 0.30
     height_max: float = 0.90
+    mode: str = "forward"  # "forward" (↑↓→Vx) or "lateral" (↑↓→Vy)
+    jump_trigger: int = 0  # 0=off, 1=jump requested
 
     AXIS_VX: ClassVar[int] = 0
     AXIS_VY: ClassVar[int] = 1
@@ -101,6 +103,14 @@ class KeyboardCommander:
         self.low = np.asarray(self.low, dtype=np.float64).reshape(3)
         self.high = np.asarray(self.high, dtype=np.float64).reshape(3)
         self.command = np.zeros(3, dtype=np.float64)
+
+    def toggle_mode(self) -> str:
+        self.command[:] = 0.0
+        if self.mode == "forward":
+            self.mode = "lateral"
+        else:
+            self.mode = "forward"
+        return self.mode
 
     @classmethod
     def from_vel_limit(
@@ -138,7 +148,7 @@ class KeyboardCommander:
     def describe(self) -> str:
         return (
             f"cmd vx={self.command[0]:+.2f} vy={self.command[1]:+.2f} vyaw={self.command[2]:+.2f}"
-            f"  h={self.height_target:.2f}"
+            f"  h={self.height_target:.2f} [{self.mode}]"
         )
 
 

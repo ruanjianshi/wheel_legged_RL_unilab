@@ -60,10 +60,12 @@ reward:
     lin_vel_z: -0.2
     ang_vel_xy: -0.02
     base_height: -5.0
-    orientation: -5.0
+    orientation: -10.0                  # 加重: 强制纠正内置倾斜
     joint_action_rate: -0.1
-    wheel_action_rate: -0.015
-    similar_calf: -0.3
+    wheel_action_rate: -0.005               # 速度控制下放宽
+    similar_calf: -1.0
+    hip_roll: -2.0                    # 前进时收髋, 减少横向漂移
+    wheel_symmetry: -0.5               # 直行时左右轮速应相等
     tsk: -2.0
     feet_distance: -1.0
     alive: 1.0
