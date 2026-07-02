@@ -1,0 +1,358 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ================================================================ -->
+<!--  轮腿机器人 xqrobotV2 完整 URDF (RL 训练版)                      -->
+<!--  · 浮动基座，无 base_footprint                                   -->
+<!--  · 左右连杆质量/惯量/质心严格镜像对称                            -->
+<!--  · 关节轴对齐坐标轴，左右完全镜像                                -->
+<!--  · 电机参数：R86-2 (joint1,2)  R52 (joint3,wheel)               -->
+<!--  · 碰撞体暂不简化（使用原始STL网格）                             -->
+<!-- ================================================================ -->
+<robot name="xqrobotV2">
+
+  <!-- ===================== 机身 ===================== -->
+  <link name="base_link">
+    <inertial>
+      <origin xyz="0.0260584776392811 2.63948771484362E-05 0.0249151886332598" rpy="0 0 0"/>
+      <mass value="5.40808937988952"/>
+      <inertia ixx="0.0141526926740799" ixy="-8.82055086375627E-07" ixz="-0.000153583914289175"
+               iyy="0.0252117206561601" iyz="2.91271852006315E-06" izz="0.0247556890398874"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://xqrobotV2/meshes/base_link.STL"/>
+      </geometry>
+      <material name="">
+        <color rgba="0.647058823529412 0.517647058823529 0 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://xqrobotV2/meshes/base_link.STL"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- ===================== 左腿 ===================== -->
+  <!-- left_link_1 质量/惯量已与 right_link_1 取镜像平均值 -->
+  <link name="left_link_1">
+    <inertial>
+      <origin xyz="-0.0329313 -0.0106322 0.0002716" rpy="0 0 0"/>
+      <mass value="0.17414594"/>
+      <inertia ixx="9.79354e-05" ixy="-1.9173e-05" ixz="-8.824e-07"
+               iyy="0.00018457" iyz="-8.020e-07" izz="0.00013470"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://xqrobotV2/meshes/left_link_1.STL"/>
+      </geometry>
+      <material name=""/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://xqrobotV2/meshes/left_link_1.STL"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="left_joint_1" type="revolute">
+    <origin xyz="0.068989065886231 -0.123883478847315 -0.000994304172399263" rpy="0 0 0"/>
+    <parent link="base_link"/>
+    <child link="left_link_1"/>
+    <axis xyz="-1 0 0"/>   <!-- 严格沿 -X 轴 -->
+    <limit lower="0" upper="3.141592653589793" effort="80" velocity="27.23"/>
+  </joint>
+
+  <!-- left_link_2 对称化 -->
+  <link name="left_link_2">
+    <inertial>
+      <origin xyz="-0.1067452 0.0104288 -0.0754200" rpy="0 0 0"/>
+      <mass value="0.67262843"/>
+      <inertia ixx="0.00196263" ixy="-1.0e-6" ixz="-0.0013366"
+               iyy="0.00341763" iyz="-1.0e-6" izz="0.00227239"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://xqrobotV2/meshes/left_link_2.STL"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://xqrobotV2/meshes/left_link_2.STL"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="left_joint_2" type="revolute">
+    <origin xyz="-0.0698 -0.019497832506859 0.00029073619393083" rpy="0 0 0"/>
+    <parent link="left_link_1"/>
+    <child link="left_link_2"/>
+    <axis xyz="0 1 0"/>   <!-- 严格沿 +Y 轴 -->
+    <limit lower="-1.0471975511965976" upper="2.0943951023931953" effort="80" velocity="27.23"/>
+  </joint>
+
+  <!-- left_link_3 对称化 -->
+  <link name="left_link_3">
+    <inertial>
+      <origin xyz="0.0949942 -0.0011798 -0.0810423" rpy="0 0 0"/>
+      <mass value="0.41997427"/>
+      <inertia ixx="0.00110455" ixy="1.72e-05" ixz="0.00120627"
+               iyy="0.00265592" iyz="-1.51e-05" izz="0.00164653"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://xqrobotV2/meshes/left_link_3.STL"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://xqrobotV2/meshes/left_link_3.STL"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="left_joint_3" type="revolute">
+    <origin xyz="-0.223606797749979 0.0150160895557946 -0.200246141172439" rpy="0 0 0"/>
+    <parent link="left_link_2"/>
+    <child link="left_link_3"/>
+    <axis xyz="0 -1 0"/>  <!-- 严格沿 -Y 轴 -->
+    <limit lower="-0.8726646259971648" upper="0.8726646259971648" effort="19" velocity="13.61"/>
+  </joint>
+
+  <link name="left_link_wheel">
+    <inertial>
+      <origin xyz="-3.469e-17 -0.01158253 0.00017271" rpy="0 0 0"/>
+      <mass value="2.32306566"/>
+      <inertia ixx="0.00476729" ixy="0" ixz="0"
+               iyy="0.0089701" iyz="-6.2669e-05" izz="0.00476823"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://xqrobotV2/meshes/left_link_wheel.STL"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://xqrobotV2/meshes/left_link_wheel.STL"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="left_joint_wheel" type="continuous">
+    <origin xyz="0.22360679774998 -0.0368343791434203 -0.198990223087201" rpy="0 0 0"/>
+    <parent link="left_link_3"/>
+    <child link="left_link_wheel"/>
+    <axis xyz="0 1 0"/>   <!-- 严格沿 +Y 轴 -->
+    <limit effort="19" velocity="13.61"/>
+  </joint>
+
+  <!-- ===================== 右腿（与左腿完全镜像） ===================== -->
+  <link name="right_link_1">
+    <inertial>
+      <origin xyz="-0.0329313 0.0106322 0.0002716" rpy="0 0 0"/>
+      <mass value="0.17414594"/>
+      <inertia ixx="9.79354e-05" ixy="1.9173e-05" ixz="8.824e-07"
+               iyy="0.00018457" iyz="8.020e-07" izz="0.00013470"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://xqrobotV2/meshes/right_link_1.STL"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://xqrobotV2/meshes/right_link_1.STL"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="right_joint_1" type="revolute">
+    <origin xyz="0.0689890658862278 0.123883478847376 -0.000994304172395266" rpy="0 0 0"/>
+    <parent link="base_link"/>
+    <child link="right_link_1"/>
+    <axis xyz="-1 0 0"/>
+    <limit lower="-3.141592653589793" upper="0" effort="80" velocity="27.23"/>
+  </joint>
+
+  <link name="right_link_2">
+    <inertial>
+      <origin xyz="-0.1067452 -0.0104288 -0.0754200" rpy="0 0 0"/>
+      <mass value="0.67262843"/>
+      <inertia ixx="0.00196263" ixy="1.0e-6" ixz="0.0013366"
+               iyy="0.00341763" iyz="1.0e-6" izz="0.00227239"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://xqrobotV2/meshes/right_link_2.STL"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://xqrobotV2/meshes/right_link_2.STL"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="right_joint_2" type="revolute">
+    <origin xyz="-0.0698 0.0195 0" rpy="0 0 0"/>
+    <parent link="right_link_1"/>
+    <child link="right_link_2"/>
+    <axis xyz="0 -1 0"/>   <!-- 与左腿相反 -->
+    <limit lower="-2.0943951023931953" upper="1.0471975511965976" effort="80" velocity="27.23"/>
+  </joint>
+
+  <link name="right_link_3">
+    <inertial>
+      <origin xyz="0.0949942 0.0011798 -0.0810423" rpy="0 0 0"/>
+      <mass value="0.41997427"/>
+      <inertia ixx="0.00110455" ixy="-1.72e-05" ixz="-0.00120627"
+               iyy="0.00265592" iyz="1.51e-05" izz="0.00164653"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://xqrobotV2/meshes/right_link_3.STL"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://xqrobotV2/meshes/right_link_3.STL"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="right_joint_3" type="revolute">
+    <origin xyz="-0.223606797749979 -0.0180 -0.196172265023762" rpy="0 0 0"/>
+    <parent link="right_link_2"/>
+    <child link="right_link_3"/>
+    <axis xyz="0 1 0"/>   <!-- 与左腿相反 -->
+    <limit lower="-0.8726646259971648" upper="0.8726646259971648" effort="19" velocity="13.61"/>
+  </joint>
+
+  <link name="right_link_wheel">
+    <inertial>
+      <origin xyz="4.3368e-19 0.01158382 1.3878e-17" rpy="0 0 0"/>
+      <mass value="2.32306566"/>
+      <inertia ixx="0.00476729" ixy="0" ixz="0"
+               iyy="0.00897104" iyz="0" izz="0.00476729"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://xqrobotV2/meshes/right_link_wheel.STL"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://xqrobotV2/meshes/right_link_wheel.STL"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="right_joint_wheel" type="continuous">
+    <origin xyz="0.22360679774998 0.0308849537991502 -0.203827734976237" rpy="0 0 0"/>
+    <parent link="right_link_3"/>
+    <child link="right_link_wheel"/>
+    <axis xyz="0 -1 0"/>
+    <limit effort="19" velocity="13.61"/>
+  </joint>
+
+  <!-- ===================== 传动配置 ===================== -->
+  <transmission name="trans_left_joint_1">
+    <type>transmission_interface/SimpleTransmission</type>
+    <joint name="left_joint_1">
+      <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+    </joint>
+    <actuator name="act_left_joint_1">
+      <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+      <mechanicalReduction>1</mechanicalReduction>
+    </actuator>
+  </transmission>
+  <transmission name="trans_left_joint_2">
+    <type>transmission_interface/SimpleTransmission</type>
+    <joint name="left_joint_2">
+      <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+    </joint>
+    <actuator name="act_left_joint_2">
+      <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+      <mechanicalReduction>1</mechanicalReduction>
+    </actuator>
+  </transmission>
+  <transmission name="trans_left_joint_3">
+    <type>transmission_interface/SimpleTransmission</type>
+    <joint name="left_joint_3">
+      <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+    </joint>
+    <actuator name="act_left_joint_3">
+      <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+      <mechanicalReduction>1</mechanicalReduction>
+    </actuator>
+  </transmission>
+  <transmission name="trans_left_joint_wheel">
+    <type>transmission_interface/SimpleTransmission</type>
+    <joint name="left_joint_wheel">
+      <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+    </joint>
+    <actuator name="act_left_joint_wheel">
+      <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+      <mechanicalReduction>1</mechanicalReduction>
+    </actuator>
+  </transmission>
+
+  <transmission name="trans_right_joint_1">
+    <type>transmission_interface/SimpleTransmission</type>
+    <joint name="right_joint_1">
+      <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+    </joint>
+    <actuator name="act_right_joint_1">
+      <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+      <mechanicalReduction>1</mechanicalReduction>
+    </actuator>
+  </transmission>
+  <transmission name="trans_right_joint_2">
+    <type>transmission_interface/SimpleTransmission</type>
+    <joint name="right_joint_2">
+      <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+    </joint>
+    <actuator name="act_right_joint_2">
+      <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+      <mechanicalReduction>1</mechanicalReduction>
+    </actuator>
+  </transmission>
+  <transmission name="trans_right_joint_3">
+    <type>transmission_interface/SimpleTransmission</type>
+    <joint name="right_joint_3">
+      <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+    </joint>
+    <actuator name="act_right_joint_3">
+      <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+      <mechanicalReduction>1</mechanicalReduction>
+    </actuator>
+  </transmission>
+  <transmission name="trans_right_joint_wheel">
+    <type>transmission_interface/SimpleTransmission</type>
+    <joint name="right_joint_wheel">
+      <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+    </joint>
+    <actuator name="act_right_joint_wheel">
+      <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+      <mechanicalReduction>1</mechanicalReduction>
+    </actuator>
+  </transmission>
+
+</robot>

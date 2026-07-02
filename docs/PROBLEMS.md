@@ -175,4 +175,57 @@ high[0] = min(high[0] + step, vx_range)
 
 **解决**：将高度目标加入 5D 命令向量第 5 列 `[vx, vy, vyaw, tsk, height_target]`，策略训练时学会响应。键盘 Q/E 写入 `commands[:, 4]` 和 `env._reward_cfg.base_height_target`。
 
+---
+
+## 13. actuator 顺序错位（右腿全错）
+
+**现象**：训练永远不对称，右腿行为异常，所有倾斜/串扰问题。
+
+**根因**：`apply_action` 输出 ctrl 顺序 `[L_leg(3), R_leg(3), L_wheel, R_wheel]` 跟 MuJoCo XML 的 actuator 顺序 `[L_leg(3), L_wheel, R_leg(3), R_wheel]` 不匹配。轮子 actuator 夹在左右腿中间，导致右腿 joint 整体错位一位：
+
+```
+输出：ctrl[3]=R_hip → XML actuator 3 = L_wheel (速度控制!)
+输出：ctrl[4]=R_thigh → XML actuator 4 = R_hip
+输出：ctrl[5]=R_calf → XML actuator 5 = R_thigh
+```
+
+**后果**：右髋收到的是大腿命令，右大腿收到的是膝盖命令，右膝盖收到的是轮子命令（接近零）。左腿正确，右腿完全错位。策略被迫学出"左腿正常走、右腿用错关节强行模仿"的异常步态。
+
+**解决**：修改 `apply_action` 拼接顺序为 `[L_leg(3), L_wheel, R_leg(3), R_wheel]`。
+
+**文件**：`joystick.py`, `toe_walk.py` `apply_action`
+
+---
+
+## 14. 点足无法抬腿
+
+**现象**：训练 5000 轮后 `swing_lift: 7.0`（满分），但 MuJoCo 验证显示轮子从未离地。
+
+**根因（三层）**：
+
+1. **reward 设计错**：`swing_lift` 惩罚的是"关节偏离默认值"，策略扭髋 roll 就能拿分，不需要真抬腿
+2. **无接触检测**：不知道轮子是否离地，无法给真离地以正面激励
+3. **无重心转移**：双足单腿支撑天然不稳，策略宁可不动腿保平衡
+
+**解决**：
+
+- 轮子加 `<force>` 传感器（`left_wheel_site`, `right_wheel_site`），|F|>1.5N 判断着地
+- `swing_lift` 改为"轮子离地才给分"：`air = 1 - mean(contact)`
+- 参考轨迹加**侧倾重心转移**：抬腿前髋向支撑腿侧倾，COM 先移到单脚上方
+- 摆动相**压缩到 ~0.09s**（原 0.25s），快抬快落
+
+**文件**：`xqrobotV2.xml` (传感器), `toe_walk.py` (reward + 参考轨迹)
+
+---
+
+## 15. 轮子速度控制 kv 调参
+
+**现象**：改为速度控制后线速度追踪不佳，且 kv=5 时 QACC 发散。
+
+**根因**：ctrl_dt=0.02 (50Hz) × kv=5 时速度控制器振荡，仿真不稳定。
+
+**解决**：kv 降至 **1.0**，ctrl_dt 降至 **0.01 (100Hz)**，与 CJ-003 对齐。
+
+**文件**：`xqrobotV2.xml` (kv), `base.py` (ctrl_dt)
+
 **文件**：`play_interactive.py` keyboard commander, `joystick.py` 5D obs

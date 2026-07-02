@@ -57,13 +57,33 @@ def _reward_ref_tracking(ctx: RewardContext) -> np.ndarray:
     if ref is None:
         return np.zeros((ctx.num_envs,), dtype=np.float64)
     err = np.sum(np.square(ctx.dof_pos[:, :NUM_LEG_ACTIONS] - ref), axis=1)
-    return np.exp(-2.0 * err) * 1.2 - 0.2 * err
+    base = np.exp(-2.0 * err) * 1.2 - 0.2 * err
+    # 摆动相 ×3: 抬腿时必须严格跟踪正弦轨迹
+    swing = ctx.info.get("swing_mask", np.zeros((ctx.num_envs,)))
+    return base * (1.0 + 2.0 * swing)  # stance×1, swing×3
 
 
-def _reward_static_wheel(ctx: RewardContext) -> np.ndarray:
+def _reward_swing_lift(ctx: RewardContext) -> np.ndarray:
+    """摆动腿轮子必须离地。用 site Z 高度判断着地, 离地才给分"""
+    swing_mask = ctx.info.get("swing_mask", np.zeros((ctx.num_envs,)))
+    wheel_contact = ctx.info.get("wheel_contact", np.zeros((ctx.num_envs, 2)))
+    if np.max(swing_mask) < 0.5:
+        return np.zeros((ctx.num_envs,), dtype=np.float64)
+    # 轮子在空中 = 1 - contact, 乘 swing_mask 只在摆动时计分
+    air_time = 1.0 - np.mean(wheel_contact, axis=1)
+    return air_time * swing_mask
+
+
+def _reward_wheel_balance(ctx: RewardContext) -> np.ndarray:
+    """轮子用于维持平衡, 不用于前进。奖: 轮速小 + 机身直立"""
     wheel_vel = ctx.dof_vel[:, -NUM_WHEEL_ACTIONS:]
     speed = np.sqrt(np.sum(np.square(wheel_vel), axis=1))
-    return 1.0 / (1.0 + speed)
+    # 轮子稍转可(平衡), 转太快扣分
+    wheel_ok = 1.0 / (1.0 + speed * 3.0)
+    # 机身越直越好
+    gravity_xy = np.sum(np.square(ctx.gravity[:, :2]), axis=1)
+    upright = 1.0 / (1.0 + gravity_xy * 10.0)
+    return wheel_ok * upright
 
 
 @registry.envcfg("XqRobotV2ToeWalkFlat")
@@ -120,7 +140,8 @@ class XqRobotV2ToeWalkFlatEnv(XqRobotV2WalkFlatEnv):
             "tsk": self._reward_tsk,
             "alive": rewards.alive,
             "ref_tracking": _reward_ref_tracking,
-            "static_wheel": _reward_static_wheel,
+            "wheel_balance": _reward_wheel_balance,
+            "swing_lift": _reward_swing_lift,
             "feet_distance": _reward_feet_distance,
             "wheel_symmetry": _reward_wheel_symmetry,
             "hip_roll": _reward_hip_roll,
@@ -155,40 +176,72 @@ class XqRobotV2ToeWalkFlatEnv(XqRobotV2WalkFlatEnv):
         # Leg: correction on top of reference trajectory
         leg_corr = exec_actions[:, :NUM_LEG_ACTIONS] * self._cfg.control_config.action_scale
         leg_targets = self._ref_dof_pos[: leg_corr.shape[0]] + leg_corr
-        # Wheel: velocity control, no offset (stays near 0 for toe-walk)
-        wheel_targets = exec_actions[:, NUM_LEG_ACTIONS:] * self._cfg.control_config.wheel_action_scale * 0.2
-        return np.concatenate([leg_targets, wheel_targets], axis=1, dtype=self._np_dtype)
+        # Wheel: velocity control, full strength for balance
+        wheel_targets = exec_actions[:, NUM_LEG_ACTIONS:] * self._cfg.control_config.wheel_action_scale
+        half_legs = NUM_LEG_ACTIONS // 2
+        return np.concatenate([
+            leg_targets[:, :half_legs], wheel_targets[:, :1],
+            leg_targets[:, half_legs:], wheel_targets[:, 1:],
+        ], axis=1, dtype=self._np_dtype)
 
     def _compute_ref_dof_pos(self, info: dict) -> None:
         cycle_time = self._toe_cfg.cycle_time
         steps = info.get("steps", np.zeros((self._num_envs,), dtype=np.float64))
         dt = self._cfg.ctrl_dt
         phase = (steps * dt / cycle_time) + self._phase_offset / (2 * np.pi)
-        sin_pos = np.sin(2 * np.pi * phase)[:, None]  # (num_envs, 1)
-
+        sin_pos = np.sin(2 * np.pi * phase)[:, None]
+        cos_pos = np.cos(2 * np.pi * phase)[:, None]
         scale = self._toe_cfg.ref_scale
-        # Left leg active when sin < 0
-        left_active = np.clip(-sin_pos, 0, None)
-        # Right leg active when sin >= 0
-        right_active = np.clip(sin_pos, 0, None)
+
+        # Swing window: only top ~30% of sine (fast, short lift)
+        # thresh=0.4 → sin crosses 0.4 at ~24°, back at ~156° → active ~36% of half-cycle
+        T = 0.4
+        left_swing  = np.clip((-sin_pos - T) / (1.0 - T), 0.0, 1.0)
+        right_swing = np.clip((sin_pos - T) / (1.0 - T), 0.0, 1.0)
+        left_lift   = np.clip((-cos_pos - T) / (1.0 - T), 0.0, 1.0)
+        right_lift  = np.clip((cos_pos - T) / (1.0 - T), 0.0, 1.0)
+
+        # Weight shift: lean onto stance leg BEFORE swing
+        # cos near +1 → right lift coming → lean LEFT (weight on left)
+        # cos near -1 → left lift coming → lean RIGHT (weight on right)
+        lean_L = np.clip((cos_pos - 0.2) / 0.8, 0.0, 1.0)   # lean left
+        lean_R = np.clip((-cos_pos - 0.2) / 0.8, 0.0, 1.0)  # lean right
 
         ref = np.zeros((self._num_envs, NUM_LEG_ACTIONS), dtype=np.float64)
-        # Hip stays at default
-        ref[:, 0] = DEFAULT_LEG_ANGLES[0]
-        ref[:, 3] = DEFAULT_LEG_ANGLES[3]
-        # Thigh: swing forward (positive from default 0.1)
-        ref[:, 1] = DEFAULT_LEG_ANGLES[1] + left_active[:, 0] * scale * 2
-        ref[:, 4] = DEFAULT_LEG_ANGLES[4] + right_active[:, 0] * scale * 2
-        # Calf: flex during swing (more negative from default -0.1)
-        ref[:, 2] = DEFAULT_LEG_ANGLES[2] - left_active[:, 0] * scale * 3
-        ref[:, 5] = DEFAULT_LEG_ANGLES[5] - right_active[:, 0] * scale * 3
+
+        # Hip roll: shift COM
+        ref[:, 0] = DEFAULT_LEG_ANGLES[0] - lean_L[:,0] * scale + lean_R[:,0] * scale
+        ref[:, 3] = DEFAULT_LEG_ANGLES[3] + lean_L[:,0] * scale - lean_R[:,0] * scale
+
+        # Thigh: quick forward swing
+        ref[:, 1] = DEFAULT_LEG_ANGLES[1] + left_swing[:,0] * scale * 0.5
+        ref[:, 4] = DEFAULT_LEG_ANGLES[4] + right_swing[:,0] * scale * 0.5
+
+        # Calf: quick knee bend (lift)
+        ref[:, 2] = DEFAULT_LEG_ANGLES[2] - left_lift[:,0] * scale * 5
+        ref[:, 5] = DEFAULT_LEG_ANGLES[5] - right_lift[:,0] * scale * 5
 
         self._ref_dof_pos = ref
+        self._swing_mask = np.clip(left_swing[:,0] + right_swing[:,0], 0.0, 1.0)
 
     def update_state(self, state: NpEnvState) -> NpEnvState:
         self._compute_ref_dof_pos(state.info)
         state.info["ref_dof_pos"] = self._ref_dof_pos
+        state.info["swing_mask"] = self._swing_mask
+        self._update_wheel_contact(state.info)
         return super().update_state(state)
+
+    def _update_wheel_contact(self, info: dict) -> None:
+        try:
+            lf = self._backend.get_sensor_data("left_wheel_site")
+            rf = self._backend.get_sensor_data("right_wheel_site")
+            lf_arr = np.asarray(lf, dtype=np.float64).reshape(self._num_envs, -1)
+            rf_arr = np.asarray(rf, dtype=np.float64).reshape(self._num_envs, -1)
+            l_contact = (np.linalg.norm(lf_arr, axis=1) > 1.5).astype(np.float64)
+            r_contact = (np.linalg.norm(rf_arr, axis=1) > 1.5).astype(np.float64)
+            info["wheel_contact"] = np.stack([l_contact, r_contact], axis=1)
+        except Exception:
+            info["wheel_contact"] = np.zeros((self._num_envs, 2), dtype=np.float64)
 
     def _compute_obs(self, info: dict, linvel, gyro, gravity, dof_pos, dof_vel) -> dict[str, np.ndarray]:
         noise_cfg = self._cfg.noise_config
@@ -251,6 +304,16 @@ class XqRobotV2ToeWalkFlatEnv(XqRobotV2WalkFlatEnv):
         calf_extreme = (np.abs(dof_pos[:, 2]) > 0.85) | (np.abs(dof_pos[:, 5]) > 0.85)
         terminated |= thigh_collapsed
         terminated |= calf_extreme
+        # 腿碰地终止: 摆动腿蹭地皮 → 直接死
+        for name in getattr(self._cfg, 'contact_body_names', []):
+            try:
+                cf = self._backend.get_sensor_data(name)
+                if cf is not None:
+                    c = np.asarray(cf, dtype=np.float64).reshape(self._num_envs, -1)
+                    contact = np.any(np.abs(c) > 0.1, axis=1)
+                    terminated |= contact
+            except (KeyError, AttributeError):
+                pass
         return terminated
 
     def _compute_reward(self, info: dict, linvel, gyro, gravity, dof_pos, dof_vel) -> np.ndarray:

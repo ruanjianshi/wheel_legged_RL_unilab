@@ -21,14 +21,14 @@ algo:
     activation: elu
     actor_hidden_dims: [512, 512, 256, 128]
     critic_hidden_dims: [512, 512, 256, 128]
-    init_noise_std: 0.5
+    init_noise_std: 0.3
   algorithm:
     learning_rate: 1.0e-4
-    entropy_coef: 0.01
+    entropy_coef: 0.002
     clip_param: 0.2
     gamma: 0.99
     lam: 0.95
-    desired_kl: 0.01
+    desired_kl: 0.005
     max_grad_norm: 1.0
 
 env:

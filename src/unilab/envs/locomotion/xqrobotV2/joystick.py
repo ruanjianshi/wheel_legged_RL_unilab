@@ -242,9 +242,11 @@ class XqRobotV2WalkFlatEnv(XqRobotBaseEnv):
         self._init_domain_randomization(XqRobotDRProvider())
 
         if cfg.domain_rand.randomize_leg_length:
-            self._base_leg_geom_sizes = {
-                name: backend.get_geom_size(name) for name in XqRobotDRProvider._LEG_GEOM_NAMES
-            }
+            leg_names = getattr(XqRobotDRProvider, "_LEG_GEOM_NAMES", [])
+            if leg_names:
+                self._base_leg_geom_sizes = {
+                    name: backend.get_geom_size(name) for name in leg_names
+                }
 
         import mujoco as _mj
         if hasattr(backend, "_model"):  # type: ignore[union-attr]
@@ -283,7 +285,14 @@ class XqRobotV2WalkFlatEnv(XqRobotBaseEnv):
             exec_actions[:, :NUM_LEG_ACTIONS] * self._cfg.control_config.action_scale + DEFAULT_ANGLES[:NUM_LEG_ACTIONS]
         )
         wheel_targets = exec_actions[:, NUM_LEG_ACTIONS:] * self._cfg.control_config.wheel_action_scale  # velocity ctrl
-        return np.concatenate([leg_targets, wheel_targets], axis=1, dtype=self._np_dtype)
+        # MuJoCo actuator order: [L_hip, L_thigh, L_calf, L_wheel, R_hip, R_thigh, R_calf, R_wheel]
+        half_legs = NUM_LEG_ACTIONS // 2  # 3
+        return np.concatenate([
+            leg_targets[:, :half_legs],          # L_leg (3)
+            wheel_targets[:, :1],                 # L_wheel
+            leg_targets[:, half_legs:],           # R_leg (3)
+            wheel_targets[:, 1:],                 # R_wheel
+        ], axis=1, dtype=self._np_dtype)
 
     def update_state(self, state: NpEnvState) -> NpEnvState:
         self._update_commands(state.info)

@@ -73,26 +73,40 @@ class XqRobotRoughTerrainCfg(TerrainGeneratorCfg):
     sub_terrains: dict[str, SubTerrainCfg] = field(
         default_factory=lambda: {
             "flat": flat(proportion=0.0),
+            "pyramid_stairs": pyramid_stairs(
+                proportion=0.15,
+                step_height_range=(0.02, 0.08),
+                step_width=0.3,
+                platform_width=2.0,
+                border_width=0.2,
+            ),
+            "pyramid_stairs_inv": pyramid_stairs_inv(
+                proportion=0.15,
+                step_height_range=(0.02, 0.08),
+                step_width=0.3,
+                platform_width=2.0,
+                border_width=0.2,
+            ),
             "random_rough": random_rough(
-                proportion=0.4,
+                proportion=0.3,
                 noise_range=(0.01, 0.06),
                 noise_step=0.01,
                 border_width=0.2,
             ),
             "wave_terrain": wave_terrain(
-                proportion=0.4,
+                proportion=0.3,
                 amplitude_range=(0.0, 0.10),
                 num_waves=4,
                 border_width=0.2,
             ),
             "hf_pyramid_slope": hf_pyramid_slope(
-                proportion=0.1,
+                proportion=0.05,
                 slope_range=(0.0, 0.15),
                 platform_width=2.0,
                 border_width=0.2,
             ),
             "hf_pyramid_slope_inv": hf_pyramid_slope_inv(
-                proportion=0.1,
+                proportion=0.05,
                 slope_range=(0.0, 0.15),
                 platform_width=2.0,
                 border_width=0.2,

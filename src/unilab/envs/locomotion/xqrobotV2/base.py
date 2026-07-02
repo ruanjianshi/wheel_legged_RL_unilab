@@ -28,8 +28,8 @@ NUM_LEG_ACTIONS = len(LEG_PREFIXES)
 NUM_WHEEL_ACTIONS = 2
 NUM_ACTIONS = len(JOINT_PREFIXES)
 
-# XqRobotV2 结构需要双髋外展 0.1 提供横向支撑面
-DEFAULT_LEG_ANGLES = np.array([0.1, 0.1, -0.1, 0.1, 0.1, -0.1], dtype=np.float64)
+# 双髋对称外展: L_hip=-0.1(外展) R_hip=+0.1(外展) → 对称支撑面
+DEFAULT_LEG_ANGLES = np.array([-0.1, 0.1, -0.1, 0.1, 0.1, -0.1], dtype=np.float64)
 DEFAULT_WHEEL_ANGLES = np.zeros(NUM_WHEEL_ACTIONS, dtype=np.float64)
 DEFAULT_ANGLES = np.concatenate([DEFAULT_LEG_ANGLES, DEFAULT_WHEEL_ANGLES])
 

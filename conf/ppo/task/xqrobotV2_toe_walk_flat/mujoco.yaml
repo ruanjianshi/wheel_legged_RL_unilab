@@ -16,8 +16,8 @@ interactive:
   camera_distance: 4.0
 
 algo:
-  num_envs: 2048
-  num_steps_per_env: 24
+  num_envs: 1024
+  num_steps_per_env: 25
   max_iterations: 5000
   empirical_normalization: false
   obs_groups:
@@ -29,14 +29,14 @@ algo:
     activation: elu
     actor_hidden_dims: [512, 512, 256, 128]
     critic_hidden_dims: [512, 512, 256, 128]
-    init_noise_std: 0.5
+    init_noise_std: 0.3
   algorithm:
     learning_rate: 1.0e-4
-    entropy_coef: 0.01
+    entropy_coef: 0.002
     clip_param: 0.2
     gamma: 0.99
     lam: 0.95
-    desired_kl: 0.01
+    desired_kl: 0.005
     max_grad_norm: 1.0
 
 env:
@@ -45,9 +45,10 @@ env:
     wheel_action_scale: 10.0
     clip_actions: 100.0
   commands:
+    # Stage 1: 原地踏步 - 速度指令接近零
     vel_limit:
-      - [-0.3, -0.1, -0.3, -0.1]
-      - [0.3, 0.1, 0.3, 0.1]
+      - [-0.05, -0.05, -0.05, -0.05]
+      - [0.05, 0.05, 0.05, 0.05]
     resampling_time: 6.0
   curriculum:
     enabled: false
@@ -62,8 +63,8 @@ env:
 reward:
   only_positive_rewards: false
   scales:
-    tracking_lin_vel: 1.5
-    tracking_ang_vel: 1.5
+    tracking_lin_vel: 0.0                    # 原地踏步, 不追速度
+    tracking_ang_vel: 0.0
     lin_vel_z: -0.2
     ang_vel_xy: -0.05
     base_height: -5.0
@@ -76,11 +77,12 @@ reward:
     wheel_symmetry: -0.5
     feet_distance: -1.0
     alive: 1.0
-    ref_tracking: 1.0                        # 放宽跟踪，让策略自主修正
-    static_wheel: 1.0                        # 轮子可微转辅助平衡
+    ref_tracking: 2.0                        # 强化: 跟正弦抬腿
+    swing_lift: 5.0                          # 强化: 膝盖必须收
+    wheel_balance: 3.0                       # 轮子稳住机身
   tracking_sigma: 0.3
   base_height_target: 0.65
   cycle_time: 0.5                      # 步态周期 0.5s
-  ref_scale: 0.08                     # 参考轨迹幅值(保守)
+  ref_scale: 0.12                     # 参考轨迹幅值(加大抬腿)
   max_tilt_deg: 45.0
   min_base_height: 0.15

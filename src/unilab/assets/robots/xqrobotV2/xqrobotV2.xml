@@ -21,17 +21,20 @@
         <inertial pos="-0.0329313 -0.0106322 0.0002716" mass="0.17414594" diaginertia="9.79354e-05 0.00018457 0.0001347" />
         <joint name="left_joint_1" type="hinge" range="-3.141592653589793 3.141592653589793" axis="1 0 0" />
         <geom name="left_link_1_collision" type="mesh" mesh="left_link_1_collision_left_link_1" class="collision" />
-        <geom name="left_link_1_visual" type="mesh" mesh="left_link_1_left_link_1" class="visual" />
+         <geom name="left_link_1_visual" type="mesh" mesh="left_link_1_left_link_1" class="visual" />
+         <site name="left_hip_site" size="0.005" />
         <body name="left_link_2" pos="-0.0698 -0.019497832506859 0.00029073619393083">
           <inertial pos="-0.1067452 0.0104288 -0.0754200" mass="0.67262843" diaginertia="0.00196263 0.00341763 0.00227239" />
           <joint name="left_joint_2" type="hinge" range="0 2.0943951023931953" axis="0 1 0" />
           <geom name="left_link_2_collision" type="mesh" mesh="left_link_2_collision_left_link_2" class="collision" />
-          <geom name="left_link_2_visual" type="mesh" mesh="left_link_2_left_link_2" class="visual" />
+           <geom name="left_link_2_visual" type="mesh" mesh="left_link_2_left_link_2" class="visual" />
+           <site name="left_thigh_site" size="0.005" />
           <body name="left_link_3" pos="-0.223606797749979 0.0150160895557946 -0.200246141172439">
             <inertial pos="0.0949942 -0.0011798 -0.0810423" mass="0.41997427" diaginertia="0.00110455 0.00265592 0.00164653" />
             <joint name="left_joint_3" type="hinge" range="-0.8726646259971648 0.8726646259971648" axis="0 1 0" />
             <geom name="left_link_3_collision" type="mesh" mesh="left_link_3_collision_left_link_3" class="collision" />
             <geom name="left_link_3_visual" type="mesh" mesh="left_link_3_left_link_3" class="visual" />
+            <site name="left_calf_site" size="0.005" />
             <body name="left_link_wheel" pos="0.22360679774998 -0.0368343791434203 -0.198990223087201">
               <inertial pos="-3.469e-17 -0.01158253 0.00017271" mass="2.32306566" diaginertia="0.00476729 0.0089701 0.00476823" />
               <joint name="left_joint_wheel" type="hinge" axis="0 1 0" />
@@ -46,17 +49,20 @@
         <inertial pos="-0.0329313 0.0106322 0.0002716" mass="0.17414594" diaginertia="9.79354e-05 0.00018457 0.0001347" />
         <joint name="right_joint_1" type="hinge" range="-3.141592653589793 3.141592653589793" axis="1 0 0" />
         <geom name="right_link_1_collision" type="mesh" mesh="right_link_1_collision_right_link_1" class="collision" />
-        <geom name="right_link_1_visual" type="mesh" mesh="right_link_1_right_link_1" class="visual" />
+         <geom name="right_link_1_visual" type="mesh" mesh="right_link_1_right_link_1" class="visual" />
+         <site name="right_hip_site" size="0.005" />
         <body name="right_link_2" pos="-0.0698 0.0195 0">
           <inertial pos="-0.1067452 -0.0104288 -0.0754200" mass="0.67262843" diaginertia="0.00196263 0.00341763 0.00227239" />
           <joint name="right_joint_2" type="hinge" range="0 2.0943951023931953" axis="0 1 0" />
           <geom name="right_link_2_collision" type="mesh" mesh="right_link_2_collision_right_link_2" class="collision" />
-          <geom name="right_link_2_visual" type="mesh" mesh="right_link_2_right_link_2" class="visual" />
+           <geom name="right_link_2_visual" type="mesh" mesh="right_link_2_right_link_2" class="visual" />
+           <site name="right_thigh_site" size="0.005" />
           <body name="right_link_3" pos="-0.223606797749979 -0.0150160895557946 -0.200246141172439">
             <inertial pos="0.0949942 0.0011798 -0.0810423" mass="0.41997427" diaginertia="0.00110455 0.00265592 0.00164653" />
             <joint name="right_joint_3" type="hinge" range="-0.8726646259971648 0.8726646259971648" axis="0 1 0" />
             <geom name="right_link_3_collision" type="mesh" mesh="right_link_3_collision_right_link_3" class="collision" />
             <geom name="right_link_3_visual" type="mesh" mesh="right_link_3_right_link_3" class="visual" />
+            <site name="right_calf_site" size="0.005" />
             <body name="right_link_wheel" pos="0.22360679774998 0.0368343791434203 -0.198990223087201">
               <inertial pos="4.3368e-19 0.01158253 1.3878e-17" mass="2.32306566" diaginertia="0.00476729 0.00897104 0.00476729" />
               <joint name="right_joint_wheel" type="hinge" axis="0 1 0" />
@@ -120,5 +126,15 @@
     <jointvel name="right_joint_3_vel" joint="right_joint_3" />
     <jointpos name="right_joint_wheel_pos" joint="right_joint_wheel" />
     <jointvel name="right_joint_wheel_vel" joint="right_joint_wheel" />
+    <force name="left_wheel_force" site="left_wheel_site" />
+    <force name="right_wheel_force" site="right_wheel_site" />
+    <torque name="left_hip_torque" site="left_hip_site" />
+    <torque name="left_thigh_torque" site="left_thigh_site" />
+    <torque name="left_calf_torque" site="left_calf_site" />
+    <torque name="right_hip_torque" site="right_hip_site" />
+    <torque name="right_thigh_torque" site="right_thigh_site" />
+    <torque name="right_calf_torque" site="right_calf_site" />
+    <torque name="left_wheel_torque" site="left_wheel_site" />
+    <torque name="right_wheel_torque" site="right_wheel_site" />
   </sensor>
 </mujoco>
