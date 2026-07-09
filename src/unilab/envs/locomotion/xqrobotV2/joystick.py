@@ -18,6 +18,7 @@ from unilab.base.np_env import NpEnvState
 from unilab.base.scene import SceneCfg
 from unilab.dr import DomainRandomizationCapabilities, ResetPlan
 from unilab.dr.dr_utils import (
+    build_common_reset_randomization,
     build_interval_push_plan,
     validate_interval_push_support,
     zero_actions,
@@ -58,8 +59,8 @@ class XqRobotDomainRandConfig(DomainRandConfig):
     randomize_kd: bool = True
     kd_multiplier_range: list[float] = field(default_factory=lambda: [0.8, 1.2])
     random_com: bool = True
-    com_offset_x: float = 0.03
-    com_offset_y: float = 0.03
+    com_offset_x: list[float] = field(default_factory=lambda: [-0.03, 0.03])
+    com_offset_y: list[float] = field(default_factory=lambda: [-0.03, 0.03])
     randomize_gravity: bool = False
     push_robots: bool = False
     randomize_leg_length: bool = False
@@ -69,7 +70,7 @@ class XqRobotDomainRandConfig(DomainRandConfig):
 @dataclass
 class XqRobotCurriculumConfig:
     enabled: bool = True
-    vel_step: float = 0.001           # 线速度课程步长
+    vel_step: float = 0.001  # 线速度课程步长
     ang_vel_step: float = 0.002
     min_vel_range_frac: float = 0.3
     min_ang_range_frac: float = 0.05
@@ -142,6 +143,22 @@ def _reward_feet_distance(ctx: RewardContext) -> np.ndarray:
     return (over + under) * 0.3
 
 
+def _reward_collision(ctx: RewardContext) -> np.ndarray:
+    thigh = ctx.info.get("left_thigh_force")
+    if thigh is None:
+        return np.zeros((ctx.num_envs,), dtype=np.float64)
+    t = np.asarray(thigh, dtype=np.float64).reshape(ctx.num_envs, -1)
+    c = np.asarray(ctx.info.get("left_calf_force", t), dtype=np.float64).reshape(ctx.num_envs, -1)
+    rt = np.asarray(ctx.info.get("right_thigh_force", t), dtype=np.float64).reshape(
+        ctx.num_envs, -1
+    )
+    rc = np.asarray(ctx.info.get("right_calf_force", t), dtype=np.float64).reshape(ctx.num_envs, -1)
+    legs_mag = np.concatenate([t, c, rt, rc], axis=1)
+    contact = (np.linalg.norm(legs_mag, axis=1) > 1.0).astype(np.float64)
+    moving = np.linalg.norm(ctx.info["commands"][:, :2], axis=1) > 0.1
+    return np.asarray(contact * moving, dtype=np.float64)
+
+
 @registry.envcfg("XqRobotV2WalkFlat")
 @dataclass
 class XqRobotV2WalkFlatCfg(XqRobotBaseCfg):
@@ -157,12 +174,26 @@ class XqRobotV2WalkFlatCfg(XqRobotBaseCfg):
     curriculum: XqRobotCurriculumConfig = field(default_factory=XqRobotCurriculumConfig)
 
     # 触地终止: 检测这些 body 是否触地
-    contact_body_names: list[str] = field(default_factory=lambda: [
-        "left_link_2", "left_link_3", "right_link_2", "right_link_3",
-    ])
+    contact_body_names: list[str] = field(
+        default_factory=lambda: [
+            "left_link_2",
+            "left_link_3",
+            "right_link_2",
+            "right_link_3",
+        ]
+    )
 
 
 class XqRobotDRProvider(LocomotionDRProvider):
+    _LEG_GEOM_NAMES = [
+        "left_link_1_collision",
+        "left_link_2_collision",
+        "left_link_3_collision",
+        "right_link_1_collision",
+        "right_link_2_collision",
+        "right_link_3_collision",
+    ]
+
     def build_reset_plan(self, env: Any, env_ids: np.ndarray) -> ResetPlan:
         num_reset = len(env_ids)
         qpos = np.tile(env._init_qpos, (num_reset, 1))
@@ -172,8 +203,7 @@ class XqRobotDRProvider(LocomotionDRProvider):
         yaw = self._sample_reset_yaw(env, num_reset)
         qpos[:, 3:7] = np_quat_mul(qpos[:, 3:7], np_yaw_to_quat(yaw))
 
-        # 域随机化: 暂无, 后续可通过 backend payload 开启
-        randomization = None
+        randomization = build_common_reset_randomization(env, num_reset)
 
         commands = self._sample_commands(env, num_reset)
         info_updates: dict[str, Any] = {
@@ -181,9 +211,14 @@ class XqRobotDRProvider(LocomotionDRProvider):
             "current_actions": zero_actions(num_reset, env._num_action),
             "last_actions": zero_actions(num_reset, env._num_action),
         }
+        if hasattr(env, "_spawn") and hasattr(env._spawn, "record_episode_start"):
+            env._spawn.record_episode_start(env_ids, qpos[:, 0:3])
         return ResetPlan(
-            env_ids=env_ids, qpos=qpos, qvel=qvel,
-            info_updates=info_updates, randomization=randomization,
+            env_ids=env_ids,
+            qpos=qpos,
+            qvel=qvel,
+            info_updates=info_updates,
+            randomization=randomization,
         )
 
     def validate(self, env: Any, capabilities: DomainRandomizationCapabilities) -> None:
@@ -192,7 +227,9 @@ class XqRobotDRProvider(LocomotionDRProvider):
     def build_interval_randomization_plan(self, env: Any, step_counter: int):
         return build_interval_push_plan(env, step_counter)
 
-    def _compute_reset_obs(self, env, env_ids, info_updates, linvel, gyro, gravity, dof_pos, dof_vel):
+    def _compute_reset_obs(
+        self, env, env_ids, info_updates, linvel, gyro, gravity, dof_pos, dof_vel
+    ):
         del env_ids
         return env._compute_obs(info_updates, linvel, gyro, gravity, dof_pos, dof_vel)
 
@@ -206,7 +243,10 @@ class XqRobotDRProvider(LocomotionDRProvider):
     def _sample_commands(self, env: Any, num_reset: int) -> np.ndarray:
         low = np.asarray(env._cfg.commands.vel_limit[0], dtype=get_global_dtype())
         high = np.asarray(env._cfg.commands.vel_limit[1], dtype=get_global_dtype())
-        cmds = np.asarray(np.random.uniform(low=low, high=high, size=(num_reset, low.shape[0])), dtype=get_global_dtype())
+        cmds = np.asarray(
+            np.random.uniform(low=low, high=high, size=(num_reset, low.shape[0])),
+            dtype=get_global_dtype(),
+        )
         safe_linv = np.maximum(np.abs(cmds[:, 0]), 1e-4)
         angv_limit = 2.0 / safe_linv  # inverse_linx_angv
         cmds[:, 2] = np.clip(cmds[:, 2], -angv_limit, angv_limit)
@@ -228,7 +268,10 @@ class XqRobotV2WalkFlatEnv(XqRobotBaseEnv):
         if cfg.reward_config is None:
             raise ValueError("reward_config must be provided via Hydra configuration")
         backend = create_backend(
-            backend_type, cfg.scene, num_envs, cfg.sim_dt,
+            backend_type,
+            cfg.scene,
+            num_envs,
+            cfg.sim_dt,
             base_name=cfg.asset.base_name,
             push_body_name=getattr(cfg.domain_rand, "push_body_name", None),
             motrix_max_iterations=cfg.motrix_max_iterations,
@@ -244,24 +287,40 @@ class XqRobotV2WalkFlatEnv(XqRobotBaseEnv):
         if cfg.domain_rand.randomize_leg_length:
             leg_names = getattr(XqRobotDRProvider, "_LEG_GEOM_NAMES", [])
             if leg_names:
-                self._base_leg_geom_sizes = {
-                    name: backend.get_geom_size(name) for name in leg_names
-                }
+                low, high = (
+                    float(cfg.domain_rand.leg_length_scale_range[0]),
+                    float(cfg.domain_rand.leg_length_scale_range[1]),
+                )
+                scale = float(np.random.uniform(low, high))
+                for name in leg_names:
+                    geom_id = backend.get_geom_id(name)
+                    backend._model.geom_size[geom_id] = (
+                        backend._model.geom_size[geom_id].copy() * scale
+                    )
 
         import mujoco as _mj
+
         if hasattr(backend, "_model"):  # type: ignore[union-attr]
-            self._left_wheel_bid = _mj.mj_name2id(backend._model, _mj.mjtObj.mjOBJ_BODY, "left_link_wheel")  # type: ignore[union-attr]
-            self._right_wheel_bid = _mj.mj_name2id(backend._model, _mj.mjtObj.mjOBJ_BODY, "right_link_wheel")  # type: ignore[union-attr]
+            self._left_wheel_bid = _mj.mj_name2id(
+                backend._model, _mj.mjtObj.mjOBJ_BODY, "left_link_wheel"
+            )  # type: ignore[union-attr]
+            self._right_wheel_bid = _mj.mj_name2id(
+                backend._model, _mj.mjtObj.mjOBJ_BODY, "right_link_wheel"
+            )  # type: ignore[union-attr]
         else:
             self._left_wheel_bid = -1
             self._right_wheel_bid = -1
 
         # ── 历史堆叠 ──
         self._hist_len = _HISTORY_LEN
-        self._obs_frame_dim = 33   # 5D cmd: gyro(3)+grav(3)+diff(6)+vel(6)+wheel(2)+act(8)+cmd(5)
+        self._obs_frame_dim = 33  # 5D cmd: gyro(3)+grav(3)+diff(6)+vel(6)+wheel(2)+act(8)+cmd(5)
         self._critic_frame_dim = 36  # 5D cmd + linvel(3)
-        self._obs_history = np.zeros((num_envs, self._hist_len, self._obs_frame_dim), dtype=self._np_dtype)
-        self._critic_history = np.zeros((num_envs, self._hist_len, self._critic_frame_dim), dtype=self._np_dtype)
+        self._obs_history = np.zeros(
+            (num_envs, self._hist_len, self._obs_frame_dim), dtype=self._np_dtype
+        )
+        self._critic_history = np.zeros(
+            (num_envs, self._hist_len, self._critic_frame_dim), dtype=self._np_dtype
+        )
 
         # ── 课程学习 ──
         self._curriculum_step_count = 0
@@ -269,30 +328,53 @@ class XqRobotV2WalkFlatEnv(XqRobotBaseEnv):
 
     @property
     def obs_groups_spec(self) -> dict[str, int]:
-        return {"obs": self._obs_frame_dim * self._hist_len, "critic": self._critic_frame_dim * self._hist_len}
+        return {
+            "obs": self._obs_frame_dim * self._hist_len,
+            "critic": self._critic_frame_dim * self._hist_len,
+        }
 
     def apply_action(self, actions: np.ndarray, state: NpEnvState) -> np.ndarray:
         clipped_actions = np.asarray(
-            np.clip(actions, -self._cfg.control_config.clip_actions, self._cfg.control_config.clip_actions),
+            np.clip(
+                actions,
+                -self._cfg.control_config.clip_actions,
+                self._cfg.control_config.clip_actions,
+            ),
             dtype=self._np_dtype,
         )
-        state.info["last_actions"] = state.info.get("current_actions", np.zeros_like(clipped_actions))
+        state.info["last_actions"] = state.info.get(
+            "current_actions", np.zeros_like(clipped_actions)
+        )
         state.info["current_actions"] = clipped_actions
         exec_actions = (
-            state.info["last_actions"] if self._cfg.control_config.simulate_action_latency else clipped_actions
+            state.info["last_actions"]
+            if self._cfg.control_config.simulate_action_latency
+            else clipped_actions
         )
+        if getattr(self._cfg.control_config, "action_smoothing", 0.0) > 0.0:
+            alpha = float(self._cfg.control_config.action_smoothing)
+            prev = getattr(self, "_prev_filtered_action", exec_actions)
+            exec_actions = alpha * prev + (1.0 - alpha) * exec_actions
+            self._prev_filtered_action = exec_actions
         leg_targets = (
-            exec_actions[:, :NUM_LEG_ACTIONS] * self._cfg.control_config.action_scale + DEFAULT_ANGLES[:NUM_LEG_ACTIONS]
+            exec_actions[:, :NUM_LEG_ACTIONS] * self._cfg.control_config.action_scale
+            + DEFAULT_ANGLES[:NUM_LEG_ACTIONS]
         )
-        wheel_targets = exec_actions[:, NUM_LEG_ACTIONS:] * self._cfg.control_config.wheel_action_scale  # velocity ctrl
+        wheel_targets = (
+            exec_actions[:, NUM_LEG_ACTIONS:] * self._cfg.control_config.wheel_action_scale
+        )  # velocity ctrl
         # MuJoCo actuator order: [L_hip, L_thigh, L_calf, L_wheel, R_hip, R_thigh, R_calf, R_wheel]
         half_legs = NUM_LEG_ACTIONS // 2  # 3
-        return np.concatenate([
-            leg_targets[:, :half_legs],          # L_leg (3)
-            wheel_targets[:, :1],                 # L_wheel
-            leg_targets[:, half_legs:],           # R_leg (3)
-            wheel_targets[:, 1:],                 # R_wheel
-        ], axis=1, dtype=self._np_dtype)
+        return np.concatenate(
+            [
+                leg_targets[:, :half_legs],  # L_leg (3)
+                wheel_targets[:, :1],  # L_wheel
+                leg_targets[:, half_legs:],  # R_leg (3)
+                wheel_targets[:, 1:],  # R_wheel
+            ],
+            axis=1,
+            dtype=self._np_dtype,
+        )
 
     def update_state(self, state: NpEnvState) -> NpEnvState:
         self._update_commands(state.info)
@@ -302,6 +384,7 @@ class XqRobotV2WalkFlatEnv(XqRobotBaseEnv):
         dof_pos = self.get_dof_pos()
         dof_vel = self.get_dof_vel()
         self._update_feet_distance(state.info)
+        self._update_leg_forces(state.info)
         terminated = self._compute_terminated(gravity, dof_pos)
         reward = self._compute_reward(state.info, linvel, gyro, gravity, dof_pos, dof_vel)
         obs = self._compute_obs(state.info, linvel, gyro, gravity, dof_pos, dof_vel)
@@ -329,6 +412,41 @@ class XqRobotV2WalkFlatEnv(XqRobotBaseEnv):
         except Exception:
             info["feet_distance"] = np.full((self._num_envs,), 0.45, dtype=np.float64)
 
+    def _update_leg_forces(self, info: dict) -> None:
+        try:
+            for name in (
+                "left_thigh_force",
+                "left_calf_force",
+                "right_thigh_force",
+                "right_calf_force",
+            ):
+                info[name] = np.asarray(self._backend.get_sensor_data(name), dtype=np.float64)
+        except Exception:
+            pass
+
+    def _update_wheel_contact(self, info: dict) -> None:
+        try:
+            left_f = np.asarray(self._backend.get_sensor_data("left_wheel_force"), dtype=np.float64)
+            right_f = np.asarray(
+                self._backend.get_sensor_data("right_wheel_force"), dtype=np.float64
+            )
+            left_mag = np.linalg.norm(left_f.reshape(self._num_envs, -1), axis=1)
+            right_mag = np.linalg.norm(right_f.reshape(self._num_envs, -1), axis=1)
+            info["wheel_contact"] = np.stack(
+                [
+                    (left_mag > 1.0).astype(np.float64),
+                    (right_mag > 1.0).astype(np.float64),
+                ],
+                axis=1,
+            )
+        except Exception:
+            info["wheel_contact"] = np.ones((self._num_envs, 2), dtype=np.float64)
+
+    def _update_base_z_history(self, info: dict) -> None:
+        base_pos = np.asarray(self._backend.get_base_pos(), dtype=get_global_dtype())
+        info["_prev_base_z"] = info.get("current_base_z", base_pos[:, 2].copy())
+        info["current_base_z"] = base_pos[:, 2].copy()
+
     def _init_reward_functions(self) -> None:
         self._reward_fns: dict[str, Any] = {
             "tracking_lin_vel": rewards.tracking_lin_vel,
@@ -344,6 +462,7 @@ class XqRobotV2WalkFlatEnv(XqRobotBaseEnv):
             "hip_roll": _reward_hip_roll,
             "wheel_symmetry": _reward_wheel_symmetry,
             "feet_distance": _reward_feet_distance,
+            "collision": _reward_collision,
             "alive": rewards.alive,
         }
 
@@ -351,7 +470,9 @@ class XqRobotV2WalkFlatEnv(XqRobotBaseEnv):
         dtype = get_global_dtype()
         num_obs = linvel.shape[0]
         ctx = RewardContext(
-            info=info, linvel=linvel, gyro=gyro,
+            info=info,
+            linvel=linvel,
+            gyro=gyro,
             dof_pos=dof_pos[:, :NUM_LEG_ACTIONS],
             dof_vel=dof_vel[:, :NUM_LEG_ACTIONS],
             num_envs=num_obs,
@@ -359,11 +480,16 @@ class XqRobotV2WalkFlatEnv(XqRobotBaseEnv):
             tracking_sigma=self._reward_cfg.tracking_sigma,
             base_height_target=self._reward_cfg.base_height_target,
             base_height=self._base_height_values(num_obs),
-            gravity=gravity, joint_range=None,
+            gravity=gravity,
+            joint_range=None,
         )
         return rewards.run_reward_dispatch(
-            scales=self._reward_cfg.scales, fns=self._reward_fns, ctx=ctx, info=info,
-            enable_log=self._enable_reward_log, ctrl_dt=self._cfg.ctrl_dt,
+            scales=self._reward_cfg.scales,
+            fns=self._reward_fns,
+            ctx=ctx,
+            info=info,
+            enable_log=self._enable_reward_log,
+            ctrl_dt=self._cfg.ctrl_dt,
             only_positive=self._reward_cfg.only_positive_rewards,
         )
 
@@ -388,7 +514,11 @@ class XqRobotV2WalkFlatEnv(XqRobotBaseEnv):
         if survive_ratio < 0.5:
             return
         active = ep_steps[ep_steps > 0]
-        mean_err = self._tracking_err_buf[ep_steps > 0].mean() / active.mean() if len(active) > 0 else 999.0
+        mean_err = (
+            self._tracking_err_buf[ep_steps > 0].mean() / active.mean()
+            if len(active) > 0
+            else 999.0
+        )
         self._tracking_err_buf[:] = 0.0
         low = np.array(self._cfg.commands.vel_limit[0], dtype=self._np_dtype)
         high = np.array(self._cfg.commands.vel_limit[1], dtype=self._np_dtype)
@@ -416,7 +546,9 @@ class XqRobotV2WalkFlatEnv(XqRobotBaseEnv):
                 num_resample = int(np.count_nonzero(resample_mask))
                 low = np.asarray(self._cfg.commands.vel_limit[0], dtype=get_global_dtype())
                 high = np.asarray(self._cfg.commands.vel_limit[1], dtype=get_global_dtype())
-                sampled = np.random.uniform(low=low, high=high, size=(num_resample, low.shape[0])).astype(get_global_dtype())
+                sampled = np.random.uniform(
+                    low=low, high=high, size=(num_resample, low.shape[0])
+                ).astype(get_global_dtype())
                 safe_linv = np.maximum(np.abs(sampled[:, 0]), 1e-4)
                 angv_limit = 2.0 / safe_linv
                 sampled[:, 2] = np.clip(sampled[:, 2], -angv_limit, angv_limit)
@@ -431,7 +563,9 @@ class XqRobotV2WalkFlatEnv(XqRobotBaseEnv):
 
     # ── 观测 + 历史堆叠 ──────────────────────────────────────────
 
-    def _compute_obs(self, info: dict, linvel, gyro, gravity, dof_pos, dof_vel) -> dict[str, np.ndarray]:
+    def _compute_obs(
+        self, info: dict, linvel, gyro, gravity, dof_pos, dof_vel
+    ) -> dict[str, np.ndarray]:
         noise_cfg = self._cfg.noise_config
         leg_diff = dof_pos[:, :NUM_LEG_ACTIONS] - DEFAULT_ANGLES[:NUM_LEG_ACTIONS]
         leg_vel = dof_vel[:, :NUM_LEG_ACTIONS]
@@ -443,17 +577,34 @@ class XqRobotV2WalkFlatEnv(XqRobotBaseEnv):
         noisy_wheel_vel = self._obs_noise(wheel_vel, noise_cfg.scale_wheel_vel)
         last_actions = info.get("current_actions", np.zeros((linvel.shape[0], NUM_ACTIONS)))
 
-        obs_frame = np.concatenate([
-            noisy_gyro, -noisy_gravity,
-            noisy_leg_diff, noisy_leg_vel, noisy_wheel_vel,
-            last_actions, info["commands"],
-        ], axis=1, dtype=get_global_dtype())
+        obs_frame = np.concatenate(
+            [
+                noisy_gyro,
+                -noisy_gravity,
+                noisy_leg_diff,
+                noisy_leg_vel,
+                noisy_wheel_vel,
+                last_actions,
+                info["commands"],
+            ],
+            axis=1,
+            dtype=get_global_dtype(),
+        )
 
-        critic_frame = np.concatenate([
-            gyro, -gravity,
-            leg_diff, leg_vel, wheel_vel,
-            last_actions, info["commands"], linvel,
-        ], axis=1, dtype=get_global_dtype())
+        critic_frame = np.concatenate(
+            [
+                gyro,
+                -gravity,
+                leg_diff,
+                leg_vel,
+                wheel_vel,
+                last_actions,
+                info["commands"],
+                linvel,
+            ],
+            axis=1,
+            dtype=get_global_dtype(),
+        )
 
         batch_size = obs_frame.shape[0]
         steps_val = int(info.get("steps", np.zeros(1, dtype=np.uint32))[0])

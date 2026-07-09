@@ -24,10 +24,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+import matplotlib
 import numpy as np
 import torch
 
-import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
@@ -36,28 +36,37 @@ SRC = ROOT / "src"
 sys.path.insert(0, str(SRC))
 sys.path.insert(0, str(ROOT))
 
-from unilab.envs.locomotion.xqrobotV2.joystick import (
-    XqRobotV2WalkFlatCfg, XqRobotV2WalkFlatEnv, XqRobotRewardConfig,
-)
-from unilab.envs.locomotion.common.commands import Commands
 from rsl_rl.modules.mlp import MLP
 
-from assess.metrics import EvalContext, ALL_METRICS, METRIC_CATEGORIES
-from assess.scenarios import EvalSuite, EvalScenario, get_suite, SUITES, load_suite
-from assess.recorder import Recorder
+from assess.exporter import ResultDatabase, export_csv_flat, export_csv_wide
+from assess.metrics import ALL_METRICS, METRIC_CATEGORIES, EvalContext
 from assess.plotter import (
-    plot_velocity_tracking,
-    plot_metric_bars,
-    plot_stability_timeline,
-    plot_metric_radar,
-    plot_metric_comparison,
     plot_gait_phase,
+    plot_metric_bars,
+    plot_metric_comparison,
+    plot_metric_radar,
+    plot_stability_timeline,
+    plot_velocity_tracking,
 )
-from assess.exporter import export_csv_flat, export_csv_wide, ResultDatabase
+from assess.recorder import Recorder
 from assess.reporter import generate_report
+from assess.scenarios import SUITES, EvalScenario, EvalSuite, get_suite, load_suite
 from assess.tasks import (
-    get_task, get_algo, get_pair, list_tasks, list_algos, list_pairs,
-    TaskDef, AlgoDef, TaskAlgoPair,
+    AlgoDef,
+    TaskAlgoPair,
+    TaskDef,
+    get_algo,
+    get_pair,
+    get_task,
+    list_algos,
+    list_pairs,
+    list_tasks,
+)
+from unilab.envs.locomotion.common.commands import Commands
+from unilab.envs.locomotion.xqrobotV2.joystick import (
+    XqRobotRewardConfig,
+    XqRobotV2WalkFlatCfg,
+    XqRobotV2WalkFlatEnv,
 )
 
 LOG_ROOT = ROOT / "logs" / "rsl_rl_ppo" / "XqRobotV2WalkFlat"
@@ -69,6 +78,7 @@ DB_PATH = ASSESS_ROOT / "database" / "results_db.json"
 
 
 # ── Session / path helpers ────────────────────────────────────────────────
+
 
 class EvalSession:
     """Groups all outputs for one evaluation run under a timestamped directory."""
@@ -106,6 +116,7 @@ class EvalSession:
 
 # ── Env / Policy builders ──────────────────────────────────────────────────
 
+
 def build_env_flat():
     cfg = XqRobotV2WalkFlatCfg()
     cfg.control_config.action_scale = 0.5
@@ -116,14 +127,24 @@ def build_env_flat():
         resampling_time=999.0,
     )
     cfg.reward_config = XqRobotRewardConfig(
-        scales={"tracking_lin_vel": 1.5, "tracking_ang_vel": 1.5,
-                "lin_vel_z": -0.2, "ang_vel_xy": -0.02,
-                "base_height": -5.0, "orientation": -10.0,
-                "joint_action_rate": -0.1, "wheel_action_rate": -0.005,
-                "similar_calf": -1.0, "hip_roll": -2.0,
-                "wheel_symmetry": -0.5, "tsk": -2.0,
-                "feet_distance": -1.0, "alive": 1.0},
-        tracking_sigma=0.3, base_height_target=0.65,
+        scales={
+            "tracking_lin_vel": 1.5,
+            "tracking_ang_vel": 1.5,
+            "lin_vel_z": -0.2,
+            "ang_vel_xy": -0.02,
+            "base_height": -5.0,
+            "orientation": -10.0,
+            "joint_action_rate": -0.1,
+            "wheel_action_rate": -0.005,
+            "similar_calf": -1.0,
+            "hip_roll": -2.0,
+            "wheel_symmetry": -0.5,
+            "tsk": -2.0,
+            "feet_distance": -1.0,
+            "alive": 1.0,
+        },
+        tracking_sigma=0.3,
+        base_height_target=0.65,
     )
     cfg.domain_rand.randomize_init_yaw = False
     cfg.domain_rand.randomize_base_mass = False
@@ -146,35 +167,48 @@ def build_env(task: str = "flat_walk"):
     builder = _env_builders.get(task, build_env_flat)
     return builder()
 
+
 register_env_builder("flat_walk", build_env_flat)
 
 
 # ── Rough terrain env builder ──
 
+
 def build_env_rough():
-    from unilab.envs.locomotion.xqrobotV2.rough import (
-        XqRobotV2WalkRoughCfg, XqRobotV2WalkRoughEnv,
-    )
     from unilab.base.scene import TerrainSceneCfg
-    from unilab.envs.locomotion.xqrobotV2.rough import XqRobotRoughTerrainCfg
+    from unilab.envs.locomotion.xqrobotV2.rough import (
+        XqRobotRoughTerrainCfg,
+        XqRobotV2WalkRoughCfg,
+        XqRobotV2WalkRoughEnv,
+    )
 
     cfg = XqRobotV2WalkRoughCfg()
     cfg.control_config.action_scale = 0.5
-    cfg.control_config.wheel_action_scale = 5.0         # training default for rough
+    cfg.control_config.wheel_action_scale = 5.0  # training default for rough
     cfg.control_config.clip_actions = 100.0
     cfg.commands = Commands(
         vel_limit=[[-1.0, -0.5, -1.5, -0.1, 0.40], [1.0, 0.5, 1.5, 0.1, 0.90]],
         resampling_time=999.0,
     )
     cfg.reward_config = XqRobotRewardConfig(
-        scales={"tracking_lin_vel": 1.5, "tracking_ang_vel": 1.5,
-                "lin_vel_z": -0.2, "ang_vel_xy": -0.02,
-                "base_height": -5.0, "orientation": -10.0,
-                "joint_action_rate": -0.1, "wheel_action_rate": -0.005,
-                "similar_calf": -1.0, "hip_roll": -2.0,
-                "wheel_symmetry": -0.5, "tsk": -2.0,
-                "feet_distance": -1.0, "alive": 1.0},
-        tracking_sigma=0.3, base_height_target=0.65,
+        scales={
+            "tracking_lin_vel": 1.5,
+            "tracking_ang_vel": 1.5,
+            "lin_vel_z": -0.2,
+            "ang_vel_xy": -0.02,
+            "base_height": -5.0,
+            "orientation": -10.0,
+            "joint_action_rate": -0.1,
+            "wheel_action_rate": -0.005,
+            "similar_calf": -1.0,
+            "hip_roll": -2.0,
+            "wheel_symmetry": -0.5,
+            "tsk": -2.0,
+            "feet_distance": -1.0,
+            "alive": 1.0,
+        },
+        tracking_sigma=0.3,
+        base_height_target=0.65,
     )
     cfg.domain_rand.randomize_init_yaw = False
     cfg.domain_rand.randomize_base_mass = False
@@ -189,6 +223,7 @@ def build_env_rough():
     cfg.scene.terrain.generator.num_cols = 4
 
     return XqRobotV2WalkRoughEnv(cfg, num_envs=1, backend_type="mujoco")
+
 
 register_env_builder("rough_walk", build_env_rough)
 
@@ -214,7 +249,7 @@ def find_checkpoint(run: str, ckpt: int | None = None, log_root: Path | None = N
         return path
     pts = sorted(
         [f for f in os.listdir(run_dir) if f.startswith("model_") and f.endswith(".pt")],
-        key=lambda x: int(x.split("_")[1].split(".")[0])
+        key=lambda x: int(x.split("_")[1].split(".")[0]),
     )
     if not pts:
         raise FileNotFoundError(f"No checkpoints in {run_dir}")
@@ -234,15 +269,17 @@ def find_checkpoints(run: str, ckpt_list: list[int], log_root: Path | None = Non
 
 # ── Core evaluation ────────────────────────────────────────────────────────
 
-def run_scenario(env, policy, scenario: EvalScenario, recorder: Recorder | None = None) -> dict[str, float]:
+
+def run_scenario(
+    env, policy, scenario: EvalScenario, recorder: Recorder | None = None
+) -> dict[str, float]:
     """Run single scenario, optionally recording full trajectory."""
     cmd_arr = np.array([scenario.cmd], dtype=np.float32)
     ctrl_dt = 0.01
     total_steps = int((scenario.duration + scenario.warmup) / ctrl_dt)
     skip_steps = int(scenario.warmup / ctrl_dt)
 
-    ctx = EvalContext(cmd_vx=scenario.cmd[0], cmd_vy=scenario.cmd[1],
-                      cmd_vyaw=scenario.cmd[2])
+    ctx = EvalContext(cmd_vx=scenario.cmd[0], cmd_vy=scenario.cmd[1], cmd_vyaw=scenario.cmd[2])
 
     env._state = None
     env.init_state()
@@ -275,16 +312,19 @@ def run_scenario(env, policy, scenario: EvalScenario, recorder: Recorder | None 
             dof_vel = env.get_dof_vel()
             torque = np.zeros((1, 1))
 
-            ctx.record(lv, gyro, bp, dof_pos, dof_vel,
-                       raw_act, torque, dof_vel[:, 6:], roll, pitch)
+            ctx.record(lv, gyro, bp, dof_pos, dof_vel, raw_act, torque, dof_vel[:, 6:], roll, pitch)
 
             if rec:
                 rec.record_step(
                     t=(s - skip_steps) * ctrl_dt,
-                    linvel=lv, gyro=gyro, base_z=bp[0, 2],
+                    linvel=lv,
+                    gyro=gyro,
+                    base_z=bp[0, 2],
                     base_euler=np.array([roll, pitch]),
-                    leg_pos=dof_pos[:, :6], leg_vel=dof_vel[:, :6],
-                    action=raw_act, wheel_vel=dof_vel[:, 6:],
+                    leg_pos=dof_pos[:, :6],
+                    leg_vel=dof_vel[:, :6],
+                    action=raw_act,
+                    wheel_vel=dof_vel[:, 6:],
                 )
 
     metrics = {}
@@ -317,11 +357,14 @@ def load_result(path: str) -> dict:
 
 # ── Trend analysis ─────────────────────────────────────────────────────────
 
-def run_trend(task: str, algo: str, run: str, ckpt_list: list[int], suite_name: str, log_root: Path):
+
+def run_trend(
+    task: str, algo: str, run: str, ckpt_list: list[int], suite_name: str, log_root: Path
+):
     suite = get_suite(suite_name)
 
     print(f"\nTrend: {task}/{algo} | {run} | {len(ckpt_list)} checkpoints | {suite_name}")
-    env = build_env(pair.task.key)
+    env = build_env(task)
     obs_dim = env.obs_groups_spec["obs"]
     db = ResultDatabase(DB_PATH)
 
@@ -337,8 +380,11 @@ def run_trend(task: str, algo: str, run: str, ckpt_list: list[int], suite_name: 
 
         session = EvalSession(task, algo, run, ckpt_iter, suite_name)
         output = {
-            "run": run, "checkpoint": ckpt_iter, "suite": suite_name,
-            "task": task, "algo": algo,
+            "run": run,
+            "checkpoint": ckpt_iter,
+            "suite": suite_name,
+            "task": task,
+            "algo": algo,
             "evaluated_at": datetime.now().isoformat(),
             "elapsed_sec": round(elapsed, 1),
             "results": scenario_results,
@@ -352,8 +398,13 @@ def run_trend(task: str, algo: str, run: str, ckpt_list: list[int], suite_name: 
     env.close()
 
     # Trend plots
-    key_metrics = ["vx_tracking_rmse", "vel_coupling", "vel_tracking_ratio",
-                   "base_height_std", "yaw_stability"]
+    key_metrics = [
+        "vx_tracking_rmse",
+        "vel_coupling",
+        "vel_tracking_ratio",
+        "base_height_std",
+        "yaw_stability",
+    ]
 
     for metric in key_metrics:
         fig, ax = plt.subplots(figsize=(10, 4))
@@ -361,8 +412,13 @@ def run_trend(task: str, algo: str, run: str, ckpt_list: list[int], suite_name: 
         for scenario in suite.scenarios:
             x, y = [], []
             for ckpt_iter in sorted(ckpt_list):
-                val = (results_by_ckpt[ckpt_iter].get("results", {})
-                       .get(scenario.name, {}).get("metrics", {}).get(metric))
+                val = (
+                    results_by_ckpt[ckpt_iter]
+                    .get("results", {})
+                    .get(scenario.name, {})
+                    .get("metrics", {})
+                    .get(metric)
+                )
                 if val is not None:
                     x.append(ckpt_iter)
                     y.append(val)
@@ -387,6 +443,7 @@ def run_trend(task: str, algo: str, run: str, ckpt_list: list[int], suite_name: 
 
 # ── Single evaluation (main flow) ──────────────────────────────────────────
 
+
 def run_single_eval(args, pair: TaskAlgoPair, run: str, ckpt: int, suite_name: str):
     ckpt_path = find_checkpoint(run, ckpt, log_root=pair.log_root)
     suite = get_suite(suite_name)
@@ -408,25 +465,30 @@ def run_single_eval(args, pair: TaskAlgoPair, run: str, ckpt: int, suite_name: s
     elapsed = time.time() - t0
 
     output = {
-        "run": run, "checkpoint": ckpt, "suite": suite_name,
-        "task": pair.task.key, "algo": pair.algo.key,
+        "run": run,
+        "checkpoint": ckpt,
+        "suite": suite_name,
+        "task": pair.task.key,
+        "algo": pair.algo.key,
         "evaluated_at": datetime.now().isoformat(),
         "elapsed_sec": round(elapsed, 1),
         "results": scenario_results,
     }
 
     # ── Print summary ──
-    print(f"\n{'='*85}")
+    print(f"\n{'=' * 85}")
     print(f"RESULTS — {pair.display} | {run} iter={ckpt}")
-    print(f"{'='*85}")
+    print(f"{'=' * 85}")
     header = f"{'Scenario':<22} {'vx':>7} {'vy':>7} {'vx_rmse':>8} {'vy_xtalk':>8} {'base_h':>7}"
     print(header)
     print("-" * 85)
     for sname, sdata in scenario_results.items():
         m = sdata.get("metrics", {})
-        print(f"{sname[:21]:<22} {m.get('avg_vx',0) or 0:>7.3f} {m.get('avg_vy',0) or 0:>7.3f} "
-              f"{m.get('vx_tracking_rmse',0) or 0:>8.3f} {m.get('vel_coupling',0) or 0:>8.3f} "
-              f"{m.get('base_height_mean',0) or 0:>7.3f}")
+        print(
+            f"{sname[:21]:<22} {m.get('avg_vx', 0) or 0:>7.3f} {m.get('avg_vy', 0) or 0:>7.3f} "
+            f"{m.get('vx_tracking_rmse', 0) or 0:>8.3f} {m.get('vel_coupling', 0) or 0:>8.3f} "
+            f"{m.get('base_height_mean', 0) or 0:>7.3f}"
+        )
 
     # ── Save outputs ──
     # JSON
@@ -472,6 +534,7 @@ def run_single_eval(args, pair: TaskAlgoPair, run: str, ckpt: int, suite_name: s
 
 # ── Comparison ─────────────────────────────────────────────────────────────
 
+
 def run_comparison(paths: list[str], args):
     names = [Path(p).stem[:40] for p in paths]
     data_list = [load_result(p) for p in paths]
@@ -516,8 +579,9 @@ def run_comparison(paths: list[str], args):
             comparison_data[names[i]] = {k: np.mean(v) for k, v in agg.items()}
 
         plot_metric_radar(comparison_data, comp_dir / "radar.png")
-        comps = [{"label": names[i], "results": d.get("results", {})}
-                 for i, d in enumerate(data_list)]
+        comps = [
+            {"label": names[i], "results": d.get("results", {})} for i, d in enumerate(data_list)
+        ]
         for metric in ["vx_tracking_rmse", "vel_coupling", "vel_tracking_ratio"]:
             plot_metric_comparison(comps, comp_dir / f"comparison_{metric}.png", metric_key=metric)
         print(f"Plots: {comp_dir}/")
@@ -525,12 +589,11 @@ def run_comparison(paths: list[str], args):
 
 # ── CLI ────────────────────────────────────────────────────────────────────
 
+
 def main():
     parser = argparse.ArgumentParser(description="XqRobotV2 Policy Assessor")
-    parser.add_argument("--task", "-t", default="flat_walk",
-                       help="Task key: flat_walk, toe_walk")
-    parser.add_argument("--algo", "-a", default="ppo",
-                       help="Algorithm: ppo, sac, appo, td3")
+    parser.add_argument("--task", "-t", default="flat_walk", help="Task key: flat_walk, toe_walk")
+    parser.add_argument("--algo", "-a", default="ppo", help="Algorithm: ppo, sac, appo, td3")
     parser.add_argument("--run", "-r", help="Training run name")
     parser.add_argument("--ckpt", "-c", type=int, help="Checkpoint iteration")
     parser.add_argument("--ckpts", help="Comma-separated checkpoints for trend")

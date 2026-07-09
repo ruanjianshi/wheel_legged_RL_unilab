@@ -136,5 +136,9 @@
     <torque name="right_calf_torque" site="right_calf_site" />
     <torque name="left_wheel_torque" site="left_wheel_site" />
     <torque name="right_wheel_torque" site="right_wheel_site" />
+    <force name="left_thigh_force" site="left_thigh_site" />
+    <force name="left_calf_force" site="left_calf_site" />
+    <force name="right_thigh_force" site="right_thigh_site" />
+    <force name="right_calf_force" site="right_calf_site" />
   </sensor>
 </mujoco>

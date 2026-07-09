@@ -281,3 +281,46 @@ class PPOConfig(BaseConfig):
     resume_path: Optional[str] = None
     policy: PPOPolicyConfig = field(default_factory=PPOPolicyConfig)
     algorithm: PPOAlgorithmConfig = field(default_factory=PPOAlgorithmConfig)
+
+
+# ── NP3O ─────────────────────────────────────────────────────────────────────
+
+
+@dataclass
+class NP3OAlgorithmConfig(PPOAlgorithmConfig):
+    class_name: str = "unilab.algos.torch.np3o:NP3O"
+    num_costs: int = 6
+    cost_critic_hidden_dims: list = field(default_factory=lambda: [512, 256, 128])
+    cost_value_loss_coef: float = 0.1
+    cost_viol_loss_coef: float = 0.1
+    cost_gamma: float = 0.99
+    cost_lam: float = 0.95
+    cost_max_grad_norm: float = 1.0
+    cost_learning_rate: float = 1e-3
+    k_init: float | list = 0.3
+    k_growth: float = 1.0004
+    k_max: float = 1.0
+    d_values: list = field(default_factory=lambda: [0.0] * 6)
+    enable_compile: bool = False
+
+
+@dataclass
+class NP3OConfig(BaseConfig):
+    algo: str = "np3o"
+    algo_log_name: str = "rsl_rl_np3o"
+    seed: int = 1
+    num_envs: int = 4096
+    num_steps_per_env: int = 24
+    max_iterations: int = 101
+    save_interval: int = 100
+    empirical_normalization: bool = False
+    runner_class_name: str = "OnPolicyRunner"
+    obs_groups: dict = field(default_factory=lambda: {"default": ["policy"]})
+    experiment_name: str = "test"
+    run_name: str = ""
+    resume: bool = False
+    load_run: str = "-1"
+    checkpoint: int = -1
+    resume_path: Optional[str] = None
+    policy: PPOPolicyConfig = field(default_factory=PPOPolicyConfig)
+    algorithm: NP3OAlgorithmConfig = field(default_factory=NP3OAlgorithmConfig)

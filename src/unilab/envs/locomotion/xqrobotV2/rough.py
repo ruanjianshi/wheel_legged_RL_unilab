@@ -1,4 +1,5 @@
 """xqrobotV2 rough terrain env: procedural terrain + height scan + terrain termination."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -32,8 +33,6 @@ from unilab.terrains import (
     flat,
     hf_pyramid_slope,
     hf_pyramid_slope_inv,
-    pyramid_stairs,
-    pyramid_stairs_inv,
     random_rough,
     wave_terrain,
 )
@@ -65,7 +64,7 @@ class RoughTerminationConfig:
 @dataclass(kw_only=True)
 class XqRobotRoughTerrainCfg(TerrainGeneratorCfg):
     size: tuple[float, float] = (8.0, 8.0)
-    num_rows: int = 6
+    num_rows: int = 8
     num_cols: int = 6
     border_width: float = 20.0
     horizontal_scale: float = 0.1
@@ -73,41 +72,27 @@ class XqRobotRoughTerrainCfg(TerrainGeneratorCfg):
     sub_terrains: dict[str, SubTerrainCfg] = field(
         default_factory=lambda: {
             "flat": flat(proportion=0.0),
-            "pyramid_stairs": pyramid_stairs(
-                proportion=0.15,
-                step_height_range=(0.02, 0.08),
-                step_width=0.3,
-                platform_width=2.0,
-                border_width=0.2,
-            ),
-            "pyramid_stairs_inv": pyramid_stairs_inv(
-                proportion=0.15,
-                step_height_range=(0.02, 0.08),
-                step_width=0.3,
-                platform_width=2.0,
-                border_width=0.2,
-            ),
             "random_rough": random_rough(
-                proportion=0.3,
-                noise_range=(0.01, 0.06),
+                proportion=0.4,
+                noise_range=(0.005, 0.04),
                 noise_step=0.01,
                 border_width=0.2,
             ),
             "wave_terrain": wave_terrain(
-                proportion=0.3,
-                amplitude_range=(0.0, 0.10),
+                proportion=0.4,
+                amplitude_range=(0.0, 0.12),
                 num_waves=4,
                 border_width=0.2,
             ),
             "hf_pyramid_slope": hf_pyramid_slope(
-                proportion=0.05,
-                slope_range=(0.0, 0.15),
+                proportion=0.1,
+                slope_range=(0.1, 0.35),
                 platform_width=2.0,
                 border_width=0.2,
             ),
             "hf_pyramid_slope_inv": hf_pyramid_slope_inv(
-                proportion=0.05,
-                slope_range=(0.0, 0.15),
+                proportion=0.1,
+                slope_range=(0.1, 0.35),
                 platform_width=2.0,
                 border_width=0.2,
             ),
@@ -148,6 +133,12 @@ class XqRobotRoughDRProvider(XqRobotDRProvider):
         safe_linv = np.maximum(np.abs(cmds[:, 0]), 1e-4)
         angv_limit = 2.0 / safe_linv
         cmds[:, 2] = np.clip(cmds[:, 2], -angv_limit, angv_limit)
+        for i in range(num_reset):
+            axis = np.random.choice([0, 1])
+            if axis == 0:
+                cmds[i, 1] = 0.0
+            else:
+                cmds[i, 0] = 0.0
         return cmds
 
 
@@ -183,7 +174,9 @@ class XqRobotV2WalkRoughEnv(XqRobotV2WalkFlatEnv):
             return super()._base_height_values(num_obs)
         return height
 
-    def _compute_obs(self, info: dict, linvel, gyro, gravity, dof_pos, dof_vel) -> dict[str, np.ndarray]:
+    def _compute_obs(
+        self, info: dict, linvel, gyro, gravity, dof_pos, dof_vel
+    ) -> dict[str, np.ndarray]:
         noise_cfg = self._cfg.noise_config
         leg_diff = dof_pos[:, :NUM_LEG_ACTIONS] - self.default_angles[:NUM_LEG_ACTIONS]
         leg_vel = dof_vel[:, :NUM_LEG_ACTIONS]
@@ -195,17 +188,34 @@ class XqRobotV2WalkRoughEnv(XqRobotV2WalkFlatEnv):
         noisy_wheel_vel = self._obs_noise(wheel_vel, noise_cfg.scale_wheel_vel)
         last_actions = info.get("current_actions", np.zeros((linvel.shape[0], NUM_ACTIONS)))
 
-        obs_frame = np.concatenate([
-            noisy_gyro, noisy_gravity,
-            noisy_leg_diff, noisy_leg_vel, noisy_wheel_vel,
-            last_actions, info["commands"],
-        ], axis=1, dtype=get_global_dtype())
+        obs_frame = np.concatenate(
+            [
+                noisy_gyro,
+                noisy_gravity,
+                noisy_leg_diff,
+                noisy_leg_vel,
+                noisy_wheel_vel,
+                last_actions,
+                info["commands"],
+            ],
+            axis=1,
+            dtype=get_global_dtype(),
+        )
 
-        critic_frame = np.concatenate([
-            gyro, -gravity,
-            leg_diff, leg_vel, wheel_vel,
-            last_actions, info["commands"], linvel,
-        ], axis=1, dtype=get_global_dtype())
+        critic_frame = np.concatenate(
+            [
+                gyro,
+                -gravity,
+                leg_diff,
+                leg_vel,
+                wheel_vel,
+                last_actions,
+                info["commands"],
+                linvel,
+            ],
+            axis=1,
+            dtype=get_global_dtype(),
+        )
 
         batch_size = obs_frame.shape[0]
         steps_val = int(info.get("steps", np.zeros(1, dtype=np.uint32))[0])
@@ -225,9 +235,21 @@ class XqRobotV2WalkRoughEnv(XqRobotV2WalkFlatEnv):
         critic_base = self._critic_history[:batch_size].reshape(batch_size, -1)
         critic = np.concatenate(
             [critic_base, height_scan_obs(self, self._cfg.terrain_scan, num_obs)],
-            axis=1, dtype=get_global_dtype(),
+            axis=1,
+            dtype=get_global_dtype(),
         )
         return {"obs": obs, "critic": critic}
+
+    def update_state(self, state: NpEnvState) -> NpEnvState:
+        from unilab.base.np_env import NpEnvState
+
+        state = super().update_state(state)
+        if hasattr(self, "_spawn") and self._cfg.terrain_curriculum.enabled:
+            terminated_ids = np.where(state.terminated)[0]
+            if len(terminated_ids) > 0:
+                base_pos = np.asarray(self._backend.get_base_pos(), dtype=get_global_dtype())
+                self._spawn.update_on_done(terminated_ids, base_pos[terminated_ids])
+        return state
 
     def _compute_terminated(self, gravity: np.ndarray, dof_pos: np.ndarray) -> np.ndarray:
         tilt = np.arccos(np.clip(gravity[:, 2], -1, 1))

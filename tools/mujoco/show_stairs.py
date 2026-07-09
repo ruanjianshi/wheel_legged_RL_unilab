@@ -1,9 +1,7 @@
-"""Show XqRobotV2 rough terrain in MuJoCo viewer.
-
-Uses exact same terrain config as XqRobotV2WalkRough training.
+"""Show XqRobotV2 stairs-only terrain (NP3O config) in MuJoCo viewer.
 
 Usage:
-    uv run tools/mujoco/show_terrain.py
+    uv run tools/mujoco/show_stairs.py
 """
 
 import os
@@ -20,41 +18,30 @@ sys.path.insert(0, SRC)
 import mujoco
 import mujoco.viewer
 
-from unilab.envs.locomotion.xqrobotV2.rough import XqRobotRoughTerrainCfg
+from unilab.envs.locomotion.xqrobotV2.stairs import StairsOnlyTerrainCfg
 from unilab.terrains import TerrainGenerator
 
-cfg = XqRobotRoughTerrainCfg()
+cfg = StairsOnlyTerrainCfg()
 gen = TerrainGenerator(cfg)
 result = gen.generate()
 hf = result.heights_yx
 
 print(f"Terrain: {hf.shape[1]}x{hf.shape[0]}, z=[{hf.min():.3f}, {hf.max():.3f}]")
-ts = result.terrain_origins
-print(f"Cells: {ts.shape[0]}x{ts.shape[1]}")
-nz = np.count_nonzero(hf)
-print(f"Non-flat: {nz}/{hf.size}")
+print(f"Cells: {result.terrain_origins.shape[0]}x{result.terrain_origins.shape[1]}")
+print(f"Sub-terrains: {list(cfg.sub_terrains.keys())}")
 for name, st in cfg.sub_terrains.items():
-    if st.proportion > 0:
-        detail = ""
-        if hasattr(st, "step_height_range"):
-            detail = f" step={st.step_height_range} w={st.step_width}m"
-        elif hasattr(st, "noise_range"):
-            detail = f" noise={st.noise_range}"
-        elif hasattr(st, "slope_range"):
-            detail = f" slope={st.slope_range}"
-        elif hasattr(st, "amplitude_range"):
-            detail = f" amp={st.amplitude_range}"
-        print(f"  {name} ({st.proportion*100:.0f}%):{detail}")
+    print(f"  {name}: step_height={st.step_height_range}, step_width={st.step_width}m, prop={st.proportion}")
+hsize = result.hfield_size
 
-tmpdir = tempfile.mkdtemp(prefix="xq_terrain_")
+tmpdir = tempfile.mkdtemp(prefix="xq_stairs_")
 png_path = os.path.join(tmpdir, "hfield.png")
 result.write_png(Path(png_path))
 
 robot_dir = os.path.expanduser("~/xiaoq/wheel_legged_RL_unilab/src/unilab/assets/robots/xqrobotV2")
-hsize = result.hfield_size
 gpos = result.geom_pos
+ts = result.terrain_origins
 
-scene_xml = f"""<mujoco model="xqrobotV2 rough terrain">
+scene_xml = f"""<mujoco model="xqrobotV2 stairs terrain">
   <compiler angle="radian" meshdir="assets" autolimits="true"/>
 
   <asset>
@@ -62,7 +49,7 @@ scene_xml = f"""<mujoco model="xqrobotV2 rough terrain">
       size="{hsize[0]} {hsize[1]} {hsize[2]} {hsize[3]}"/>
     <texture type="skybox" builtin="gradient" rgb1="0.4 0.6 0.8" rgb2="0 0 0" width="512" height="3072"/>
     <texture type="2d" name="groundplane" builtin="checker" mark="edge"
-      rgb1="0.25 0.30 0.35" rgb2="0.15 0.20 0.25"
+      rgb1="0.30 0.35 0.25" rgb2="0.20 0.25 0.15"
       markrgb="0.8 0.8 0.8" width="300" height="300"/>
     <material name="groundplane" texture="groundplane" texuniform="true"
       texrepeat="10 10" reflectance="0.15"/>
@@ -89,7 +76,7 @@ scene_xml = f"""<mujoco model="xqrobotV2 rough terrain">
   </keyframe>
 </mujoco>"""
 
-scene_path = os.path.join(robot_dir, "_terrain_preview.xml")
+scene_path = os.path.join(robot_dir, "_stairs_preview.xml")
 with open(scene_path, "w") as f:
     f.write(scene_xml)
 

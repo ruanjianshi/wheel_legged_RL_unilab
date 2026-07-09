@@ -191,13 +191,14 @@ def _algo_config_dict(cfg: DictConfig | None) -> dict[str, Any]:
     return cast(dict[str, Any], train_cfg_raw)
 
 
-SUPPORTED_INTERACTIVE_ALGOS = ("ppo", "appo", "sac", "flashsac", "hora_distill")
+SUPPORTED_INTERACTIVE_ALGOS = ("ppo", "appo", "sac", "flashsac", "hora_distill", "np3o")
 _CONFIG_ROOT_BY_ALGO = {
     "ppo": "ppo",
     "appo": "appo",
     "sac": "offpolicy",
     "flashsac": "offpolicy",
     "hora_distill": "hora_distill",
+    "np3o": "np3o",
 }
 _OFFPOLICY_INTERACTIVE_ALGOS = {"sac", "flashsac"}
 

@@ -1,12 +1,18 @@
 # @package _global_
 # =============================================================================
-# XqRobotV2 双轮腿机器人 PPO 粗糙地形训练配置 (MuJoCo 后端)
-# 地形: 多类型混合 (楼梯/随机粗糙/波浪/斜坡)
-# 改进: 动作平滑 + 地形课程 + 观测归一化 + 碰撞力检测
-# 楼梯特化训练: 见 conf/np3o/task/xqrobotV2_stairs/
+# XqRobotV2 楼梯专项训练 — 移植 Tita RL NP3O 设计
+# 参考: /home/robot/xiaoq/projects/tita_rl/configs/tita_constraint_config.py
+# =============================================================================
+# 与参考项目的对齐逻辑:
+#   奖励: tracking + penalties, 无显式抬腿/爬楼 (collision 惩罚替代)
+#   地形: 100% 楼梯, 8 级课程 (走远升级/走近降级)
+#   命令: resampling_time=10s, 无速度课程
+#   观测: empirical_normalization=true
+#   DR:   mass/com 开启
+#   超参: 与 Tita PPOCfg 一致 (lr=1e-3, entropy=0.01, kl=0.01, grad_norm=0.01, noise=1.0)
 # =============================================================================
 training:
-  task_name: XqRobotV2WalkRough
+  task_name: XqRobotV2Stairs
   sim_backend: mujoco
   play_steps: 500
   play_env_num: 16
@@ -23,26 +29,13 @@ interactive:
 algo:
   num_envs: 512
   num_steps_per_env: 25
-  max_iterations: 5000
+  max_iterations: 10000
   empirical_normalization: true
   obs_groups:
     actor:
       - actor
     critic:
       - critic
-  policy:
-    activation: elu
-    actor_hidden_dims: [512, 512, 256, 128]
-    critic_hidden_dims: [512, 512, 256, 128]
-    init_noise_std: 0.3
-  algorithm:
-    learning_rate: 1.0e-4
-    entropy_coef: 0.002
-    clip_param: 0.2
-    gamma: 0.99
-    lam: 0.95
-    desired_kl: 0.005
-    max_grad_norm: 1.0
 
 env:
   control_config:
@@ -54,16 +47,11 @@ env:
     vel_limit:
       - [-1.0, -0.5, -1.5, -0.1, 0.40]
       - [1.0, 0.5, 1.5, 0.1, 0.90]
-    resampling_time: 6.0
+    resampling_time: 10.0
   terrain_scan:
     enabled: true
     hfield_name: terrain_hfield
     geom_name: floor
-  terrain_curriculum:
-    enabled: true
-    promote_frac: 0.5
-    demote_frac: 0.25
-    cycle_top_frac: 0.5
   termination_config:
     terrain_out_of_bounds: true
     terrain_distance_buffer: 3.0
@@ -75,21 +63,15 @@ env:
     random_com: true
     randomize_leg_length: false
   curriculum:
-    enabled: true
-    vel_step: 0.001
-    ang_vel_step: 0.002
-    min_vel_range_frac: 0.3
-    min_ang_range_frac: 0.05
-    update_interval: 25
-    err_threshold: 0.35
+    enabled: false
 
 reward:
   only_positive_rewards: false
   scales:
-    tracking_lin_vel: 3.0
+    tracking_lin_vel: 2.0
     tracking_ang_vel: 1.0
     lin_vel_z: -0.2
-    ang_vel_xy: -0.02
+    ang_vel_xy: -0.05
     base_height: -5.0
     orientation: -8.0
     joint_action_rate: -0.1
@@ -100,7 +82,7 @@ reward:
     tsk: -2.0
     feet_distance: -1.0
     collision: -1.0
-    alive: 2.0
+    alive: 0.0
   tracking_sigma: 0.3
   base_height_target: 0.65
   max_tilt_deg: 60.0

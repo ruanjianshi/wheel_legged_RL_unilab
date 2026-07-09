@@ -45,6 +45,7 @@ class XqRobotControlConfig:
     wheel_action_scale: float = 10.0
     clip_actions: float = 1.0
     simulate_action_latency: bool = False
+    action_smoothing: float = 0.0
 
 
 @dataclass
