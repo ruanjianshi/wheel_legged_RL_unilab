@@ -144,19 +144,14 @@ def _reward_feet_distance(ctx: RewardContext) -> np.ndarray:
 
 
 def _reward_collision(ctx: RewardContext) -> np.ndarray:
-    thigh = ctx.info.get("left_thigh_force")
-    if thigh is None:
-        return np.zeros((ctx.num_envs,), dtype=np.float64)
-    t = np.asarray(thigh, dtype=np.float64).reshape(ctx.num_envs, -1)
-    c = np.asarray(ctx.info.get("left_calf_force", t), dtype=np.float64).reshape(ctx.num_envs, -1)
-    rt = np.asarray(ctx.info.get("right_thigh_force", t), dtype=np.float64).reshape(
-        ctx.num_envs, -1
+    dof_pos = ctx.dof_pos
+    thigh_margin = np.maximum(0.0, 0.12 - dof_pos[:, 1]) + np.maximum(0.0, 0.12 - dof_pos[:, 4])
+    calf_margin = np.maximum(0.0, np.abs(dof_pos[:, 2]) - 0.75) + np.maximum(
+        0.0, np.abs(dof_pos[:, 5]) - 0.75
     )
-    rc = np.asarray(ctx.info.get("right_calf_force", t), dtype=np.float64).reshape(ctx.num_envs, -1)
-    legs_mag = np.concatenate([t, c, rt, rc], axis=1)
-    contact = (np.linalg.norm(legs_mag, axis=1) > 1.0).astype(np.float64)
+    collapse = thigh_margin + calf_margin
     moving = np.linalg.norm(ctx.info["commands"][:, :2], axis=1) > 0.1
-    return np.asarray(contact * moving, dtype=np.float64)
+    return np.asarray(collapse * moving, dtype=np.float64)
 
 
 @registry.envcfg("XqRobotV2WalkFlat")
@@ -384,7 +379,6 @@ class XqRobotV2WalkFlatEnv(XqRobotBaseEnv):
         dof_pos = self.get_dof_pos()
         dof_vel = self.get_dof_vel()
         self._update_feet_distance(state.info)
-        self._update_leg_forces(state.info)
         terminated = self._compute_terminated(gravity, dof_pos)
         reward = self._compute_reward(state.info, linvel, gyro, gravity, dof_pos, dof_vel)
         obs = self._compute_obs(state.info, linvel, gyro, gravity, dof_pos, dof_vel)
