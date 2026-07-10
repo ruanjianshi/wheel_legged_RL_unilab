@@ -1078,7 +1078,7 @@ def play_interactive(args, cfg: DictConfig | None = None, *, algo: str | None = 
 
     try:
         playback_cfg = _build_playback_config(args, num_envs=1)
-        if algo == "ppo":
+        if algo in ("ppo", "np3o"):
             wrapper_cls = RslRlVecEnvWrapper
             if cfg is not None:
                 from unilab.algos.torch.rsl_rl_runtime import resolve_rsl_rl_ppo_runtime
