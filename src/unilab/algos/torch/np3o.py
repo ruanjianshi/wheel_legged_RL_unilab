@@ -118,16 +118,18 @@ class NP3O(FinalObservationAwarePPO):
         critic = obs.get("critic")
         actor = obs.get("actor")
         if critic is not None:
-            c[:, 0] = torch.sqrt(critic[:, 0] ** 2 + critic[:, 1] ** 2)
+            tilt = torch.sqrt(critic[:, 0] ** 2 + critic[:, 1] ** 2)
+            c[:, 0] = (tilt > 0.3).float()
             if critic.shape[-1] >= 17:
-                c[:, 1] = torch.abs(critic[:, 11:17]).mean(dim=-1)
-                c[:, 2] = torch.abs(critic[:, 11:17]).mean(dim=-1) * 0.5
+                leg_vel = torch.abs(critic[:, 11:17])
+                c[:, 1] = (leg_vel.mean(dim=-1) > 5.0).float()
+                c[:, 2] = (leg_vel.max(dim=-1).values > 10.0).float()
         if actor is not None:
             if actor.shape[-1] >= 6:
-                c[:, 3] = torch.abs(actor[:, 3:6]).mean(dim=-1) * 0.1
+                c[:, 3] = (torch.abs(actor[:, 3:6]).mean(dim=-1) > 0.3).float()
             if actor.shape[-1] >= 8:
-                c[:, 4] = torch.abs(actor[:, 6:8]).mean(dim=-1) * 0.1
-            c[:, 5] = (actor.abs().mean(dim=-1) > 0.5).float() * 0.5
+                c[:, 4] = (torch.abs(actor[:, 6:8]).mean(dim=-1) > 0.3).float()
+            c[:, 5] = (actor.abs().mean(dim=-1) > 0.5).float()
         return c
 
     # ── K annealing ──────────────────────────────────────────────────
@@ -166,7 +168,9 @@ class NP3O(FinalObservationAwarePPO):
             cv = self.cost_critic(critic_obs)
 
         # Accumulate costs per env, reset on done
-        self._cost_accum = self._cost_accum[:E] * (1.0 - dones.float().squeeze(-1).unsqueeze(-1)) + raw
+        self._cost_accum = (
+            self._cost_accum[:E] * (1.0 - dones.float().squeeze(-1).unsqueeze(-1)) + raw
+        )
         self._cost_accum[dones.squeeze(-1).bool()] = 0.0
 
         super().process_env_step(obs, rewards, dones, extras)
@@ -256,11 +260,15 @@ class NP3O(FinalObservationAwarePPO):
 
             r = torch.exp(logp - old_logp.squeeze(-1))
             surr = -adv.squeeze(-1) * r
-            surr_clip = -adv.squeeze(-1) * torch.clamp(r, 1.0 - self.clip_param, 1.0 + self.clip_param)
+            surr_clip = -adv.squeeze(-1) * torch.clamp(
+                r, 1.0 - self.clip_param, 1.0 + self.clip_param
+            )
             surrogate_loss = torch.max(surr, surr_clip).mean()
 
             if self.use_clipped_value_loss:
-                v_clip = val.squeeze(-1) + (values - val.squeeze(-1)).clamp(-self.clip_param, self.clip_param)
+                v_clip = val.squeeze(-1) + (values - val.squeeze(-1)).clamp(
+                    -self.clip_param, self.clip_param
+                )
                 v_loss = torch.max(
                     (values - ret.squeeze(-1)).pow(2),
                     (v_clip - ret.squeeze(-1)).pow(2),
@@ -271,7 +279,8 @@ class NP3O(FinalObservationAwarePPO):
             kl = torch.sum(
                 torch.log(sigma / old_sigma + 1e-5)
                 + (old_sigma.pow(2) + (old_mu - mu).pow(2)) / (2.0 * sigma.pow(2))
-                - 0.5, dim=-1,
+                - 0.5,
+                dim=-1,
             ).mean()
 
             if self.desired_kl is not None and self.schedule == "adaptive":
@@ -291,9 +300,7 @@ class NP3O(FinalObservationAwarePPO):
 
             if self.use_clipped_value_loss:
                 cv_clip = cv_targ + (cv_now - cv_targ).clamp(-self.clip_param, self.clip_param)
-                cv_loss = torch.max(
-                    (cv_now - cv_ret).pow(2), (cv_clip - cv_ret).pow(2)
-                ).mean()
+                cv_loss = torch.max((cv_now - cv_ret).pow(2), (cv_clip - cv_ret).pow(2)).mean()
             else:
                 cv_loss = (cv_ret - cv_now).pow(2).mean()
 
