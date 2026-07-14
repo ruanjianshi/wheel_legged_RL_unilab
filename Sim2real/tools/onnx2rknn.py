@@ -19,8 +19,9 @@ ONNX模型转RKNN模型工具脚本
 - 根据目标平台调整配置（第32行）
 """
 
-from rknn.api import RKNN
 import os
+
+from rknn.api import RKNN
 
 if __name__ == "__main__":
     platform = "rk3588s"
@@ -34,8 +35,11 @@ if __name__ == "__main__":
     # 固定输入尺寸: batch=1, obs=270 (45×6帧堆叠)
     inputs = ["input"]
     input_size_list = [[1, 270]]
-    ret = rknn.load_onnx("/home/hightorque/sim2real_master-master/policy_htdw_4438_himloco.onnx",
-                          inputs=inputs, input_size_list=input_size_list)
+    ret = rknn.load_onnx(
+        "/home/hightorque/sim2real_master-master/policy_htdw_4438_himloco.onnx",
+        inputs=inputs,
+        input_size_list=input_size_list,
+    )
     if ret != 0:
         print("load model failed")
         exit(ret)

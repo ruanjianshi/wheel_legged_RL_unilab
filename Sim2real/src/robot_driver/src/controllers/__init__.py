@@ -8,4 +8,4 @@ Controllers package for robot driver.
 
 from .humanoid_controller import HumanoidDriver
 
-__all__ = ['HumanoidDriver'] 
+__all__ = ["HumanoidDriver"]

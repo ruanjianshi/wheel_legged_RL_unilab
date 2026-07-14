@@ -1,5 +1,5 @@
-import time
 import re
+import time
 
 import mujoco
 import mujoco.viewer
@@ -8,7 +8,6 @@ import torch
 import yaml
 from legged_gym import LEGGED_GYM_ROOT_DIR
 
-
 paused = False
 ctrl_f = [0, 0]  # [ctrl_pressed, any_key_pressed]
 cmd = np.array([0.0, 0.0, 0.0], dtype=np.float32)
@@ -16,7 +15,7 @@ cmd = np.array([0.0, 0.0, 0.0], dtype=np.float32)
 
 def key_callback(keycode):
     global paused
-    if chr(keycode) == ' ':
+    if chr(keycode) == " ":
         paused = not paused
 
 
@@ -93,6 +92,7 @@ def infer_policy_input_dim(policy, default_dim):
 
 if __name__ == "__main__":
     import argparse
+
     from pynput import keyboard
 
     parser = argparse.ArgumentParser()
@@ -151,7 +151,9 @@ if __name__ == "__main__":
             step_start = time.time()
 
             if not paused:
-                tau = pd_control(target_dof_pos, data.qpos[7:], kps, np.zeros_like(kds), data.qvel[6:], kds)
+                tau = pd_control(
+                    target_dof_pos, data.qpos[7:], kps, np.zeros_like(kds), data.qvel[6:], kds
+                )
                 data.ctrl[:] = tau
                 mujoco.mj_step(model, data)
 
@@ -173,9 +175,9 @@ if __name__ == "__main__":
                     obs[3:6] = ang_vel
                     obs[6:9] = gravity_orientation
                     obs[9:12] = cmd * cmd_scale
-                    obs[12:12 + num_actions] = qj
-                    obs[12 + num_actions:12 + 2 * num_actions] = dqj
-                    obs[12 + 2 * num_actions:12 + 3 * num_actions] = action
+                    obs[12 : 12 + num_actions] = qj
+                    obs[12 + num_actions : 12 + 2 * num_actions] = dqj
+                    obs[12 + 2 * num_actions : 12 + 3 * num_actions] = action
 
                     if policy_input_dim == num_obs:
                         policy_in = obs

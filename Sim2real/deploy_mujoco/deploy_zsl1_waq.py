@@ -1,21 +1,22 @@
 import time
-
-import mujoco.viewer
-import mujoco
-import numpy as np
-from legged_gym import LEGGED_GYM_ROOT_DIR
-import torch
-import yaml
 from time import sleep
 
+import mujoco
+import mujoco.viewer
+import numpy as np
+import torch
+import yaml
+from legged_gym import LEGGED_GYM_ROOT_DIR
 
 # 添加暂停控制变量
 paused = False
 
+
 def key_callback(keycode):
-  global paused
-  if chr(keycode) == ' ':
-    paused = not paused
+    global paused
+    if chr(keycode) == " ":
+        paused = not paused
+
 
 def get_gravity_orientation(quaternion):
     qw = quaternion[0]
@@ -36,10 +37,12 @@ def pd_control(target_q, q, kp, target_dq, dq, kd):
     """Calculates torques from position commands"""
     return (target_q - q) * kp + (target_dq - dq) * kd
 
+
 # 定义全局变量 obs
 obs = None
 
-ctrl_f = [0,0] # ctrl_f key_f
+ctrl_f = [0, 0]  # ctrl_f key_f
+
 
 def on_press(key):
     ctrl_f[1] = 1
@@ -60,6 +63,7 @@ def on_press(key):
     if key == keyboard.Key.ctrl:
         ctrl_f[0] = 1
 
+
 def on_release(key):
     ctrl_f[1] = 0
     if key == keyboard.Key.up:
@@ -76,26 +80,31 @@ def on_release(key):
         ctrl_f[0] = 0
         cmd[2] = 0.0
 
-def padctrl():
-    values = gamepad.GetInput(joyL=1,joyR=1,trigL=1,trigR=1,buttons=1,hat=1,joyL_max=100,os='linux')
-    cmd[0] = 1.0*values[0][1]/100
-    cmd[1] = -1.0*values[0][0]/100
-    cmd[2] = -1.0*values[1][1]/100
 
-def reparameterise(mean,logvar):
-    var = torch.exp(logvar*0.5)
+def padctrl():
+    values = gamepad.GetInput(
+        joyL=1, joyR=1, trigL=1, trigR=1, buttons=1, hat=1, joyL_max=100, os="linux"
+    )
+    cmd[0] = 1.0 * values[0][1] / 100
+    cmd[1] = -1.0 * values[0][0] / 100
+    cmd[2] = -1.0 * values[1][1] / 100
+
+
+def reparameterise(mean, logvar):
+    var = torch.exp(logvar * 0.5)
     code_temp = torch.randn_like(var)
-    code = mean + var*code_temp
+    code = mean + var * code_temp
     return code
 
+
 def load_policy(logdir):
-   
-    actor=torch.jit.load(logdir + '/actor_dwaq.pt')
-    encoder=torch.jit.load(logdir + "/encoder_dwaq.pt")
-    latent_mu_dwaq = torch.jit.load(logdir + '/latent_mu_dwaq.pt')
-    latent_var_dwaq = torch.jit.load(logdir + '/latent_var_dwaq.pt')
-    vel_mu_dwaq = torch.jit.load(logdir + '/vel_mu_dwaq.pt')
-    vel_var_dwaq = torch.jit.load(logdir + '/vel_var_dwaq.pt')
+
+    actor = torch.jit.load(logdir + "/actor_dwaq.pt")
+    encoder = torch.jit.load(logdir + "/encoder_dwaq.pt")
+    latent_mu_dwaq = torch.jit.load(logdir + "/latent_mu_dwaq.pt")
+    latent_var_dwaq = torch.jit.load(logdir + "/latent_var_dwaq.pt")
+    vel_mu_dwaq = torch.jit.load(logdir + "/vel_mu_dwaq.pt")
+    vel_var_dwaq = torch.jit.load(logdir + "/vel_var_dwaq.pt")
 
     def policy(obs):
         tmp = torch.from_numpy(obs[:-num_one_step_obs])
@@ -106,13 +115,14 @@ def load_policy(logdir):
         latent_var = latent_var_dwaq(h)
         vel = reparameterise(vel_mu, vel_var)
         latent = reparameterise(latent_mu, latent_var)
-        code = torch.cat((vel, latent), dim = -1)
+        code = torch.cat((vel, latent), dim=-1)
         tmpp = torch.from_numpy(obs[-num_one_step_obs:])
-        obs_all = torch.cat((code, tmpp), dim = -1)
+        obs_all = torch.cat((code, tmpp), dim=-1)
         action = actor(obs_all).detach().numpy().squeeze()
         return action
 
     return policy
+
 
 if __name__ == "__main__":
     # get config file name from command line
@@ -147,7 +157,7 @@ if __name__ == "__main__":
         num_actions = config["num_actions"]
         num_obs = config["num_obs"]
         num_one_step_obs = config["num_one_step_obs"]
-        
+
         cmd = np.array(config["cmd_init"], dtype=np.float32)
 
     # define context variables
@@ -170,13 +180,13 @@ if __name__ == "__main__":
     # load policy
     # policy = torch.jit.load(policy_path)
     # policy = load_policy(policies_dir)
-    actor=torch.jit.load(policies_dir + '/actor_dwaq.pt')
-    encoder=torch.jit.load(policies_dir + "/encoder_dwaq.pt")
-    latent_mu_dwaq = torch.jit.load(policies_dir + '/latent_mu_dwaq.pt')
-    latent_var_dwaq = torch.jit.load(policies_dir + '/latent_var_dwaq.pt')
-    vel_mu_dwaq = torch.jit.load(policies_dir + '/vel_mu_dwaq.pt')
-    vel_var_dwaq = torch.jit.load(policies_dir + '/vel_var_dwaq.pt')
-    #ctrl
+    actor = torch.jit.load(policies_dir + "/actor_dwaq.pt")
+    encoder = torch.jit.load(policies_dir + "/encoder_dwaq.pt")
+    latent_mu_dwaq = torch.jit.load(policies_dir + "/latent_mu_dwaq.pt")
+    latent_var_dwaq = torch.jit.load(policies_dir + "/latent_var_dwaq.pt")
+    vel_mu_dwaq = torch.jit.load(policies_dir + "/vel_mu_dwaq.pt")
+    vel_var_dwaq = torch.jit.load(policies_dir + "/vel_var_dwaq.pt")
+    # ctrl
     from pynput import keyboard
 
     listener = keyboard.Listener(on_press=on_press, on_release=on_release)
@@ -185,7 +195,6 @@ if __name__ == "__main__":
     # from F710GamePad import F710GamePad
 
     # gamepad = F710GamePad()
-
 
     with mujoco.viewer.launch_passive(model, data, key_callback=key_callback) as viewer:
         # Close the viewer automatically after simulation_duration wall-seconds.
@@ -196,7 +205,9 @@ if __name__ == "__main__":
         while viewer.is_running() and time.time() - start < simulation_duration:
             step_start = time.time()
             if not paused:
-                tau = pd_control(target_dof_pos, data.qpos[7:], kps, np.zeros_like(kds), data.qvel[6:], kds)
+                tau = pd_control(
+                    target_dof_pos, data.qpos[7:], kps, np.zeros_like(kds), data.qvel[6:], kds
+                )
                 # 检查tau是否有NaN, Inf或过大的值
                 # if np.any(np.isnan(tau)) or np.any(np.isinf(tau)) or np.any(np.abs(tau) > 1e6):
                 #     print(f"Warning: Abnormal tau detected at time {data.time:.4f}. Tau: {tau}")
@@ -211,7 +222,7 @@ if __name__ == "__main__":
                 counter += 1
                 if counter % control_decimation == 0:
                     # Apply control signal here.
-                    
+
                     # create observation
                     qj = data.qpos[7:]
                     dqj = data.qvel[6:]
@@ -226,7 +237,6 @@ if __name__ == "__main__":
                     lin_vel = lin_vel * lin_vel_scale
                     ang_vel = ang_vel * ang_vel_scale
 
-
                     # current_obs = torch.cat((   self.commands[:, :3] * self.commands_scale,
                     #                             self.base_ang_vel  * self.obs_scales.ang_vel,
                     #                             self.projected_gravity,
@@ -234,11 +244,11 @@ if __name__ == "__main__":
                     #                             self.dof_vel * self.obs_scales.dof_vel,
                     #                             self.actions
                     #                             ),dim=-1)
-                    
+
                     # if ctrl_f[1] == 0:
                     #     padctrl()
                     current_obs[:3] = ang_vel
-                    current_obs[3:6] = gravity_orientation 
+                    current_obs[3:6] = gravity_orientation
                     current_obs[6:9] = cmd * cmd_scale
                     current_obs[9 : 9 + num_actions] = qj
                     current_obs[9 + num_actions : 9 + 2 * num_actions] = dqj
@@ -246,6 +256,7 @@ if __name__ == "__main__":
                     print(current_obs)
                     # 将当前观测数据添加到 obs 的开头，并将历史数据向前移动
                     obs = np.concatenate((obs[num_one_step_obs:], current_obs))
+
                     def policy(obs):
                         tmp = torch.from_numpy(obs[:-num_one_step_obs])
                         h = encoder(tmp)
@@ -255,11 +266,12 @@ if __name__ == "__main__":
                         latent_var = latent_var_dwaq(h)
                         vel = reparameterise(vel_mu, vel_var)
                         latent = reparameterise(latent_mu, latent_var)
-                        code = torch.cat((vel, latent), dim = -1)
+                        code = torch.cat((vel, latent), dim=-1)
                         tmpp = torch.from_numpy(obs[-num_one_step_obs:])
-                        obs_all = torch.cat((code, tmpp), dim = -1)
+                        obs_all = torch.cat((code, tmpp), dim=-1)
                         action = actor(obs_all).detach().numpy().squeeze()
                         return action
+
                     action = policy(obs)
                     # obs_tensor = torch.from_numpy(obs).unsqueeze(0)
                     # policy inference

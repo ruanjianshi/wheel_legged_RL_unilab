@@ -1,8 +1,9 @@
 """SMTP 邮件发送器"""
+
 import smtplib
 import ssl
-from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 from tools.email.config import SmtpConfig
 

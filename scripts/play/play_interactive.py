@@ -1270,12 +1270,16 @@ def play_interactive(args, cfg: DictConfig | None = None, *, algo: str | None = 
                 if commander is not None and env.state is not None:
                     env.state.info["commands"][:, :3] = commander.command
                     nc = env.state.info["commands"].shape[1]
-                    if nc >= 5 and not str(args.task).startswith("xqrobotV2_jump"):
+                    if nc >= 5 and not (str(args.task).startswith("xqrobotV2_jump") or str(args.task).startswith("xqrobotwl_jump")):
                         env.state.info["commands"][:, 4] = commander.height_target
                     if commander.jump_trigger:
                         if nc >= 5:
                             env.state.info["commands"][:, 4] = 1.0
-                        commander.jump_trigger = 0
+                        commander.jump_frames = getattr(commander, "jump_frames", 0)
+                        commander.jump_frames += 1
+                        if commander.jump_frames >= 150:
+                            commander.jump_trigger = 0
+                            commander.jump_frames = 0
                     reward_cfg = getattr(env, "_reward_cfg", None)
                     if reward_cfg is not None and hasattr(reward_cfg, "base_height_target"):
                         reward_cfg.base_height_target = commander.height_target

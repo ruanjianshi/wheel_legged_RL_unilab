@@ -3,35 +3,46 @@
 
 W/S: fwd/back  |  A/D: strafe  |  Q/E: turn  |  R: stop  |  ESC: quit
 """
+
 import sys
 import time
+
 import glfw
-import numpy as np
 import mujoco
+import numpy as np
 import torch
 
 # Force unbuffered output
 sys.stdout.reconfigure(line_buffering=True)
 
-from unilab.training.common import ensure_registries
 from unilab.envs.locomotion.smallHumanoidRobot.joystick import (
-    SmallHumanoidWalkFlatCfg, SmallHumanoidRewardConfig, SmallHumanoidWalkFlatEnv,
+    SmallHumanoidRewardConfig,
+    SmallHumanoidWalkFlatCfg,
+    SmallHumanoidWalkFlatEnv,
 )
+from unilab.training.common import ensure_registries
 
 
 def build_actor(in_dim, out_dim):
     return torch.nn.Sequential(
-        torch.nn.Linear(in_dim, 512), torch.nn.ELU(),
-        torch.nn.Linear(512, 256), torch.nn.ELU(),
-        torch.nn.Linear(256, 128), torch.nn.ELU(),
+        torch.nn.Linear(in_dim, 512),
+        torch.nn.ELU(),
+        torch.nn.Linear(512, 256),
+        torch.nn.ELU(),
+        torch.nn.Linear(256, 128),
+        torch.nn.ELU(),
         torch.nn.Linear(128, out_dim),
     )
 
 
 def main():
     import argparse
+
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", default="logs/rsl_rl_ppo/SmallHumanoidWalkFlat/2026-06-17_15-29-01_motrix/model_999.pt")
+    parser.add_argument(
+        "--model",
+        default="logs/rsl_rl_ppo/SmallHumanoidWalkFlat/2026-06-17_15-29-01_motrix/model_999.pt",
+    )
     args = parser.parse_args()
 
     print("Loading registries...", flush=True)
@@ -46,10 +57,16 @@ def main():
     print(f"Model: obs={in_dim}, action={out_dim}", flush=True)
 
     actor = build_actor(in_dim, out_dim)
-    actor.load_state_dict({k: v for k, v in sd.items() if not k.startswith("obs_normalizer")}, strict=False)
+    actor.load_state_dict(
+        {k: v for k, v in sd.items() if not k.startswith("obs_normalizer")}, strict=False
+    )
     actor.eval()
 
-    action_std = torch.exp(sd["distribution.std_param"]).cpu().numpy() if "distribution.std_param" in sd else np.ones(out_dim) * 0.5
+    action_std = (
+        torch.exp(sd["distribution.std_param"]).cpu().numpy()
+        if "distribution.std_param" in sd
+        else np.ones(out_dim) * 0.5
+    )
     obs_mean = sd["obs_normalizer._mean"].cpu().numpy() if "obs_normalizer._mean" in sd else None
     obs_std = sd["obs_normalizer._std"].cpu().numpy() if "obs_normalizer._std" in sd else None
 
@@ -58,13 +75,41 @@ def main():
     cfg = SmallHumanoidWalkFlatCfg()
     cfg.reward_config = SmallHumanoidRewardConfig(
         scales={
-            "tracking_lin_vel": 1.0, "tracking_ang_vel": 0.05,
-            "lin_vel_z": -0.2, "ang_vel_xy": -0.05,
-            "base_height": -2.0, "orientation": -6.0,
-            "action_rate": -0.005, "weighted_pose": -0.01, "alive": 0.0,
+            "tracking_lin_vel": 1.0,
+            "tracking_ang_vel": 0.05,
+            "lin_vel_z": -0.2,
+            "ang_vel_xy": -0.05,
+            "base_height": -2.0,
+            "orientation": -6.0,
+            "action_rate": -0.005,
+            "weighted_pose": -0.01,
+            "alive": 0.0,
         },
-        base_height_target=0.52, max_tilt_deg=20.0, min_base_height=0.22,
-        pose_weights=[0.01, 1.0, 0.01, 0.01, 0.01, 0.01, 1.0, 0.01, 0.01, 0.01, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0],
+        base_height_target=0.52,
+        max_tilt_deg=20.0,
+        min_base_height=0.22,
+        pose_weights=[
+            0.01,
+            1.0,
+            0.01,
+            0.01,
+            0.01,
+            0.01,
+            1.0,
+            0.01,
+            0.01,
+            0.01,
+            50.0,
+            50.0,
+            50.0,
+            50.0,
+            50.0,
+            50.0,
+            50.0,
+            50.0,
+            50.0,
+            50.0,
+        ],
     )
     env = SmallHumanoidWalkFlatEnv(cfg, num_envs=1, backend_type="mujoco")
     backend = env._backend
@@ -75,7 +120,9 @@ def main():
     if not glfw.init():
         raise RuntimeError("GLFW init failed")
 
-    window = glfw.create_window(1200, 900, "Robot — W/S fwd/back A/D strafe Q/E turn R stop ESC quit", None, None)
+    window = glfw.create_window(
+        1200, 900, "Robot — W/S fwd/back A/D strafe Q/E turn R stop ESC quit", None, None
+    )
     if not window:
         glfw.terminate()
         raise RuntimeError("Window creation failed")
@@ -122,13 +169,20 @@ def main():
         vx = 0.0
         vy = 0.0
         va = 0.0
-        if glfw.KEY_W in key_state: vx = 0.4
-        if glfw.KEY_S in key_state: vx = -0.2
-        if glfw.KEY_A in key_state: vy = -0.2
-        if glfw.KEY_D in key_state: vy = 0.2
-        if glfw.KEY_Q in key_state: va = -0.8
-        if glfw.KEY_E in key_state: va = 0.8
-        if glfw.KEY_R in key_state: vx = vy = va = 0.0
+        if glfw.KEY_W in key_state:
+            vx = 0.4
+        if glfw.KEY_S in key_state:
+            vx = -0.2
+        if glfw.KEY_A in key_state:
+            vy = -0.2
+        if glfw.KEY_D in key_state:
+            vy = 0.2
+        if glfw.KEY_Q in key_state:
+            va = -0.8
+        if glfw.KEY_E in key_state:
+            va = 0.8
+        if glfw.KEY_R in key_state:
+            vx = vy = va = 0.0
 
         info["commands"] = np.array([[vx, vy, va]], dtype=np.float32)
 

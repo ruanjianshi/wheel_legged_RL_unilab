@@ -118,16 +118,16 @@ class KeyboardCommander:
     ) -> "KeyboardCommander":
         limit = np.asarray(vel_limit, dtype=np.float64)
         if limit.ndim != 2 or limit.shape[0] != 2:
-            raise ValueError(
-                f"commands.vel_limit must have shape (2, K), got {limit.shape}"
-            )
+            raise ValueError(f"commands.vel_limit must have shape (2, K), got {limit.shape}")
         if limit.shape[1] < 3:
             raise ValueError(
                 f"commands.vel_limit needs at least 3 cols (vx, vy, vyaw), got {limit.shape}"
             )
         return cls(
-            low=limit[0, :3], high=limit[1, :3],
-            step_lin=float(step_lin), step_ang=float(step_ang),
+            low=limit[0, :3],
+            high=limit[1, :3],
+            step_lin=float(step_lin),
+            step_ang=float(step_ang),
         )
 
     def nudge(self, axis: int, sign: float) -> None:

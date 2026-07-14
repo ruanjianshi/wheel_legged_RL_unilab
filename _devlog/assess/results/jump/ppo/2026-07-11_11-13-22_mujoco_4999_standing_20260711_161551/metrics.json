@@ -1,0 +1,41 @@
+{
+  "run": "2026-07-11_11-13-22_mujoco",
+  "checkpoint": 4999,
+  "suite": "standing",
+  "task": "jump",
+  "algo": "ppo",
+  "evaluated_at": "2026-07-11T16:15:57.009158",
+  "elapsed_sec": 4.3,
+  "results": {
+    "stand": {
+      "description": "Zero command standing",
+      "cmd": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.65
+      ],
+      "metrics": {
+        "vx_tracking_rmse": 0.038123,
+        "vy_tracking_rmse": 0.018787,
+        "vyaw_tracking_rmse": 0.073988,
+        "avg_vx": -0.024788,
+        "avg_vy": -0.013949,
+        "vel_tracking_ratio": 0.038623,
+        "vel_coupling": 0.0,
+        "base_height_mean": 0.501035,
+        "base_height_std": 0.017496,
+        "orientation_rmse_deg": 2.520939,
+        "yaw_stability": 0.034821,
+        "action_smoothness": 0.038101,
+        "joint_velocity_mean": 0.055566,
+        "gait_symmetry": 0.098229,
+        "mean_torque": 0.0,
+        "cost_of_transport": 0.0,
+        "step_frequency": 0.1,
+        "leg_workspace_utilization": 1.358544
+      }
+    }
+  }
+}

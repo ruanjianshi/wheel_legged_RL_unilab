@@ -15,7 +15,7 @@ algo:
   num_envs: 4096
   num_steps_per_env: 24
   max_iterations: 101
-  save_interval: 100
+  save_interval: 1000
   empirical_normalization: false
   runner_class_name: OnPolicyRunner
   obs_groups:
@@ -63,7 +63,7 @@ algo:
     num_costs: 6
     cost_critic_hidden_dims: [512, 256, 128]
     cost_value_loss_coef: 0.1
-    cost_viol_loss_coef: 0.1
+    cost_viol_loss_coef: 0.01
     k_init: 0.3
     k_growth: 1.0004
     k_max: 1.0

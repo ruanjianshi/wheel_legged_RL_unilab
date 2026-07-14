@@ -71,27 +71,27 @@ class XqRobotRoughTerrainCfg(TerrainGeneratorCfg):
 
     sub_terrains: dict[str, SubTerrainCfg] = field(
         default_factory=lambda: {
-            "flat": flat(proportion=0.0),
+            "flat": flat(proportion=0.2),
             "random_rough": random_rough(
-                proportion=0.4,
+                proportion=0.35,
                 noise_range=(0.005, 0.04),
                 noise_step=0.01,
                 border_width=0.2,
             ),
             "wave_terrain": wave_terrain(
-                proportion=0.4,
+                proportion=0.35,
                 amplitude_range=(0.0, 0.12),
                 num_waves=4,
                 border_width=0.2,
             ),
             "hf_pyramid_slope": hf_pyramid_slope(
-                proportion=0.1,
+                proportion=0.05,
                 slope_range=(0.1, 0.35),
                 platform_width=2.0,
                 border_width=0.2,
             ),
             "hf_pyramid_slope_inv": hf_pyramid_slope_inv(
-                proportion=0.1,
+                proportion=0.05,
                 slope_range=(0.1, 0.35),
                 platform_width=2.0,
                 border_width=0.2,
@@ -133,8 +133,12 @@ class XqRobotRoughDRProvider(XqRobotDRProvider):
         safe_linv = np.maximum(np.abs(cmds[:, 0]), 1e-4)
         angv_limit = 2.0 / safe_linv
         cmds[:, 2] = np.clip(cmds[:, 2], -angv_limit, angv_limit)
+        vy_has_range = (high[1] - low[1]) > 1e-6
         for i in range(num_reset):
-            axis = np.random.choice([0, 1])
+            if vy_has_range:
+                axis = np.random.choice([0, 1])
+            else:
+                axis = 0
             if axis == 0:
                 cmds[i, 1] = 0.0
             else:

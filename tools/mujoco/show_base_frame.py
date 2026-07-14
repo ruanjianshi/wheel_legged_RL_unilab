@@ -2,7 +2,7 @@
 
 Coordinate convention (verified against joint offsets in XML):
   X = Red  (forward, +X → robot front)
-  Y = Green (right, +Y → robot right)  
+  Y = Green (right, +Y → robot right)
   Z = Blue  (up, +Z → sky)
 
 Evidence: left_hip at pos.y=-0.124, right_hip at pos.y=+0.124 → Y=right.
@@ -11,11 +11,12 @@ Usage:
     uv run tools/mujoco/show_base_frame.py
 """
 
+import os
+import time
+
 import mujoco
 import mujoco.viewer
 import numpy as np
-import time
-import os
 
 SCENE_PATH = os.path.expanduser(
     "~/xiaoq/wheel_legged_RL_unilab/src/unilab/assets/robots/xqrobotV2/scene_flat.xml"

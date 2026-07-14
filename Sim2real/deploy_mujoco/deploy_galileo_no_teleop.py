@@ -1,20 +1,21 @@
 import time
 
-import mujoco.viewer
 import mujoco
+import mujoco.viewer
 import numpy as np
-from legged_gym import LEGGED_GYM_ROOT_DIR
 import torch
 import yaml
-
+from legged_gym import LEGGED_GYM_ROOT_DIR
 
 # 添加暂停控制变量
 paused = False
 
+
 def key_callback(keycode):
-  global paused
-  if chr(keycode) == ' ':
-    paused = not paused
+    global paused
+    if chr(keycode) == " ":
+        paused = not paused
+
 
 def get_gravity_orientation(quaternion):
     qw = quaternion[0]
@@ -34,6 +35,7 @@ def get_gravity_orientation(quaternion):
 def pd_control(target_q, q, kp, target_dq, dq, kd):
     """Calculates torques from position commands"""
     return (target_q - q) * kp + (target_dq - dq) * kd
+
 
 # 定义全局变量 obs
 obs = None
@@ -71,7 +73,7 @@ if __name__ == "__main__":
         num_actions = config["num_actions"]
         num_obs = config["num_obs"]
         num_one_step_obs = config["num_one_step_obs"]
-        
+
         cmd = np.array(config["cmd_init"], dtype=np.float32)
 
     # define context variables
@@ -103,7 +105,9 @@ if __name__ == "__main__":
         while viewer.is_running() and time.time() - start < simulation_duration:
             step_start = time.time()
             if not paused:
-                tau = pd_control(target_dof_pos, data.qpos[7:], kps, np.zeros_like(kds), data.qvel[6:], kds)
+                tau = pd_control(
+                    target_dof_pos, data.qpos[7:], kps, np.zeros_like(kds), data.qvel[6:], kds
+                )
                 data.ctrl[:] = tau
                 # mj_step can be replaced with code that also evaluates
                 # a policy and applies a control signal before stepping the physics.
@@ -112,7 +116,7 @@ if __name__ == "__main__":
                 counter += 1
                 if counter % control_decimation == 0:
                     # Apply control signal here.
-                    
+
                     # create observation
                     qj = data.qpos[7:]
                     dqj = data.qvel[6:]
@@ -126,7 +130,6 @@ if __name__ == "__main__":
                     gravity_orientation = get_gravity_orientation(quat)
                     lin_vel = lin_vel * lin_vel_scale
                     ang_vel = ang_vel * ang_vel_scale
-
 
                     # current_obs = torch.cat((   self.commands[:, :3] * self.commands_scale,
                     #                             self.base_ang_vel  * self.obs_scales.ang_vel,
@@ -146,7 +149,6 @@ if __name__ == "__main__":
                     # 将当前观测数据添加到 obs 的开头，并将历史数据向前移动
                     obs = np.concatenate((current_obs, obs[:-num_one_step_obs]))
 
-                    
                     obs_tensor = torch.from_numpy(obs).unsqueeze(0)
                     # policy inference
                     action = policy(obs_tensor).detach().numpy().squeeze()

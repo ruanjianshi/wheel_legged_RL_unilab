@@ -11,9 +11,10 @@ PyTorch (.pt / TorchScript) 模型转 ONNX 工具脚本
 - 模型输出维度（默认 12）
 """
 
-import torch
 import os
 import sys
+
+import torch
 
 if __name__ == "__main__":
     # ======== 配置区 ========
@@ -44,7 +45,7 @@ if __name__ == "__main__":
     # 验证模型输出
     with torch.no_grad():
         output = model(dummy_input)
-        out_dim = output.shape[-1] if hasattr(output, 'shape') else len(output)
+        out_dim = output.shape[-1] if hasattr(output, "shape") else len(output)
         print(f"Model input shape: {dummy_input.shape}")
         print(f"Model output shape: {output.shape}")
 
@@ -60,7 +61,7 @@ if __name__ == "__main__":
         opset_version=11,
         do_constant_folding=True,
         input_names=["input"],
-        output_names=["output"]
+        output_names=["output"],
     )
     print("done")
 
@@ -68,6 +69,7 @@ if __name__ == "__main__":
     print("--> Verifying ONNX model...")
     try:
         import onnx
+
         onnx_model = onnx.load(ONNX_MODEL_PATH)
         onnx.checker.check_model(onnx_model)
         print(f"ONNX model verified: {onnx_model.graph.name}")

@@ -246,8 +246,13 @@ class XqRobotDRProvider(LocomotionDRProvider):
         angv_limit = 2.0 / safe_linv  # inverse_linx_angv
         cmds[:, 2] = np.clip(cmds[:, 2], -angv_limit, angv_limit)
         # 解耦训练: 每次只激活一个运动轴, 避免策略学出 Vx/Vy 串扰
+        # 当 Vy 范围为 [0,0] 时, 跳过解耦仅保留 Vx
+        vy_has_range = (high[1] - low[1]) > 1e-6
         for i in range(num_reset):
-            axis = np.random.choice([0, 1])  # 0=vx, 1=vy
+            if vy_has_range:
+                axis = np.random.choice([0, 1])
+            else:
+                axis = 0
             if axis == 0:
                 cmds[i, 1] = 0.0
             else:
@@ -379,6 +384,7 @@ class XqRobotV2WalkFlatEnv(XqRobotBaseEnv):
         dof_pos = self.get_dof_pos()
         dof_vel = self.get_dof_vel()
         self._update_feet_distance(state.info)
+        self._compute_costs(state.info, dof_pos, dof_vel)
         terminated = self._compute_terminated(gravity, dof_pos)
         reward = self._compute_reward(state.info, linvel, gyro, gravity, dof_pos, dof_vel)
         obs = self._compute_obs(state.info, linvel, gyro, gravity, dof_pos, dof_vel)
@@ -405,6 +411,82 @@ class XqRobotV2WalkFlatEnv(XqRobotBaseEnv):
             info["feet_distance"] = np.abs(pos[1, :, 1] - pos[0, :, 1]).astype(np.float64)
         except Exception:
             info["feet_distance"] = np.full((self._num_envs,), 0.45, dtype=np.float64)
+
+    def _compute_costs(self, info: dict, dof_pos: np.ndarray, dof_vel: np.ndarray) -> None:
+        """Compute per-step cost violations from physics sensor data.
+
+        Mirrors Tita RL constraint functions — costs are 0/1 binary or small continuous
+        violations computed from actual physics, NOT heuristic observation extraction.
+        """
+        num_envs = dof_pos.shape[0]
+        costs = np.zeros((num_envs, 6), dtype=np.float64)
+
+        # [0] orientation: tilt > 0.3 rad (≈17°)
+        gravity = np.asarray(
+            self._backend.get_sensor_data(self._cfg.sensor.upvector), dtype=np.float64
+        )
+        tilt = np.sqrt(gravity[:, 0] ** 2 + gravity[:, 1] ** 2)
+        costs[:, 0] = (tilt > 0.3).astype(np.float64)
+
+        # [1] joint velocity: mean |dof_vel| > 5 rad/s
+        leg_vel = np.abs(dof_vel[:, :NUM_LEG_ACTIONS])
+        costs[:, 1] = (leg_vel.mean(axis=1) > 5.0).astype(np.float64)
+
+        # [2] joint acceleration: max |dof_vel - last_dof_vel|/dt > 800 rad/s²
+        last_vel = info.get("_last_dof_vel", dof_vel.copy())
+        acc = (
+            np.abs(dof_vel[:, :NUM_LEG_ACTIONS] - last_vel[:, :NUM_LEG_ACTIONS]) / self._cfg.ctrl_dt
+        )
+        info["_last_dof_vel"] = dof_vel.copy()
+        costs[:, 2] = (acc.max(axis=1) > 800.0).astype(np.float64)
+
+        # [3] torque: approximated from leg force sensors
+        try:
+            lt = np.asarray(self._backend.get_sensor_data("left_thigh_torque"), dtype=np.float64)
+            rt = np.asarray(self._backend.get_sensor_data("right_thigh_torque"), dtype=np.float64)
+            lc = np.asarray(self._backend.get_sensor_data("left_calf_torque"), dtype=np.float64)
+            rc = np.asarray(self._backend.get_sensor_data("right_calf_torque"), dtype=np.float64)
+            torque_mag = np.stack(
+                [
+                    np.linalg.norm(lt.reshape(num_envs, -1), axis=1),
+                    np.linalg.norm(rt.reshape(num_envs, -1), axis=1),
+                    np.linalg.norm(lc.reshape(num_envs, -1), axis=1),
+                    np.linalg.norm(rc.reshape(num_envs, -1), axis=1),
+                ],
+                axis=1,
+            )
+            costs[:, 3] = (torque_mag.max(axis=1) > 4.0).astype(np.float64)
+        except Exception:
+            pass
+
+        # [4] foot contact force: wheel force > 500N
+        try:
+            lf = np.asarray(self._backend.get_sensor_data("left_wheel_force"), dtype=np.float64)
+            rf = np.asarray(self._backend.get_sensor_data("right_wheel_force"), dtype=np.float64)
+            wheel_f = np.stack(
+                [
+                    np.linalg.norm(lf.reshape(num_envs, -1), axis=1),
+                    np.linalg.norm(rf.reshape(num_envs, -1), axis=1),
+                ],
+                axis=1,
+            )
+            costs[:, 4] = (wheel_f.max(axis=1) > 500.0).astype(np.float64)
+        except Exception:
+            pass
+
+        # [5] stumble: horizontal force > 5 * vertical force
+        try:
+            lf_arr = lf.reshape(num_envs, -1)
+            rf_arr = rf.reshape(num_envs, -1)
+            l_horiz = np.sqrt(lf_arr[:, 0] ** 2 + lf_arr[:, 1] ** 2)
+            r_horiz = np.sqrt(rf_arr[:, 0] ** 2 + rf_arr[:, 1] ** 2)
+            l_stumble = l_horiz > 5 * np.abs(lf_arr[:, 2])
+            r_stumble = r_horiz > 5 * np.abs(rf_arr[:, 2])
+            costs[:, 5] = (l_stumble | r_stumble).astype(np.float64)
+        except Exception:
+            pass
+
+        info["np3o_costs"] = costs
 
     def _update_leg_forces(self, info: dict) -> None:
         try:
@@ -546,8 +628,12 @@ class XqRobotV2WalkFlatEnv(XqRobotBaseEnv):
                 safe_linv = np.maximum(np.abs(sampled[:, 0]), 1e-4)
                 angv_limit = 2.0 / safe_linv
                 sampled[:, 2] = np.clip(sampled[:, 2], -angv_limit, angv_limit)
+                vy_has_range = (high[1] - low[1]) > 1e-6
                 for i in range(num_resample):
-                    axis = np.random.choice([0, 1])
+                    if vy_has_range:
+                        axis = np.random.choice([0, 1])
+                    else:
+                        axis = 0
                     if axis == 0:
                         sampled[i, 1] = 0.0
                     else:

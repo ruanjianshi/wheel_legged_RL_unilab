@@ -1,21 +1,24 @@
 import time
-import mujoco.viewer
+
 import mujoco
+import mujoco.viewer
 import numpy as np
-from legged_gym import LEGGED_GYM_ROOT_DIR
 import torch
 import yaml
-
+from legged_gym import LEGGED_GYM_ROOT_DIR
 
 # 添加暂停控制变量
 paused = False
 # 定义全局变量 obs
 obs = None
-ctrl_f = [0,0] # ctrl_f key_f
+ctrl_f = [0, 0]  # ctrl_f key_f
+
+
 def key_callback(keycode):
-  global paused
-  if chr(keycode) == ' ':
-    paused = not paused
+    global paused
+    if chr(keycode) == " ":
+        paused = not paused
+
 
 def get_gravity_orientation(quaternion):
     qw = quaternion[0]
@@ -38,7 +41,7 @@ def pd_control(target_q, q, kp, target_dq, dq, kd):
 
 
 def on_press(key):
-    ctrl_f[1]=1
+    ctrl_f[1] = 1
     if key == keyboard.Key.up:
         cmd[0] = 1.0
     elif key == keyboard.Key.down:
@@ -56,8 +59,9 @@ def on_press(key):
     if key == keyboard.Key.ctrl:
         ctrl_f[0] = 1
 
+
 def on_release(key):
-    ctrl_f[1]=0
+    ctrl_f[1] = 0
     if key == keyboard.Key.up:
         cmd[0] = 0.0
     elif key == keyboard.Key.down:
@@ -72,11 +76,15 @@ def on_release(key):
         ctrl_f[0] = 0
         cmd[2] = 0.0
 
+
 def padctrl():
-    values = gamepad.GetInput(joyL=1,joyR=1,trigL=1,trigR=1,buttons=1,hat=1,joyL_max=100,os='linux')
-    cmd[0] = 1.0*values[0][1]/100
-    cmd[1] = -1.0*values[0][0]/100
-    cmd[2] = -1.0*values[1][0]/100
+    values = gamepad.GetInput(
+        joyL=1, joyR=1, trigL=1, trigR=1, buttons=1, hat=1, joyL_max=100, os="linux"
+    )
+    cmd[0] = 1.0 * values[0][1] / 100
+    cmd[1] = -1.0 * values[0][0] / 100
+    cmd[2] = -1.0 * values[1][0] / 100
+
 
 if __name__ == "__main__":
     # get config file name from command line
@@ -110,7 +118,7 @@ if __name__ == "__main__":
         num_actions = config["num_actions"]
         num_obs = config["num_obs"]
         num_one_step_obs = config["num_one_step_obs"]
-        
+
         cmd = np.array(config["cmd_init"], dtype=np.float32)
 
     # define context variables
@@ -130,7 +138,7 @@ if __name__ == "__main__":
     policy = torch.jit.load(policy_path)
     # policy = torch.load(policy_path)
 
-    #ctrl
+    # ctrl
     from pynput import keyboard
 
     listener = keyboard.Listener(on_press=on_press, on_release=on_release)
@@ -145,7 +153,9 @@ if __name__ == "__main__":
         while viewer.is_running() and time.time() - start < simulation_duration:
             step_start = time.time()
             if not paused:
-                tau = pd_control(target_dof_pos, data.qpos[7:], kps, np.zeros_like(kds), data.qvel[6:], kds)
+                tau = pd_control(
+                    target_dof_pos, data.qpos[7:], kps, np.zeros_like(kds), data.qvel[6:], kds
+                )
                 data.ctrl[:] = tau
                 # mj_step can be replaced with code that also evaluates
                 # a policy and applies a control signal before stepping the physics.
@@ -168,7 +178,6 @@ if __name__ == "__main__":
                     lin_vel = lin_vel * lin_vel_scale
                     ang_vel = ang_vel * ang_vel_scale
 
-
                     # current_obs = torch.cat((   self.commands[:, :3] * self.commands_scale,
                     #                             self.base_ang_vel  * self.obs_scales.ang_vel,
                     #                             self.projected_gravity,
@@ -176,26 +185,24 @@ if __name__ == "__main__":
                     #                             self.dof_vel * self.obs_scales.dof_vel,
                     #                             self.actions
                     #                             ),dim=-1)
-                    # raw_obs: 
+                    # raw_obs:
                     #          base orn (3), joint pos (12), joint vel (12), prev action (12), command (3)
-                    current_obs[: 3] = gravity_orientation 
+                    current_obs[:3] = gravity_orientation
                     current_obs[3 : 3 + num_actions] = qj
                     current_obs[3 + num_actions : 3 + 2 * num_actions] = dqj
                     current_obs[3 + 2 * num_actions : 3 + 3 * num_actions] = action
-                    current_obs[3 + 3 * num_actions : 3 + 3 * num_actions +3] = cmd * cmd_scale
+                    current_obs[3 + 3 * num_actions : 3 + 3 * num_actions + 3] = cmd * cmd_scale
 
-                    
                     # 将当前观测数据添加到 obs 的开头，并将历史数据向前移动
                     obs = np.concatenate((current_obs, obs[:-num_one_step_obs]))
                     # print(current_obs)
-                    
+
                     obs_tensor = torch.from_numpy(obs).unsqueeze(0)
                     # policy inference
                     action = policy(obs_tensor).detach().numpy().squeeze()
                     # transform action to target_dof_pos
                     # target_dof_pos = action * action_scale + default_angles
                     target_dof_pos = action * action_scale + default_angles
-
 
             # Pick up changes to the physics state, apply perturbations, update options from GUI.
             viewer.sync()

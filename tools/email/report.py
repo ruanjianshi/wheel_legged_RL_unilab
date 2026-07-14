@@ -121,35 +121,37 @@ def build_report(
 
     lines = []
     lines.append("=" * 64)
-    lines.append(f"  UniLab XqRobotV2 RL 训练自循环报告")
+    lines.append("  UniLab XqRobotV2 RL 训练自循环报告")
     lines.append("=" * 64)
-    lines.append(f"")
+    lines.append("")
     lines.append(f"  任务: {task_cn} ({task})")
     lines.append(f"  算法: {algo.upper()}")
     lines.append(f"  训练: {run} | iter {ckpt}")
     lines.append(f"  时间: {now}")
-    lines.append(f"")
+    lines.append("")
 
     if hyper:
-        lines.append(f"[训练参数]")
+        lines.append("[训练参数]")
         lines.append(f"  num_envs={hyper.get('num_envs')}, max_iter={hyper.get('max_iterations')}")
-        lines.append(f"")
+        lines.append("")
 
     # 分场景
     results = metrics.get("results", {})
     if results:
         summary = compute_summary(results)
 
-        lines.append(f"[综合指标]")
+        lines.append("[综合指标]")
         lines.append(f"  Vx 跟踪 RMSE avg:          {summary.get('vx_rmse_avg', 'N/A'):.4f}")
         lines.append(f"  Vy 跟踪 RMSE avg:          {summary.get('vy_rmse_avg', 'N/A'):.4f}")
         lines.append(f"  VxVy 串扰 (crosstalk) avg: {summary.get('vy_crosstalk_avg', 'N/A'):.4f}")
         lines.append(f"  Base 高度 mean:            {summary.get('base_height_mean', 'N/A'):.4f}")
-        lines.append(f"")
+        lines.append("")
 
-        lines.append(f"[分场景结果]")
-        lines.append(f"  {'场景':<24s} {'Vx':>7s} {'Vy':>7s} {'VxRMSE':>7s} {'VyXtalk':>8s} {'BaseH':>7s}")
-        lines.append(f"  {'-'*60}")
+        lines.append("[分场景结果]")
+        lines.append(
+            f"  {'场景':<24s} {'Vx':>7s} {'Vy':>7s} {'VxRMSE':>7s} {'VyXtalk':>8s} {'BaseH':>7s}"
+        )
+        lines.append(f"  {'-' * 60}")
         for name, sc in results.items():
             m = sc.get("metrics", {})
             lines.append(
@@ -157,10 +159,10 @@ def build_report(
                 f"{m.get('vx_tracking_rmse', 0):>7.3f} {abs(m.get('vel_coupling', 0)):>8.3f} "
                 f"{m.get('base_height_mean', 0):>7.3f}"
             )
-        lines.append(f"")
+        lines.append("")
 
         # 自动结论
-        lines.append(f"[自动结论]")
+        lines.append("[自动结论]")
         conclusions = []
         vx_rmse = summary.get("vx_rmse_avg", 1.0)
         vy_xtalk = summary.get("vy_crosstalk_avg", 1.0)
@@ -188,18 +190,18 @@ def build_report(
         for c in conclusions:
             lines.append(f"  {c}")
     else:
-        lines.append(f"  (无评估数据，请先运行 assess)")
+        lines.append("  (无评估数据，请先运行 assess)")
 
-    lines.append(f"")
-    lines.append(f"[评估数据路径]")
+    lines.append("")
+    lines.append("[评估数据路径]")
     if result_dir:
         lines.append(f"  {result_dir}")
     else:
-        lines.append(f"  (未找到评估数据)")
-    lines.append(f"")
-    lines.append(f"=" * 64)
-    lines.append(f"  由 UniLab AI 自循环系统自动生成")
-    lines.append(f"=" * 64)
+        lines.append("  (未找到评估数据)")
+    lines.append("")
+    lines.append("=" * 64)
+    lines.append("  由 UniLab AI 自循环系统自动生成")
+    lines.append("=" * 64)
 
     return "\n".join(lines)
 
@@ -229,7 +231,9 @@ def main():
     parser.add_argument("--to", default="qfantastic@2925.com", help="收件人")
     parser.add_argument("--preview", action="store_true", help="仅预览报告，不发邮件")
     parser.add_argument("--smtp-host", default=os.environ.get("UNILAB_SMTP_HOST", "smtp.2925.com"))
-    parser.add_argument("--smtp-port", type=int, default=int(os.environ.get("UNILAB_SMTP_PORT", "465")))
+    parser.add_argument(
+        "--smtp-port", type=int, default=int(os.environ.get("UNILAB_SMTP_PORT", "465"))
+    )
     parser.add_argument("--smtp-user", default=os.environ.get("UNILAB_SMTP_USER", ""))
     parser.add_argument("--smtp-pass", default=os.environ.get("UNILAB_SMTP_PASS", ""))
     args = parser.parse_args()
@@ -268,7 +272,7 @@ def main():
     if ok:
         print(f"\n[email] 已发送 → {args.to}")
     else:
-        print(f"\n[email] 发送失败")
+        print("\n[email] 发送失败")
         sys.exit(1)
 
 

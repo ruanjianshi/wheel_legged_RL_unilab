@@ -42,12 +42,31 @@ NUM_ACTIONS = len(JOINT_PREFIXES)
 # Squat stance + arms hanging at side
 # Legs: [L_j1 L_j2 L_j3 L_j4 L_j5  R_j1 R_j2 R_j3 R_j4 R_j5]
 # Arms: [L_a1 L_a2 L_a3 L_a4 L_a5  R_a1 R_a2 R_a3 R_a4 R_a5]
-DEFAULT_ANGLES = np.array([
-    0.15, 0.0, -0.4, 0.6, -0.2,      # left leg
-    -0.15, 0.0, -0.4, 0.6, -0.2,     # right leg
-    0.0, 0.0, 0.0, 0.0, 0.0,         # left arm (hanging down)
-    0.0, 0.0, 0.0, 0.0, 0.0,         # right arm (hanging down)
-], dtype=np.float64)
+DEFAULT_ANGLES = np.array(
+    [
+        0.15,
+        0.0,
+        -0.4,
+        0.6,
+        -0.2,  # left leg
+        -0.15,
+        0.0,
+        -0.4,
+        0.6,
+        -0.2,  # right leg
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,  # left arm (hanging down)
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,  # right arm (hanging down)
+    ],
+    dtype=np.float64,
+)
 
 
 @dataclass

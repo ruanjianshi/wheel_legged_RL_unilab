@@ -34,72 +34,65 @@ receiver运行在远端机器人接收并转换为运动指令。
 """
 
 import rospy
-from sensor_msgs.msg import Joy
 from geometry_msgs.msg import Twist
+from sensor_msgs.msg import Joy
 
 
 class RemoteJoyReceiver:
     """
     远端Joy消息接收器类
     """
-    
+
     def __init__(self):
         """
         初始化远端Joy接收器
         """
         # 初始化ROS节点
-        rospy.init_node('remote_joy_receiver', anonymous=True)
-        
+        rospy.init_node("remote_joy_receiver", anonymous=True)
+
         # 从参数服务器获取配置
-        self.input_topic = rospy.get_param('~input_topic', '/joy')
-        self.output_topic = rospy.get_param('~output_topic', '/cmd_vel')
-        self.max_linear_vel = rospy.get_param('~max_linear_vel', 1.0)  # 最大线速度 m/s
-        self.max_angular_vel = rospy.get_param('~max_angular_vel', 1.0)  # 最大角速度 rad/s
-        
+        self.input_topic = rospy.get_param("~input_topic", "/joy")
+        self.output_topic = rospy.get_param("~output_topic", "/cmd_vel")
+        self.max_linear_vel = rospy.get_param("~max_linear_vel", 1.0)  # 最大线速度 m/s
+        self.max_angular_vel = rospy.get_param("~max_angular_vel", 1.0)  # 最大角速度 rad/s
+
         # 订阅Joy话题
         self.joy_subscriber = rospy.Subscriber(
-            self.input_topic,
-            Joy,
-            self.joy_callback,
-            queue_size=1
+            self.input_topic, Joy, self.joy_callback, queue_size=1
         )
-        
+
         # 发布cmd_vel话题
-        self.cmd_vel_publisher = rospy.Publisher(
-            self.output_topic,
-            Twist,
-            queue_size=1
-        )
-        
+        self.cmd_vel_publisher = rospy.Publisher(self.output_topic, Twist, queue_size=1)
+
         print("远端Joy接收器已启动")
         print(f"订阅话题: {self.input_topic}")
         print(f"发布话题: {self.output_topic}")
         print(f"最大线速度: {self.max_linear_vel} m/s")
         print(f"最大角速度: {self.max_angular_vel} rad/s")
         print("等待控制指令...")
-    
+
     def joy_callback(self, msg):
         """
         Joy消息回调函数
-        
+
         Args:
             msg (Joy): 接收到的Joy消息
         """
         if len(msg.axes) < 3:
             rospy.logwarn("Joy消息轴数量不足，需要至少3个轴")
             return
-        
+
         # 从Joy消息中提取速度指令
         # 按照发送端的格式：axes[0]=左右, axes[1]=前后, axes[2]=旋转
         raw_vx = msg.axes[1]  # 前后速度
         raw_vy = msg.axes[0]  # 左右速度
         raw_vrot = msg.axes[2]  # 旋转速度
-        
+
         # 应用速度限制
         vx = raw_vx * self.max_linear_vel
         vy = raw_vy * self.max_linear_vel
         vrot = raw_vrot * self.max_angular_vel
-        
+
         # 构造并发布Twist消息
         twist_msg = Twist()
         twist_msg.linear.x = vx
@@ -108,14 +101,16 @@ class RemoteJoyReceiver:
         twist_msg.angular.x = 0.0
         twist_msg.angular.y = 0.0
         twist_msg.angular.z = vrot
-        
+
         self.cmd_vel_publisher.publish(twist_msg)
-        
+
         # 记录日志
-        rospy.loginfo(f"收到远端控制指令: "
-                     f"vx={vx:.3f}, vy={vy:.3f}, vrot={vrot:.3f} "
-                     f"(原始: {raw_vx:.3f}, {raw_vy:.3f}, {raw_vrot:.3f})")
-    
+        rospy.loginfo(
+            f"收到远端控制指令: "
+            f"vx={vx:.3f}, vy={vy:.3f}, vrot={vrot:.3f} "
+            f"(原始: {raw_vx:.3f}, {raw_vy:.3f}, {raw_vrot:.3f})"
+        )
+
     def run(self):
         """
         运行接收器
@@ -126,7 +121,7 @@ class RemoteJoyReceiver:
             print("\n远端Joy接收器已停止")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     try:
         receiver = RemoteJoyReceiver()
         receiver.run()

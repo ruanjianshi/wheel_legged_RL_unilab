@@ -1,6 +1,8 @@
 """邮件配置"""
+
 import os
 from dataclasses import dataclass, field
+
 
 @dataclass
 class SmtpConfig:

@@ -9,7 +9,7 @@ algo:
   num_envs: 4096
   num_steps_per_env: 24
   max_iterations: 101
-  save_interval: 100
+  save_interval: 1000
   empirical_normalization: false
   runner_class_name: OnPolicyRunner
   obs_groups:

@@ -1,4 +1,5 @@
 """xqrobotV2 jump env: learn to jump via periodic height-triggered commands."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -126,7 +127,10 @@ class XqRobotV2JumpFlatEnv(XqRobotV2WalkFlatEnv):
 
     @property
     def obs_groups_spec(self) -> dict[str, int]:
-        return {"obs": self._obs_frame_dim * self._hist_len, "critic": self._critic_frame_dim * self._hist_len}
+        return {
+            "obs": self._obs_frame_dim * self._hist_len,
+            "critic": self._critic_frame_dim * self._hist_len,
+        }
 
     def _init_reward_functions(self) -> None:
         self._reward_fns: dict[str, Any] = {
@@ -194,16 +198,20 @@ class XqRobotV2JumpFlatEnv(XqRobotV2WalkFlatEnv):
 
     def _update_wheel_contact(self, info: dict) -> None:
         try:
-            left = self._backend.get_sensor_data("left_link_wheel_force")
-            right = self._backend.get_sensor_data("right_link_wheel_force")
+            left = self._backend.get_sensor_data("left_wheel_force")
+            right = self._backend.get_sensor_data("right_wheel_force")
             left_f = np.asarray(left, dtype=get_global_dtype())
             right_f = np.asarray(right, dtype=get_global_dtype())
             if left_f.ndim == 1:
                 left_f = left_f.reshape(-1, 3)
             if right_f.ndim == 1:
                 right_f = right_f.reshape(-1, 3)
-            left_contact = (np.linalg.norm(left_f, axis=1) > 0.1).astype(np.float64)[:self._num_envs]
-            right_contact = (np.linalg.norm(right_f, axis=1) > 0.1).astype(np.float64)[:self._num_envs]
+            left_contact = (np.linalg.norm(left_f, axis=1) > 10.0).astype(np.float64)[
+                : self._num_envs
+            ]
+            right_contact = (np.linalg.norm(right_f, axis=1) > 10.0).astype(np.float64)[
+                : self._num_envs
+            ]
             info["wheel_contact"] = np.stack([left_contact, right_contact], axis=1)
         except (KeyError, AttributeError):
             info["wheel_contact"] = np.zeros((self._num_envs, 2), dtype=np.float64)
@@ -222,7 +230,9 @@ class XqRobotV2JumpFlatEnv(XqRobotV2WalkFlatEnv):
         dtype = get_global_dtype()
         num_obs = linvel.shape[0]
         ctx = RewardContext(
-            info=info, linvel=linvel, gyro=gyro,
+            info=info,
+            linvel=linvel,
+            gyro=gyro,
             dof_pos=dof_pos[:, :NUM_LEG_ACTIONS],
             dof_vel=dof_vel[:, :NUM_LEG_ACTIONS],
             num_envs=num_obs,
@@ -230,11 +240,16 @@ class XqRobotV2JumpFlatEnv(XqRobotV2WalkFlatEnv):
             tracking_sigma=self._jump_cfg.tracking_sigma,
             base_height_target=self._jump_cfg.base_height_target,
             base_height=self._base_height_values(num_obs),
-            gravity=gravity, joint_range=None,
+            gravity=gravity,
+            joint_range=None,
         )
         return rewards.run_reward_dispatch(
-            scales=self._jump_cfg.scales, fns=self._reward_fns, ctx=ctx, info=info,
-            enable_log=self._enable_reward_log, ctrl_dt=self._cfg.ctrl_dt,
+            scales=self._jump_cfg.scales,
+            fns=self._reward_fns,
+            ctx=ctx,
+            info=info,
+            enable_log=self._enable_reward_log,
+            ctrl_dt=self._cfg.ctrl_dt,
             only_positive=self._jump_cfg.only_positive_rewards,
         )
 

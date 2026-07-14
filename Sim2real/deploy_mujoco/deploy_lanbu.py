@@ -1,21 +1,22 @@
 import time
-
-import mujoco.viewer
-import mujoco
-import numpy as np
-from legged_gym import LEGGED_GYM_ROOT_DIR
-import torch
-import yaml
 from time import sleep
 
+import mujoco
+import mujoco.viewer
+import numpy as np
+import torch
+import yaml
+from legged_gym import LEGGED_GYM_ROOT_DIR
 
 # 添加暂停控制变量
 paused = False
 
+
 def key_callback(keycode):
-  global paused
-  if chr(keycode) == ' ':
-    paused = not paused
+    global paused
+    if chr(keycode) == " ":
+        paused = not paused
+
 
 def get_gravity_orientation(quaternion):
     qw = quaternion[0]
@@ -36,10 +37,12 @@ def pd_control(target_q, q, kp, target_dq, dq, kd):
     """Calculates torques from position commands"""
     return (target_q - q) * kp + (target_dq - dq) * kd
 
+
 # 定义全局变量 obs
 obs = None
 
-ctrl_f = [0,0] # ctrl_f key_f
+ctrl_f = [0, 0]  # ctrl_f key_f
+
 
 def on_press(key):
     ctrl_f[1] = 1
@@ -60,6 +63,7 @@ def on_press(key):
     if key == keyboard.Key.ctrl:
         ctrl_f[0] = 1
 
+
 def on_release(key):
     ctrl_f[1] = 0
     if key == keyboard.Key.up:
@@ -76,11 +80,15 @@ def on_release(key):
         ctrl_f[0] = 0
         cmd[2] = 0.0
 
+
 def padctrl():
-    values = gamepad.GetInput(joyL=1,joyR=1,trigL=1,trigR=1,buttons=1,hat=1,joyL_max=100,os='linux')
-    cmd[0] = 1.0*values[0][1]/100
-    cmd[1] = -1.0*values[0][0]/100
-    cmd[2] = 1.0*values[1][1]/100
+    values = gamepad.GetInput(
+        joyL=1, joyR=1, trigL=1, trigR=1, buttons=1, hat=1, joyL_max=100, os="linux"
+    )
+    cmd[0] = 1.0 * values[0][1] / 100
+    cmd[1] = -1.0 * values[0][0] / 100
+    cmd[2] = 1.0 * values[1][1] / 100
+
 
 # 手动查找 body 索引
 def get_body_id(model, body_name):
@@ -89,12 +97,15 @@ def get_body_id(model, body_name):
             print(f"base_link_id: {i}")
             return i
     raise ValueError(f"Body '{body_name}' not found in model")
+
+
 def get_geom_id(model, geom_name):
     for i in range(model.ngeom):
         if mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_GEOM, i) == geom_name:
             print(f"force_arrow_geom_id: {i}")
             return i
     raise ValueError(f"Geom '{geom_name}' not found in model")
+
 
 if __name__ == "__main__":
     # get config file name from command line
@@ -128,7 +139,7 @@ if __name__ == "__main__":
         num_actions = config["num_actions"]
         num_obs = config["num_obs"]
         num_one_step_obs = config["num_one_step_obs"]
-        
+
         cmd = np.array(config["cmd_init"], dtype=np.float32)
         force_magnitude = config["force_magnitude"]
 
@@ -146,17 +157,16 @@ if __name__ == "__main__":
     model.opt.timestep = simulation_dt
 
     # 获取base_link的body索引
-    base_link_id = get_body_id(model, 'base_link') # 1
-    force_arrow_geom_id = get_geom_id(model, 'force_arrow') # 13
-    force_arrow_geom_id = get_geom_id(model, 'force_arrow_head') # 14
+    base_link_id = get_body_id(model, "base_link")  # 1
+    force_arrow_geom_id = get_geom_id(model, "force_arrow")  # 13
+    force_arrow_geom_id = get_geom_id(model, "force_arrow_head")  # 14
     # base_link_id = model.body_name2id('base_link')
     # force_arrow_geom_id = model.geom_name2id('force_arrow')
 
     # load policy
     policy = torch.jit.load(policy_path)
 
-
-    #ctrl
+    # ctrl
     from pynput import keyboard
 
     listener = keyboard.Listener(on_press=on_press, on_release=on_release)
@@ -165,7 +175,6 @@ if __name__ == "__main__":
     from F710GamePad import F710GamePad
 
     gamepad = F710GamePad()
-
 
     with mujoco.viewer.launch_passive(model, data, key_callback=key_callback) as viewer:
         # Close the viewer automatically after simulation_duration wall-seconds.
@@ -176,7 +185,9 @@ if __name__ == "__main__":
         while viewer.is_running() and time.time() - start < simulation_duration:
             step_start = time.time()
             if not paused:
-                tau = pd_control(target_dof_pos, data.qpos[7:], kps, np.zeros_like(kds), data.qvel[6:], kds)
+                tau = pd_control(
+                    target_dof_pos, data.qpos[7:], kps, np.zeros_like(kds), data.qvel[6:], kds
+                )
                 # 检查tau是否有NaN, Inf或过大的值
                 # if np.any(np.isnan(tau)) or np.any(np.isinf(tau)) or np.any(np.abs(tau) > 1e6):
                 #     print(f"Warning: Abnormal tau detected at time {data.time:.4f}. Tau: {tau}")
@@ -191,10 +202,9 @@ if __name__ == "__main__":
                 force_scale = abs(force_magnitude) / 10.0  # 10N对应0.1m箭头长度
                 # 更新 capsule 的中心位置（中点）和旋转
                 arrow_length = 0.1 * force_scale
-                model.geom_pos[13] = [- arrow_length / 2, 0, -0.01]  # capsule 中心
+                model.geom_pos[13] = [-arrow_length / 2, 0, -0.01]  # capsule 中心
                 model.geom_size[13] = [0.01, arrow_length / 2, 0.01]  # 半径和半长度
-                model.geom_pos[14] = [- arrow_length, 0, -0.01]
-
+                model.geom_pos[14] = [-arrow_length, 0, -0.01]
 
                 # mj_step can be replaced with code that also evaluates
                 # a policy and applies a control signal before stepping the physics.
@@ -203,7 +213,7 @@ if __name__ == "__main__":
                 counter += 1
                 if counter % control_decimation == 0:
                     # Apply control signal here.
-                    
+
                     # create observation
                     qj = data.qpos[7:]
                     dqj = data.qvel[6:]
@@ -218,7 +228,6 @@ if __name__ == "__main__":
                     lin_vel = lin_vel * lin_vel_scale
                     ang_vel = ang_vel * ang_vel_scale
 
-
                     # current_obs = torch.cat((   self.commands[:, :3] * self.commands_scale,
                     #                             self.base_ang_vel  * self.obs_scales.ang_vel,
                     #                             self.projected_gravity,
@@ -226,7 +235,7 @@ if __name__ == "__main__":
                     #                             self.dof_vel * self.obs_scales.dof_vel,
                     #                             self.actions
                     #                             ),dim=-1)
-                    
+
                     if ctrl_f[1] == 0:
                         padctrl()
                     current_obs[:3] = cmd * cmd_scale
@@ -239,7 +248,6 @@ if __name__ == "__main__":
                     # 将当前观测数据添加到 obs 的开头，并将历史数据向前移动
                     obs = np.concatenate((current_obs, obs[:-num_one_step_obs]))
 
-                    
                     obs_tensor = torch.from_numpy(obs).unsqueeze(0)
                     # policy inference
                     action = policy(obs_tensor).detach().numpy().squeeze()

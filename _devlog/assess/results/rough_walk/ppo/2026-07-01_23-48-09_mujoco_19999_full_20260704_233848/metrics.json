@@ -1,0 +1,491 @@
+{
+  "run": "2026-07-01_23-48-09_mujoco",
+  "checkpoint": 19999,
+  "suite": "full",
+  "task": "rough_walk",
+  "algo": "ppo",
+  "evaluated_at": "2026-07-04T23:39:01.717098",
+  "elapsed_sec": 9.7,
+  "results": {
+    "vx=0.1": {
+      "description": "",
+      "cmd": [
+        0.1,
+        0.0,
+        0.0,
+        0.0,
+        0.65
+      ],
+      "metrics": {
+        "vx_tracking_rmse": 0.42433,
+        "vy_tracking_rmse": 0.290061,
+        "vyaw_tracking_rmse": 0.993469,
+        "avg_vx": -0.228121,
+        "avg_vy": 0.02188,
+        "vel_tracking_ratio": 3.456639,
+        "vel_coupling": 0.02188,
+        "base_height_mean": 0.620647,
+        "base_height_std": 0.079675,
+        "orientation_rmse_deg": 19.856218,
+        "yaw_stability": 0.976037,
+        "action_smoothness": 1.653245,
+        "joint_velocity_mean": 1.521827,
+        "gait_symmetry": 0.106263,
+        "mean_torque": 0.0,
+        "cost_of_transport": 0.0,
+        "step_frequency": 0.666667,
+        "leg_workspace_utilization": 3.529624
+      }
+    },
+    "vx=0.2": {
+      "description": "",
+      "cmd": [
+        0.2,
+        0.0,
+        0.0,
+        0.0,
+        0.65
+      ],
+      "metrics": {
+        "vx_tracking_rmse": 0.397117,
+        "vy_tracking_rmse": 0.216937,
+        "vyaw_tracking_rmse": 1.132111,
+        "avg_vx": -0.147195,
+        "avg_vy": 0.073795,
+        "vel_tracking_ratio": 1.220772,
+        "vel_coupling": 0.073795,
+        "base_height_mean": 0.660125,
+        "base_height_std": 0.069076,
+        "orientation_rmse_deg": 15.56181,
+        "yaw_stability": 1.131477,
+        "action_smoothness": 1.590156,
+        "joint_velocity_mean": 1.473711,
+        "gait_symmetry": 0.124867,
+        "mean_torque": 0.0,
+        "cost_of_transport": 0.0,
+        "step_frequency": 0.666667,
+        "leg_workspace_utilization": 3.601569
+      }
+    },
+    "vx=0.3": {
+      "description": "",
+      "cmd": [
+        0.3,
+        0.0,
+        0.0,
+        0.0,
+        0.65
+      ],
+      "metrics": {
+        "vx_tracking_rmse": 0.617276,
+        "vy_tracking_rmse": 0.257205,
+        "vyaw_tracking_rmse": 1.096366,
+        "avg_vx": -0.25399,
+        "avg_vy": 0.09693,
+        "vel_tracking_ratio": 1.176094,
+        "vel_coupling": 0.09693,
+        "base_height_mean": 0.618228,
+        "base_height_std": 0.078905,
+        "orientation_rmse_deg": 18.78487,
+        "yaw_stability": 1.095929,
+        "action_smoothness": 1.50895,
+        "joint_velocity_mean": 1.421335,
+        "gait_symmetry": 0.122104,
+        "mean_torque": 0.0,
+        "cost_of_transport": 0.0,
+        "step_frequency": 0.333333,
+        "leg_workspace_utilization": 3.347444
+      }
+    },
+    "vx=0.4": {
+      "description": "",
+      "cmd": [
+        0.4,
+        0.0,
+        0.0,
+        0.0,
+        0.65
+      ],
+      "metrics": {
+        "vx_tracking_rmse": 0.731211,
+        "vy_tracking_rmse": 0.23406,
+        "vyaw_tracking_rmse": 1.292896,
+        "avg_vx": -0.253794,
+        "avg_vy": 0.059993,
+        "vel_tracking_ratio": 0.915074,
+        "vel_coupling": 0.059993,
+        "base_height_mean": 0.632526,
+        "base_height_std": 0.083259,
+        "orientation_rmse_deg": 18.522356,
+        "yaw_stability": 1.285239,
+        "action_smoothness": 1.675697,
+        "joint_velocity_mean": 1.579298,
+        "gait_symmetry": 0.136088,
+        "mean_torque": 0.0,
+        "cost_of_transport": 0.0,
+        "step_frequency": 1.333333,
+        "leg_workspace_utilization": 3.782122
+      }
+    },
+    "vx=0.5": {
+      "description": "",
+      "cmd": [
+        0.5,
+        0.0,
+        0.0,
+        0.0,
+        0.65
+      ],
+      "metrics": {
+        "vx_tracking_rmse": 0.737272,
+        "vy_tracking_rmse": 0.267592,
+        "vyaw_tracking_rmse": 1.429297,
+        "avg_vx": -0.197587,
+        "avg_vy": 0.080879,
+        "vel_tracking_ratio": 0.667019,
+        "vel_coupling": 0.080879,
+        "base_height_mean": 0.626893,
+        "base_height_std": 0.076462,
+        "orientation_rmse_deg": 18.065689,
+        "yaw_stability": 1.427975,
+        "action_smoothness": 1.659693,
+        "joint_velocity_mean": 1.602761,
+        "gait_symmetry": 0.139146,
+        "mean_torque": 0.0,
+        "cost_of_transport": 0.0,
+        "step_frequency": 0.333333,
+        "leg_workspace_utilization": 3.760381
+      }
+    },
+    "vx=0.6": {
+      "description": "",
+      "cmd": [
+        0.6,
+        0.0,
+        0.0,
+        0.0,
+        0.65
+      ],
+      "metrics": {
+        "vx_tracking_rmse": 0.947368,
+        "vy_tracking_rmse": 0.234956,
+        "vyaw_tracking_rmse": 1.192894,
+        "avg_vx": -0.289088,
+        "avg_vy": 0.095435,
+        "vel_tracking_ratio": 0.637942,
+        "vel_coupling": 0.095435,
+        "base_height_mean": 0.60793,
+        "base_height_std": 0.076648,
+        "orientation_rmse_deg": 20.249908,
+        "yaw_stability": 1.17108,
+        "action_smoothness": 1.601897,
+        "joint_velocity_mean": 1.488706,
+        "gait_symmetry": 0.107912,
+        "mean_torque": 0.0,
+        "cost_of_transport": 0.0,
+        "step_frequency": 0.666667,
+        "leg_workspace_utilization": 3.652987
+      }
+    },
+    "vy=0.1": {
+      "description": "",
+      "cmd": [
+        0.0,
+        0.1,
+        0.0,
+        0.0,
+        0.65
+      ],
+      "metrics": {
+        "vx_tracking_rmse": 0.457358,
+        "vy_tracking_rmse": 0.210027,
+        "vyaw_tracking_rmse": 1.413575,
+        "avg_vx": -0.324834,
+        "avg_vy": 0.164223,
+        "vel_tracking_ratio": 4.271818,
+        "vel_coupling": 0.324834,
+        "base_height_mean": 0.614456,
+        "base_height_std": 0.085592,
+        "orientation_rmse_deg": 21.56143,
+        "yaw_stability": 1.247104,
+        "action_smoothness": 1.483606,
+        "joint_velocity_mean": 1.46818,
+        "gait_symmetry": 0.124721,
+        "mean_torque": 0.0,
+        "cost_of_transport": 0.0,
+        "step_frequency": 0.333333,
+        "leg_workspace_utilization": 4.20628
+      }
+    },
+    "vy=0.2": {
+      "description": "",
+      "cmd": [
+        0.0,
+        0.2,
+        0.0,
+        0.0,
+        0.65
+      ],
+      "metrics": {
+        "vx_tracking_rmse": 0.387471,
+        "vy_tracking_rmse": 0.344882,
+        "vyaw_tracking_rmse": 1.355537,
+        "avg_vx": -0.19637,
+        "avg_vy": -0.006553,
+        "vel_tracking_ratio": 1.641247,
+        "vel_coupling": 0.19637,
+        "base_height_mean": 0.643764,
+        "base_height_std": 0.08217,
+        "orientation_rmse_deg": 18.141613,
+        "yaw_stability": 1.352555,
+        "action_smoothness": 1.632704,
+        "joint_velocity_mean": 1.670158,
+        "gait_symmetry": 0.130552,
+        "mean_torque": 0.0,
+        "cost_of_transport": 0.0,
+        "step_frequency": 0.333333,
+        "leg_workspace_utilization": 3.570026
+      }
+    },
+    "vy=0.3": {
+      "description": "",
+      "cmd": [
+        0.0,
+        0.3,
+        0.0,
+        0.0,
+        0.65
+      ],
+      "metrics": {
+        "vx_tracking_rmse": 0.302449,
+        "vy_tracking_rmse": 0.319071,
+        "vyaw_tracking_rmse": 1.311049,
+        "avg_vx": -0.178308,
+        "avg_vy": 0.104884,
+        "vel_tracking_ratio": 1.052844,
+        "vel_coupling": 0.178308,
+        "base_height_mean": 0.641834,
+        "base_height_std": 0.079753,
+        "orientation_rmse_deg": 17.641217,
+        "yaw_stability": 1.310823,
+        "action_smoothness": 1.707358,
+        "joint_velocity_mean": 1.730525,
+        "gait_symmetry": 0.140827,
+        "mean_torque": 0.0,
+        "cost_of_transport": 0.0,
+        "step_frequency": 0.333333,
+        "leg_workspace_utilization": 3.745286
+      }
+    },
+    "vyaw=0.5": {
+      "description": "",
+      "cmd": [
+        0.0,
+        0.0,
+        0.5,
+        0.0,
+        0.65
+      ],
+      "metrics": {
+        "vx_tracking_rmse": 0.373198,
+        "vy_tracking_rmse": 0.249565,
+        "vyaw_tracking_rmse": 1.206592,
+        "avg_vx": -0.274213,
+        "avg_vy": 0.112802,
+        "vel_tracking_ratio": 0.374442,
+        "vel_coupling": 0.0,
+        "base_height_mean": 0.610227,
+        "base_height_std": 0.07116,
+        "orientation_rmse_deg": 19.551544,
+        "yaw_stability": 1.133535,
+        "action_smoothness": 1.518049,
+        "joint_velocity_mean": 1.442892,
+        "gait_symmetry": 0.118969,
+        "mean_torque": 0.0,
+        "cost_of_transport": 0.0,
+        "step_frequency": 0.666667,
+        "leg_workspace_utilization": 3.786487
+      }
+    },
+    "vyaw=1.0": {
+      "description": "",
+      "cmd": [
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.65
+      ],
+      "metrics": {
+        "vx_tracking_rmse": 0.478223,
+        "vy_tracking_rmse": 0.268774,
+        "vyaw_tracking_rmse": 0.994769,
+        "avg_vx": -0.337571,
+        "avg_vy": 0.11909,
+        "vel_tracking_ratio": 0.435304,
+        "vel_coupling": 0.0,
+        "base_height_mean": 0.608161,
+        "base_height_std": 0.065393,
+        "orientation_rmse_deg": 21.131422,
+        "yaw_stability": 0.794228,
+        "action_smoothness": 1.453268,
+        "joint_velocity_mean": 1.343322,
+        "gait_symmetry": 0.112941,
+        "mean_torque": 0.0,
+        "cost_of_transport": 0.0,
+        "step_frequency": 0.333333,
+        "leg_workspace_utilization": 3.514784
+      }
+    },
+    "vx=-0.3": {
+      "description": "",
+      "cmd": [
+        -0.3,
+        0.0,
+        0.0,
+        0.0,
+        0.65
+      ],
+      "metrics": {
+        "vx_tracking_rmse": 0.298814,
+        "vy_tracking_rmse": 0.271198,
+        "vyaw_tracking_rmse": 1.129101,
+        "avg_vx": -0.247142,
+        "avg_vy": 0.159021,
+        "vel_tracking_ratio": 1.223633,
+        "vel_coupling": 0.159021,
+        "base_height_mean": 0.631841,
+        "base_height_std": 0.073796,
+        "orientation_rmse_deg": 17.106484,
+        "yaw_stability": 1.033668,
+        "action_smoothness": 1.608616,
+        "joint_velocity_mean": 1.620967,
+        "gait_symmetry": 0.124801,
+        "mean_torque": 0.0,
+        "cost_of_transport": 0.0,
+        "step_frequency": 0.666667,
+        "leg_workspace_utilization": 3.579296
+      }
+    },
+    "vx=-0.6": {
+      "description": "",
+      "cmd": [
+        -0.6,
+        0.0,
+        0.0,
+        0.0,
+        0.65
+      ],
+      "metrics": {
+        "vx_tracking_rmse": 0.426568,
+        "vy_tracking_rmse": 0.290565,
+        "vyaw_tracking_rmse": 1.205054,
+        "avg_vx": -0.298257,
+        "avg_vy": 0.179585,
+        "vel_tracking_ratio": 0.686834,
+        "vel_coupling": 0.179585,
+        "base_height_mean": 0.622989,
+        "base_height_std": 0.07321,
+        "orientation_rmse_deg": 19.816714,
+        "yaw_stability": 1.110001,
+        "action_smoothness": 1.778381,
+        "joint_velocity_mean": 1.62594,
+        "gait_symmetry": 0.126601,
+        "mean_torque": 0.0,
+        "cost_of_transport": 0.0,
+        "step_frequency": 1.0,
+        "leg_workspace_utilization": 3.638764
+      }
+    },
+    "vx=0.3_vy=0.2": {
+      "description": "",
+      "cmd": [
+        0.3,
+        0.2,
+        0.0,
+        0.0,
+        0.65
+      ],
+      "metrics": {
+        "vx_tracking_rmse": 0.696936,
+        "vy_tracking_rmse": 0.254148,
+        "vyaw_tracking_rmse": 1.048942,
+        "avg_vx": -0.281482,
+        "avg_vy": 0.11427,
+        "vel_tracking_ratio": 1.069189,
+        "vel_coupling": 0.0,
+        "base_height_mean": 0.598873,
+        "base_height_std": 0.096101,
+        "orientation_rmse_deg": 18.078404,
+        "yaw_stability": 1.04461,
+        "action_smoothness": 1.553541,
+        "joint_velocity_mean": 1.424249,
+        "gait_symmetry": 0.107104,
+        "mean_torque": 0.0,
+        "cost_of_transport": 0.0,
+        "step_frequency": 0.333333,
+        "leg_workspace_utilization": 3.711632
+      }
+    },
+    "vx=0.3_vyaw=0.5": {
+      "description": "",
+      "cmd": [
+        0.3,
+        0.0,
+        0.5,
+        0.0,
+        0.65
+      ],
+      "metrics": {
+        "vx_tracking_rmse": 0.452685,
+        "vy_tracking_rmse": 0.285282,
+        "vyaw_tracking_rmse": 1.623337,
+        "avg_vx": -0.10548,
+        "avg_vy": 0.092261,
+        "vel_tracking_ratio": 1.02785,
+        "vel_coupling": 0.092261,
+        "base_height_mean": 0.605744,
+        "base_height_std": 0.0849,
+        "orientation_rmse_deg": 21.318253,
+        "yaw_stability": 1.074671,
+        "action_smoothness": 1.517109,
+        "joint_velocity_mean": 1.469234,
+        "gait_symmetry": 0.140376,
+        "mean_torque": 0.0,
+        "cost_of_transport": 0.0,
+        "step_frequency": 1.333333,
+        "leg_workspace_utilization": 4.012545
+      }
+    },
+    "vx=0.3_vy=0.2_vyaw=0.5": {
+      "description": "",
+      "cmd": [
+        0.3,
+        0.2,
+        0.5,
+        0.0,
+        0.65
+      ],
+      "metrics": {
+        "vx_tracking_rmse": 0.523531,
+        "vy_tracking_rmse": 0.265537,
+        "vyaw_tracking_rmse": 1.293021,
+        "avg_vx": -0.187683,
+        "avg_vy": 0.084129,
+        "vel_tracking_ratio": 0.834858,
+        "vel_coupling": 0.0,
+        "base_height_mean": 0.631168,
+        "base_height_std": 0.073408,
+        "orientation_rmse_deg": 17.546462,
+        "yaw_stability": 1.074284,
+        "action_smoothness": 1.556409,
+        "joint_velocity_mean": 1.430283,
+        "gait_symmetry": 0.126115,
+        "mean_torque": 0.0,
+        "cost_of_transport": 0.0,
+        "step_frequency": 0.666667,
+        "leg_workspace_utilization": 3.387263
+      }
+    }
+  }
+}

@@ -4,6 +4,7 @@ Uses a phase clock to generate reference joint trajectories, and the RL policy
 learns to track them + add corrections. This is adapted from the HumanoidSW2
 approach (livelybot_pi_rl_baseline).
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -18,16 +19,16 @@ from unilab.envs.locomotion.common import rewards
 from unilab.envs.locomotion.common.commands import Commands
 from unilab.envs.locomotion.common.rewards import RewardContext
 
+from .base import DEFAULT_LEG_ANGLES, NUM_LEG_ACTIONS, NUM_WHEEL_ACTIONS
 from .joystick import (
     XqRobotCurriculumConfig,
     XqRobotDRProvider,
     XqRobotV2WalkFlatCfg,
     XqRobotV2WalkFlatEnv,
     _reward_feet_distance,
-    _reward_wheel_symmetry,
     _reward_hip_roll,
+    _reward_wheel_symmetry,
 )
-from .base import DEFAULT_LEG_ANGLES, NUM_LEG_ACTIONS, NUM_WHEEL_ACTIONS
 
 _HISTORY_LEN = 9
 
@@ -91,7 +92,9 @@ def _reward_wheel_balance(ctx: RewardContext) -> np.ndarray:
 class XqRobotV2ToeWalkFlatCfg(XqRobotV2WalkFlatCfg):
     commands: XqRobotToeWalkCommands = field(default_factory=XqRobotToeWalkCommands)
     reward_config: XqRobotToeWalkRewardConfig | None = None
-    curriculum: XqRobotCurriculumConfig = field(default_factory=lambda: XqRobotCurriculumConfig(enabled=False))
+    curriculum: XqRobotCurriculumConfig = field(
+        default_factory=lambda: XqRobotCurriculumConfig(enabled=False)
+    )
     max_episode_seconds: float = 12.0
 
 
@@ -123,8 +126,12 @@ class XqRobotV2ToeWalkFlatEnv(XqRobotV2WalkFlatEnv):
         # Override obs dims: add sin/cos phase (2 dims), 4D commands
         self._obs_frame_dim = 34  # 32(base 4D) + 2 = 34
         self._critic_frame_dim = 37  # 35(base 4D) + 2 = 37
-        self._obs_history = np.zeros((num_envs, self._hist_len, self._obs_frame_dim), dtype=self._np_dtype)
-        self._critic_history = np.zeros((num_envs, self._hist_len, self._critic_frame_dim), dtype=self._np_dtype)
+        self._obs_history = np.zeros(
+            (num_envs, self._hist_len, self._obs_frame_dim), dtype=self._np_dtype
+        )
+        self._critic_history = np.zeros(
+            (num_envs, self._hist_len, self._critic_frame_dim), dtype=self._np_dtype
+        )
 
     def _init_reward_functions(self) -> None:
         self._reward_fns: dict[str, Any] = {
@@ -169,20 +176,34 @@ class XqRobotV2ToeWalkFlatEnv(XqRobotV2WalkFlatEnv):
         return np.square(hip_diff - tsk_cmd)
 
     def apply_action(self, actions: np.ndarray, state: NpEnvState) -> np.ndarray:
-        clipped = np.clip(actions, -self._cfg.control_config.clip_actions, self._cfg.control_config.clip_actions)
+        clipped = np.clip(
+            actions, -self._cfg.control_config.clip_actions, self._cfg.control_config.clip_actions
+        )
         state.info["last_actions"] = state.info.get("current_actions", np.zeros_like(clipped))
         state.info["current_actions"] = clipped
-        exec_actions = state.info["last_actions"] if self._cfg.control_config.simulate_action_latency else clipped
+        exec_actions = (
+            state.info["last_actions"]
+            if self._cfg.control_config.simulate_action_latency
+            else clipped
+        )
         # Leg: correction on top of reference trajectory
         leg_corr = exec_actions[:, :NUM_LEG_ACTIONS] * self._cfg.control_config.action_scale
         leg_targets = self._ref_dof_pos[: leg_corr.shape[0]] + leg_corr
         # Wheel: velocity control, full strength for balance
-        wheel_targets = exec_actions[:, NUM_LEG_ACTIONS:] * self._cfg.control_config.wheel_action_scale
+        wheel_targets = (
+            exec_actions[:, NUM_LEG_ACTIONS:] * self._cfg.control_config.wheel_action_scale
+        )
         half_legs = NUM_LEG_ACTIONS // 2
-        return np.concatenate([
-            leg_targets[:, :half_legs], wheel_targets[:, :1],
-            leg_targets[:, half_legs:], wheel_targets[:, 1:],
-        ], axis=1, dtype=self._np_dtype)
+        return np.concatenate(
+            [
+                leg_targets[:, :half_legs],
+                wheel_targets[:, :1],
+                leg_targets[:, half_legs:],
+                wheel_targets[:, 1:],
+            ],
+            axis=1,
+            dtype=self._np_dtype,
+        )
 
     def _compute_ref_dof_pos(self, info: dict) -> None:
         cycle_time = self._toe_cfg.cycle_time
@@ -196,33 +217,33 @@ class XqRobotV2ToeWalkFlatEnv(XqRobotV2WalkFlatEnv):
         # Swing window: only top ~30% of sine (fast, short lift)
         # thresh=0.4 → sin crosses 0.4 at ~24°, back at ~156° → active ~36% of half-cycle
         T = 0.4
-        left_swing  = np.clip((-sin_pos - T) / (1.0 - T), 0.0, 1.0)
+        left_swing = np.clip((-sin_pos - T) / (1.0 - T), 0.0, 1.0)
         right_swing = np.clip((sin_pos - T) / (1.0 - T), 0.0, 1.0)
-        left_lift   = np.clip((-cos_pos - T) / (1.0 - T), 0.0, 1.0)
-        right_lift  = np.clip((cos_pos - T) / (1.0 - T), 0.0, 1.0)
+        left_lift = np.clip((-cos_pos - T) / (1.0 - T), 0.0, 1.0)
+        right_lift = np.clip((cos_pos - T) / (1.0 - T), 0.0, 1.0)
 
         # Weight shift: lean onto stance leg BEFORE swing
         # cos near +1 → right lift coming → lean LEFT (weight on left)
         # cos near -1 → left lift coming → lean RIGHT (weight on right)
-        lean_L = np.clip((cos_pos - 0.2) / 0.8, 0.0, 1.0)   # lean left
+        lean_L = np.clip((cos_pos - 0.2) / 0.8, 0.0, 1.0)  # lean left
         lean_R = np.clip((-cos_pos - 0.2) / 0.8, 0.0, 1.0)  # lean right
 
         ref = np.zeros((self._num_envs, NUM_LEG_ACTIONS), dtype=np.float64)
 
         # Hip roll: shift COM
-        ref[:, 0] = DEFAULT_LEG_ANGLES[0] - lean_L[:,0] * scale + lean_R[:,0] * scale
-        ref[:, 3] = DEFAULT_LEG_ANGLES[3] + lean_L[:,0] * scale - lean_R[:,0] * scale
+        ref[:, 0] = DEFAULT_LEG_ANGLES[0] - lean_L[:, 0] * scale + lean_R[:, 0] * scale
+        ref[:, 3] = DEFAULT_LEG_ANGLES[3] + lean_L[:, 0] * scale - lean_R[:, 0] * scale
 
         # Thigh: quick forward swing
-        ref[:, 1] = DEFAULT_LEG_ANGLES[1] + left_swing[:,0] * scale * 0.5
-        ref[:, 4] = DEFAULT_LEG_ANGLES[4] + right_swing[:,0] * scale * 0.5
+        ref[:, 1] = DEFAULT_LEG_ANGLES[1] + left_swing[:, 0] * scale * 0.5
+        ref[:, 4] = DEFAULT_LEG_ANGLES[4] + right_swing[:, 0] * scale * 0.5
 
         # Calf: quick knee bend (lift)
-        ref[:, 2] = DEFAULT_LEG_ANGLES[2] - left_lift[:,0] * scale * 5
-        ref[:, 5] = DEFAULT_LEG_ANGLES[5] - right_lift[:,0] * scale * 5
+        ref[:, 2] = DEFAULT_LEG_ANGLES[2] - left_lift[:, 0] * scale * 5
+        ref[:, 5] = DEFAULT_LEG_ANGLES[5] - right_lift[:, 0] * scale * 5
 
         self._ref_dof_pos = ref
-        self._swing_mask = np.clip(left_swing[:,0] + right_swing[:,0], 0.0, 1.0)
+        self._swing_mask = np.clip(left_swing[:, 0] + right_swing[:, 0], 0.0, 1.0)
 
     def update_state(self, state: NpEnvState) -> NpEnvState:
         self._compute_ref_dof_pos(state.info)
@@ -243,7 +264,9 @@ class XqRobotV2ToeWalkFlatEnv(XqRobotV2WalkFlatEnv):
         except Exception:
             info["wheel_contact"] = np.zeros((self._num_envs, 2), dtype=np.float64)
 
-    def _compute_obs(self, info: dict, linvel, gyro, gravity, dof_pos, dof_vel) -> dict[str, np.ndarray]:
+    def _compute_obs(
+        self, info: dict, linvel, gyro, gravity, dof_pos, dof_vel
+    ) -> dict[str, np.ndarray]:
         noise_cfg = self._cfg.noise_config
         leg_diff = dof_pos[:, :NUM_LEG_ACTIONS] - DEFAULT_LEG_ANGLES[:NUM_LEG_ACTIONS]
         leg_vel = dof_vel[:, :NUM_LEG_ACTIONS]
@@ -253,30 +276,55 @@ class XqRobotV2ToeWalkFlatEnv(XqRobotV2WalkFlatEnv):
         noisy_leg_diff = self._obs_noise(leg_diff, noise_cfg.scale_joint_angle)
         noisy_leg_vel = self._obs_noise(leg_vel, noise_cfg.scale_joint_vel)
         noisy_wheel_vel = self._obs_noise(wheel_vel, noise_cfg.scale_wheel_vel)
-        last_actions = info.get("current_actions", np.zeros((linvel.shape[0], NUM_LEG_ACTIONS + NUM_WHEEL_ACTIONS)))
+        last_actions = info.get(
+            "current_actions", np.zeros((linvel.shape[0], NUM_LEG_ACTIONS + NUM_WHEEL_ACTIONS))
+        )
 
-        obs_frame = np.concatenate([
-            noisy_gyro, noisy_gravity,
-            noisy_leg_diff, noisy_leg_vel, noisy_wheel_vel,
-            last_actions, info["commands"],
-        ], axis=1, dtype=get_global_dtype())
+        obs_frame = np.concatenate(
+            [
+                noisy_gyro,
+                noisy_gravity,
+                noisy_leg_diff,
+                noisy_leg_vel,
+                noisy_wheel_vel,
+                last_actions,
+                info["commands"],
+            ],
+            axis=1,
+            dtype=get_global_dtype(),
+        )
 
-        critic_frame = np.concatenate([
-            gyro, -gravity,
-            leg_diff, leg_vel, wheel_vel,
-            last_actions, info["commands"], linvel,
-        ], axis=1, dtype=get_global_dtype())
+        critic_frame = np.concatenate(
+            [
+                gyro,
+                -gravity,
+                leg_diff,
+                leg_vel,
+                wheel_vel,
+                last_actions,
+                info["commands"],
+                linvel,
+            ],
+            axis=1,
+            dtype=get_global_dtype(),
+        )
 
         batch_size = obs_frame.shape[0]
 
         # Phase encoding
         steps_p = info.get("steps", np.zeros((batch_size,), dtype=np.float64))
-        phase = (steps_p[:batch_size] * self._cfg.ctrl_dt / self._toe_cfg.cycle_time) + self._phase_offset[:batch_size] / (2 * np.pi)
+        phase = (
+            steps_p[:batch_size] * self._cfg.ctrl_dt / self._toe_cfg.cycle_time
+        ) + self._phase_offset[:batch_size] / (2 * np.pi)
         sin_phase = np.sin(2 * np.pi * phase)[:, None]
         cos_phase = np.cos(2 * np.pi * phase)[:, None]
 
-        obs_frame = np.concatenate([obs_frame, sin_phase, cos_phase], axis=1, dtype=get_global_dtype())
-        critic_frame = np.concatenate([critic_frame, sin_phase, cos_phase], axis=1, dtype=get_global_dtype())
+        obs_frame = np.concatenate(
+            [obs_frame, sin_phase, cos_phase], axis=1, dtype=get_global_dtype()
+        )
+        critic_frame = np.concatenate(
+            [critic_frame, sin_phase, cos_phase], axis=1, dtype=get_global_dtype()
+        )
 
         steps_val = int(info.get("steps", np.zeros(1, dtype=np.uint32))[0])
 
@@ -305,7 +353,7 @@ class XqRobotV2ToeWalkFlatEnv(XqRobotV2WalkFlatEnv):
         terminated |= thigh_collapsed
         terminated |= calf_extreme
         # 腿碰地终止: 摆动腿蹭地皮 → 直接死
-        for name in getattr(self._cfg, 'contact_body_names', []):
+        for name in getattr(self._cfg, "contact_body_names", []):
             try:
                 cf = self._backend.get_sensor_data(name)
                 if cf is not None:

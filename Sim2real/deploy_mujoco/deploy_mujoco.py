@@ -1,11 +1,11 @@
 import time
 
-import mujoco.viewer
 import mujoco
+import mujoco.viewer
 import numpy as np
-from legged_gym import LEGGED_GYM_ROOT_DIR
 import torch
 import yaml
+from legged_gym import LEGGED_GYM_ROOT_DIR
 
 
 def get_gravity_orientation(quaternion):
@@ -27,9 +27,11 @@ def pd_control(target_q, q, kp, target_dq, dq, kd):
     """Calculates torques from position commands"""
     return (target_q - q) * kp + (target_dq - dq) * kd
 
+
 from pynput import keyboard
 
-ctrl_f = [0,0] # ctrl_f key_f
+ctrl_f = [0, 0]  # ctrl_f key_f
+
 
 def on_press(key):
     ctrl_f[1] = 1
@@ -50,6 +52,7 @@ def on_press(key):
     if key == keyboard.Key.ctrl:
         ctrl_f[0] = 1
 
+
 def on_release(key):
     ctrl_f[1] = 0
     if key == keyboard.Key.up:
@@ -66,11 +69,15 @@ def on_release(key):
         ctrl_f[0] = 0
         cmd[2] = 0.0
 
+
 def padctrl():
-    values = gamepad.GetInput(joyL=1,joyR=1,trigL=1,trigR=1,buttons=1,hat=1,joyL_max=100,os='linux')
-    cmd[0] = 1.0*values[0][1]/100
-    cmd[1] = -1.0*values[0][0]/100
-    cmd[2] = -1.0*values[1][0]/100
+    values = gamepad.GetInput(
+        joyL=1, joyR=1, trigL=1, trigR=1, buttons=1, hat=1, joyL_max=100, os="linux"
+    )
+    cmd[0] = 1.0 * values[0][1] / 100
+    cmd[1] = -1.0 * values[0][0] / 100
+    cmd[2] = -1.0 * values[1][0] / 100
+
 
 if __name__ == "__main__":
     # get config file name from command line
@@ -102,7 +109,7 @@ if __name__ == "__main__":
 
         num_actions = config["num_actions"]
         num_obs = config["num_obs"]
-        
+
         cmd = np.array(config["cmd_init"], dtype=np.float32)
 
     # define context variables
@@ -123,7 +130,7 @@ if __name__ == "__main__":
     # load policy
     policy = torch.jit.load(policy_path)
 
-    #ctrl
+    # ctrl
     from pynput import keyboard
 
     listener = keyboard.Listener(on_press=on_press, on_release=on_release)
@@ -165,14 +172,16 @@ if __name__ == "__main__":
                 sin_phase = np.sin(2 * np.pi * phase)
                 cos_phase = np.cos(2 * np.pi * phase)
                 if ctrl_f[1] == 0:
-                        padctrl()
+                    padctrl()
                 obs[:3] = omega
                 obs[3:6] = gravity_orientation
                 obs[6:9] = cmd * cmd_scale
                 obs[9 : 9 + num_actions] = qj
                 obs[9 + num_actions : 9 + 2 * num_actions] = dqj
                 obs[9 + 2 * num_actions : 9 + 3 * num_actions] = action
-                obs[9 + 3 * num_actions : 9 + 3 * num_actions + 2] = np.array([sin_phase, cos_phase])
+                obs[9 + 3 * num_actions : 9 + 3 * num_actions + 2] = np.array(
+                    [sin_phase, cos_phase]
+                )
                 obs_tensor = torch.from_numpy(obs).unsqueeze(0)
                 # policy inference
                 action = policy(obs_tensor).detach().numpy().squeeze()

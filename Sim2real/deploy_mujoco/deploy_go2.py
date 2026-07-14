@@ -1,11 +1,11 @@
 import time
 
-import mujoco.viewer
 import mujoco
+import mujoco.viewer
 import numpy as np
-from legged_gym import LEGGED_GYM_ROOT_DIR
 import torch
 import yaml
+from legged_gym import LEGGED_GYM_ROOT_DIR
 
 
 def get_gravity_orientation(quaternion):
@@ -59,7 +59,7 @@ if __name__ == "__main__":
 
         num_actions = config["num_actions"]
         num_obs = config["num_obs"]
-        
+
         cmd = np.array(config["cmd_init"], dtype=np.float32)
 
     # define context variables
@@ -73,7 +73,7 @@ if __name__ == "__main__":
     m = mujoco.MjModel.from_xml_path(xml_path)
     d = mujoco.MjData(m)
     m.opt.timestep = simulation_dt
-    
+
     # load policy
     policy = torch.jit.load(policy_path)
 
@@ -91,7 +91,7 @@ if __name__ == "__main__":
             counter += 1
             if counter % control_decimation == 0:
                 # Apply control signal here.
-                
+
                 # create observation
                 qj = d.qpos[7:]
                 dqj = d.qvel[6:]

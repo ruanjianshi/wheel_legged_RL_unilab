@@ -113,23 +113,54 @@ class NP3O(FinalObservationAwarePPO):
         return self._model_obs_tensor(self.critic, obs)
 
     def _extract_costs(self, obs: TensorDict) -> torch.Tensor:
+        """Compute cost violations from physics data in critic observation.
+
+        Mirrors Tita RL's constraint functions. All costs are 0/1 binary.
+        Uses critic obs which contains real physics (gyro, gravity, dof pos/vel, linvel).
+        """
         B = obs.batch_size[0] if hasattr(obs, "batch_size") else obs.shape[0]
         c = torch.zeros(B, self.num_costs, device=self.device)
         critic = obs.get("critic")
-        actor = obs.get("actor")
-        if critic is not None:
-            tilt = torch.sqrt(critic[:, 0] ** 2 + critic[:, 1] ** 2)
-            c[:, 0] = (tilt > 0.3).float()
-            if critic.shape[-1] >= 17:
-                leg_vel = torch.abs(critic[:, 11:17])
-                c[:, 1] = (leg_vel.mean(dim=-1) > 5.0).float()
-                c[:, 2] = (leg_vel.max(dim=-1).values > 10.0).float()
-        if actor is not None:
-            if actor.shape[-1] >= 6:
-                c[:, 3] = (torch.abs(actor[:, 3:6]).mean(dim=-1) > 0.3).float()
-            if actor.shape[-1] >= 8:
-                c[:, 4] = (torch.abs(actor[:, 6:8]).mean(dim=-1) > 0.3).float()
-            c[:, 5] = (actor.abs().mean(dim=-1) > 0.5).float()
+        if critic is None:
+            return c
+
+        _dt = 0.01  # XqRobotV2 control dt (100Hz)
+
+        # [0] base_orientation: tilt > 0.3 rad
+        if critic.shape[-1] >= 3:
+            c[:, 0] = (torch.sqrt(critic[:, 0] ** 2 + critic[:, 1] ** 2) > 0.3).float()
+
+        # [1] joint_velocity: mean |leg vel| > 5 rad/s
+        if critic.shape[-1] >= 17:
+            lv = torch.abs(critic[:, 11:17])
+            c[:, 1] = (lv.mean(dim=-1) > 5.0).float()
+
+        # [2] joint_acceleration: max |∆vel|/dt > 800 rad/s²
+        if critic.shape[-1] >= 17:
+            if not hasattr(self, "_last_leg_vel"):
+                self._last_leg_vel = torch.zeros(B, 6, device=self.device)
+            cur = critic[:, 11:17]
+            acc = torch.abs(cur - self._last_leg_vel[:B]) / _dt
+            self._last_leg_vel[:B] = cur
+            c[:, 2] = (acc.max(dim=-1).values > 800.0).float()
+
+        # [3] torque proxy: |leg_pos_error| > 0.04 rad (≈ 4 Nm at kp=100)
+        if critic.shape[-1] >= 11:
+            c[:, 3] = (torch.abs(critic[:, 5:11]).mean(dim=-1) > 0.04).float()
+
+        # [4] contact force proxy: base linear accel > 30 m/s²
+        if critic.shape[-1] >= 20:
+            if not hasattr(self, "_last_lv"):
+                self._last_lv = torch.zeros(B, 3, device=self.device)
+            cur_lv = critic[:, 17:20]
+            ba = torch.abs(cur_lv - self._last_lv[:B]) / _dt
+            self._last_lv[:B] = cur_lv
+            c[:, 4] = (ba.max(dim=-1).values > 30.0).float()
+
+        # [5] stumble: |linvel_z| > 0.2 m/s² while moving
+        if critic.shape[-1] >= 20:
+            c[:, 5] = (torch.abs(critic[:, 19]) > 0.2).float()
+
         return c
 
     # ── K annealing ──────────────────────────────────────────────────

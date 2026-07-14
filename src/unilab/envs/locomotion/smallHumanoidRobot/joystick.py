@@ -69,7 +69,9 @@ class SmallHumanoidWalkFlatCfg(SmallHumanoidBaseCfg):
     max_episode_seconds: float = 20.0
     commands: Commands = field(default_factory=Commands)
     reward_config: SmallHumanoidRewardConfig | None = None
-    domain_rand: SmallHumanoidDomainRandConfig = field(default_factory=SmallHumanoidDomainRandConfig)
+    domain_rand: SmallHumanoidDomainRandConfig = field(
+        default_factory=SmallHumanoidDomainRandConfig
+    )
 
 
 class SmallHumanoidDRProvider(LocomotionDRProvider):
@@ -101,7 +103,9 @@ class SmallHumanoidDRProvider(LocomotionDRProvider):
     def build_interval_randomization_plan(self, env: Any, step_counter: int):
         return build_interval_push_plan(env, step_counter)
 
-    def _compute_reset_obs(self, env, env_ids, info_updates, linvel, gyro, gravity, dof_pos, dof_vel):
+    def _compute_reset_obs(
+        self, env, env_ids, info_updates, linvel, gyro, gravity, dof_pos, dof_vel
+    ):
         del env_ids
         return env._compute_obs(info_updates, linvel, gyro, gravity, dof_pos, dof_vel)
 
@@ -115,7 +119,9 @@ class SmallHumanoidDRProvider(LocomotionDRProvider):
     def _sample_commands(self, env: Any, num_reset: int) -> np.ndarray:
         low = np.asarray(env._cfg.commands.vel_limit[0], dtype=get_global_dtype())
         high = np.asarray(env._cfg.commands.vel_limit[1], dtype=get_global_dtype())
-        return np.asarray(np.random.uniform(low=low, high=high, size=(num_reset, 3)), dtype=get_global_dtype())
+        return np.asarray(
+            np.random.uniform(low=low, high=high, size=(num_reset, 3)), dtype=get_global_dtype()
+        )
 
 
 @registry.env("SmallHumanoidWalkFlat", sim_backend="mujoco")
@@ -150,15 +156,26 @@ class SmallHumanoidWalkFlatEnv(SmallHumanoidBaseEnv):
 
     def apply_action(self, actions: np.ndarray, state: NpEnvState) -> np.ndarray:
         clipped_actions = np.asarray(
-            np.clip(actions, -self._cfg.control_config.clip_actions, self._cfg.control_config.clip_actions),
+            np.clip(
+                actions,
+                -self._cfg.control_config.clip_actions,
+                self._cfg.control_config.clip_actions,
+            ),
             dtype=self._np_dtype,
         )
-        state.info["last_actions"] = state.info.get("current_actions", np.zeros_like(clipped_actions))
+        state.info["last_actions"] = state.info.get(
+            "current_actions", np.zeros_like(clipped_actions)
+        )
         state.info["current_actions"] = clipped_actions
         exec_actions = (
-            state.info["last_actions"] if self._cfg.control_config.simulate_action_latency else clipped_actions
+            state.info["last_actions"]
+            if self._cfg.control_config.simulate_action_latency
+            else clipped_actions
         )
-        return np.asarray(exec_actions * self._cfg.control_config.action_scale + self.default_angles, dtype=self._np_dtype)
+        return np.asarray(
+            exec_actions * self._cfg.control_config.action_scale + self.default_angles,
+            dtype=self._np_dtype,
+        )
 
     def update_state(self, state: NpEnvState) -> NpEnvState:
         self._update_commands(state.info)
@@ -236,11 +253,15 @@ class SmallHumanoidWalkFlatEnv(SmallHumanoidBaseEnv):
                 num_resample = int(np.count_nonzero(resample_mask))
                 low = np.asarray(self._cfg.commands.vel_limit[0], dtype=get_global_dtype())
                 high = np.asarray(self._cfg.commands.vel_limit[1], dtype=get_global_dtype())
-                sampled = np.random.uniform(low=low, high=high, size=(num_resample, 3)).astype(get_global_dtype())
+                sampled = np.random.uniform(low=low, high=high, size=(num_resample, 3)).astype(
+                    get_global_dtype()
+                )
                 commands_arr[resample_mask] = sampled
         info["commands"] = commands_arr
 
-    def _compute_obs(self, info: dict, linvel, gyro, gravity, dof_pos, dof_vel) -> dict[str, np.ndarray]:
+    def _compute_obs(
+        self, info: dict, linvel, gyro, gravity, dof_pos, dof_vel
+    ) -> dict[str, np.ndarray]:
         noise_cfg = self._cfg.noise_config
         joint_diff = dof_pos - self.default_angles
         noisy_gyro = self._obs_noise(gyro, noise_cfg.scale_gyro)
@@ -249,24 +270,32 @@ class SmallHumanoidWalkFlatEnv(SmallHumanoidBaseEnv):
         noisy_joint_vel = self._obs_noise(dof_vel, noise_cfg.scale_joint_vel)
         last_actions = info.get("current_actions", np.zeros((linvel.shape[0], NUM_ACTIONS)))
 
-        obs = np.concatenate([
-            noisy_gyro,
-            -noisy_gravity,
-            noisy_joint_diff,
-            noisy_joint_vel,
-            last_actions,
-            info["commands"],
-        ], axis=1, dtype=get_global_dtype())
+        obs = np.concatenate(
+            [
+                noisy_gyro,
+                -noisy_gravity,
+                noisy_joint_diff,
+                noisy_joint_vel,
+                last_actions,
+                info["commands"],
+            ],
+            axis=1,
+            dtype=get_global_dtype(),
+        )
 
-        critic = np.concatenate([
-            gyro,
-            -gravity,
-            joint_diff,
-            dof_vel,
-            last_actions,
-            info["commands"],
-            linvel,
-        ], axis=1, dtype=get_global_dtype())
+        critic = np.concatenate(
+            [
+                gyro,
+                -gravity,
+                joint_diff,
+                dof_vel,
+                last_actions,
+                info["commands"],
+                linvel,
+            ],
+            axis=1,
+            dtype=get_global_dtype(),
+        )
         return {"obs": obs, "critic": critic}
 
     def _base_height_values(self, num_obs: int) -> np.ndarray:
