@@ -1,9 +1,12 @@
 # @package _global_
 # =============================================================================
-# XqRobotWL 双轮腿机器人 PPO 跳跃训练配置 (MuJoCo 后端)
+# XqRobotWL Wheeled-SRL 跳跃训练配置 (MuJoCo 后端)
 # 5D 命令: [vx, vy, vyaw, tsk, jump_trigger]
-#   jump_trigger > 0.5 时触发跳跃: 下蹲 → 爆发伸展 → 腾空 → 着陆
-# =============================================================================
+#
+# Wheeled-SRL 改进:
+# - SLIP模型六状态FSM前馈 + PPO反馈融合
+# - 轮地速度匹配奖励 (替代 wheel_air_time)
+# - 扩展观测含 fsm_state + jump_phase
 # =============================================================================
 training:
   task_name: XqRobotWLJumpFlat
@@ -80,7 +83,8 @@ reward:
     jump_height: 12.0
     crouch_prep: 6.0
     landing_soft: 4.0
-    wheel_air_time: 20.0
+    # ★ Wheeled-SRL: 轮地匹配替代 wheel_air_time (原20.0)
+    wheel_ground_matching: 15.0
     vertical_thrust: 12.0
     crouch_depth: 6.0
   tracking_sigma: 0.3
@@ -89,7 +93,3 @@ reward:
   crouch_height_target: 0.40
   max_tilt_deg: 45.0
   min_base_height: 0.15
-  # 跳跃课程: [start, end] 环境步数, 线性 ramp jump_trigger + 跳跃奖励权重
-  # 24_576 步/iter (1024 envs × 24 steps)
-  jump_curriculum_start: 0
-  jump_curriculum_end: 73728000  # ~3000 iters

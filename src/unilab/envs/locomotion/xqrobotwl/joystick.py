@@ -225,7 +225,7 @@ class XqRobotWLDRProvider(LocomotionDRProvider):
     def _compute_reset_obs(
         self, env, env_ids, info_updates, linvel, gyro, gravity, dof_pos, dof_vel
     ):
-        del env_ids
+        info_updates["_reset_ids"] = env_ids
         return env._compute_obs(info_updates, linvel, gyro, gravity, dof_pos, dof_vel)
 
     def _sample_reset_yaw(self, env: Any, num_reset: int) -> np.ndarray:
