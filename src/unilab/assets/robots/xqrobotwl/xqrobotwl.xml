@@ -90,13 +90,13 @@
     <mesh name="right_link_wheel_visual" file="right_link_wheel.STL" />
   </asset>
   <actuator>
-    <position name="joint_left_hip_roll" joint="joint_left_hip_roll" kp="60" />
-    <position name="joint_left_hip_pitch" joint="joint_left_hip_pitch" kp="60" />
-    <position name="joint_left_knee" joint="joint_left_knee" kp="60" />
+    <position name="joint_left_hip_roll" joint="joint_left_hip_roll" kp="30" />
+    <position name="joint_left_hip_pitch" joint="joint_left_hip_pitch" kp="30" />
+    <position name="joint_left_knee" joint="joint_left_knee" kp="30" />
     <velocity name="joint_left_wheel" joint="joint_left_wheel" kv="1" />
-    <position name="joint_right_hip_roll" joint="joint_right_hip_roll" kp="60" />
-    <position name="joint_right_hip_pitch" joint="joint_right_hip_pitch" kp="60" />
-    <position name="joint_right_knee" joint="joint_right_knee" kp="60" />
+    <position name="joint_right_hip_roll" joint="joint_right_hip_roll" kp="30" />
+    <position name="joint_right_hip_pitch" joint="joint_right_hip_pitch" kp="30" />
+    <position name="joint_right_knee" joint="joint_right_knee" kp="30" />
     <velocity name="joint_right_wheel" joint="joint_right_wheel" kv="1" />
   </actuator>
   <sensor>

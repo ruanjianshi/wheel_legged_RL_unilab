@@ -15,6 +15,24 @@ _devlog/<robot>/<task>/<algo>/<date>/<序号>_<slug>.md
 
 ## 时间线 (最新在前)
 
+### 2026-07-16
+
+| 机器人 | 任务 | 算法 | 标题 |
+|--------|------|------|------|
+| xqrobotwl | jump | ppo | [姿态修正 + 腾空优化](xqrobotwl/jump/ppo/2026-07-16/03_posture_airtime.md) |
+
+### 2026-07-15
+
+| 机器人 | 任务 | 算法 | 标题 |
+|--------|------|------|------|
+| xqrobotwl | jump | ppo | [Kp 适配 + 存活率 + 后仰修正](xqrobotwl/jump/ppo/2026-07-15/02_kp_survival_posture.md) |
+
+### 2026-07-14
+
+| 机器人 | 任务 | 算法 | 标题 |
+|--------|------|------|------|
+| xqrobotwl | jump | ppo | [Phase-gated 跳跃奖励设计](xqrobotwl/jump/ppo/2026-07-14/01_phase_gated_rewards.md) |
+
 ### 2026-07-13
 
 | 机器人 | 任务 | 算法 | 标题 |

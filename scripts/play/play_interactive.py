@@ -885,12 +885,16 @@ def _build_keyboard_commander(env: Any, args) -> KeyboardCommander | None:
     reward_cfg = getattr(env, "_reward_cfg", None)
     if reward_cfg is not None and hasattr(reward_cfg, "base_height_target"):
         commander.height_target = float(reward_cfg.base_height_target)
+    # Bypass jump curriculum in play mode so jump_trigger isn't zeroed
+    if hasattr(env, "_jump_curriculum_end") and hasattr(env, "_total_env_steps"):
+        env._total_env_steps = env._jump_curriculum_end + 1
     if limit.shape[1] >= 5:
         commander.height_min = float(limit[0, 4])
         commander.height_max = float(limit[1, 4])
     env.state.info["commands"][:, :3] = commander.command
     if env.state.info["commands"].shape[1] >= 5:
-        env.state.info["commands"][:, 4] = commander.height_target
+        if not (str(getattr(args, "task", "")).startswith("xqrobotV2_jump") or str(getattr(args, "task", "")).startswith("xqrobotwl_jump")):
+            env.state.info["commands"][:, 4] = commander.height_target
     return commander
 
 
@@ -1009,7 +1013,7 @@ def _handle_command_key(commander: KeyboardCommander, keycode: int) -> None:
     elif keycode == ord("V"):
         m = commander.toggle_mode()
         print(f"[play_interactive] mode: {m}")
-    elif keycode == ord("J"):
+    elif keycode == ord("H"):
         commander.jump_trigger = 1 if commander.jump_trigger == 0 else 0
         print(f"[play_interactive] jump: {'ON' if commander.jump_trigger else 'OFF'}")
     elif keycode in (_KEY_ENTER, _KEY_KP_ENTER):
@@ -1025,7 +1029,7 @@ def _print_keyboard_legend(args) -> None:
     print("  ← / →       : turn left / right  (vyaw)")
     print("  A / D       : strafe left / right (vy)")
     print("  Q / E       : lower / raise  body height")
-    print("  J           : jump (one-shot)")
+    print("  H           : jump (one-shot)")
     print("  V           : toggle forward/lateral mode")
     print("  Enter       : full stop")
     if str(getattr(args, "action_mode", "")) != "policy":
@@ -1212,29 +1216,35 @@ def play_interactive(args, cfg: DictConfig | None = None, *, algo: str | None = 
     if commander is not None:
         env.set_autoreset(False)
 
-    def _on_key(keycode: int) -> None:
+    def _on_key(keycode: int) -> int | None:
         if keycode == ord(" "):
             paused = controls.toggle_pause()
             status = "paused" if paused else "resumed"
             print(f"[play_interactive] {status} (space)")
+            return 1
         elif keycode in (ord("N"), ord("n")):
             controls.request_single_step()
             if not controls.paused:
                 controls.pause()
                 print("[play_interactive] paused for single-step mode (n)")
             print("[play_interactive] single step requested (n)")
+            return 1
         elif keycode in (ord("+"), ord("=")):
             controls.set_speed(controls.speed * 1.25)
             print(f"[play_interactive] speed={controls.speed:.2f}x")
+            return 1
         elif keycode in (ord("-"), ord("_")):
             controls.set_speed(controls.speed / 1.25)
             print(f"[play_interactive] speed={controls.speed:.2f}x")
+            return 1
         elif commander is not None and keycode == _KEY_BACKSPACE:
             playback_session.reset()
             commander.zero()
             print("[play_interactive] reset (backspace)")
+            return 1
         elif commander is not None:
             _handle_command_key(commander, keycode)
+            return 1
 
     print("[play_interactive] Opening viewer — close the window or press Esc to quit.")
     print("[play_interactive] Controls: Space=pause/resume, N=single-step, +/-=speed")
@@ -1268,6 +1278,8 @@ def play_interactive(args, cfg: DictConfig | None = None, *, algo: str | None = 
 
                 # Write the command before stepping so this step's obs follow it.
                 if commander is not None and env.state is not None:
+                    # Keyboard mode: lock all commands, only let keyboard override
+                    env.state.info["commands"][:, :] = 0.0
                     env.state.info["commands"][:, :3] = commander.command
                     nc = env.state.info["commands"].shape[1]
                     if nc >= 5 and not (str(args.task).startswith("xqrobotV2_jump") or str(args.task).startswith("xqrobotwl_jump")):
@@ -1280,6 +1292,9 @@ def play_interactive(args, cfg: DictConfig | None = None, *, algo: str | None = 
                         if commander.jump_frames >= 150:
                             commander.jump_trigger = 0
                             commander.jump_frames = 0
+                    elif nc >= 5:
+                        # Keyboard mode: lock trigger=0, don't let env randomly jump
+                        env.state.info["commands"][:, 4] = 0.0
                     reward_cfg = getattr(env, "_reward_cfg", None)
                     if reward_cfg is not None and hasattr(reward_cfg, "base_height_target"):
                         reward_cfg.base_height_target = commander.height_target

@@ -56,60 +56,116 @@ class XqRobotWLJumpCurriculumConfig(XqRobotWLCurriculumConfig):
     enabled: bool = False
 
 
-def _reward_jump_height(ctx: RewardContext, jump_cfg: XqRobotWLJumpRewardConfig) -> np.ndarray:
-    base_z = ctx.base_height
-    jump_trigger = ctx.info["commands"][:, 4]
-    jumping = jump_trigger > 0.5
-    target = jump_cfg.jump_height_target
-    clamped = np.clip(base_z / target, 0.0, 1.0)
-    wheel_contact = ctx.info.get("wheel_contact", np.ones((ctx.num_envs, 2)))
-    air_factor = 1.0 - np.mean(wheel_contact, axis=1)
-    reward = clamped * jumping.astype(np.float64) * air_factor
-    weight = ctx.info.get("jump_curriculum", 1.0)
-    return reward * 2.0 * weight
+# ── 跳跃奖励 (phase-gated: 蹲→蹬→飞→落) ────────────────────────────
+# jump_phase = consecutive steps with trigger > 0.5
+# Phase  [1, 30]: crouch (下蹲蓄力, 30步后强制停)
+# Phase  anytime: thrust (蹬地, 不锁窗, 蹲够了随时弹)
+# Phase     >=1: flight/height/air (腾空奖励, 全程开)
+# Phase    >=30: landing (落地缓冲)
 
 
 def _reward_crouch_prep(ctx: RewardContext, jump_cfg: XqRobotWLJumpRewardConfig) -> np.ndarray:
     base_z = ctx.base_height
-    jump_trigger = ctx.info["commands"][:, 4]
-    crouching = (jump_trigger > 0.5) & (base_z < jump_cfg.base_height_target)
+    phase = ctx.info.get("jump_phase", np.zeros(ctx.num_envs, dtype=np.float64))
+    active = ((phase >= 1.0) & (phase <= 30.0)).astype(np.float64)
+    crouching = base_z < jump_cfg.base_height_target
     target = jump_cfg.crouch_height_target
-    height_ok = (base_z > jump_cfg.min_base_height) & (base_z < target + 0.1)
+    height_ok = (base_z > jump_cfg.min_base_height) & (base_z < target + 0.15)
+    # Posture: 前倾 + 弯膝 + 髋不外展 (禁止后仰 + 伸腿 + 叉腿)
+    hip_fwd_L = ctx.dof_pos[:, 1]  # +Y axis: positive=forward
+    hip_fwd_R = -ctx.dof_pos[:, 4]  # -Y axis: negative=forward, so -value=forward
+    knee_bend_L = ctx.dof_pos[:, 2]  # -Y axis: positive=bent
+    knee_bend_R = -ctx.dof_pos[:, 5]  # +Y axis: negative=bent, so -value=bent
+    roll_ok = (np.abs(ctx.dof_pos[:, 0] - 0.1) < 0.2) & (np.abs(ctx.dof_pos[:, 3] + 0.1) < 0.2)
+    posture_ok = ((hip_fwd_L > 0.1) & (hip_fwd_R > 0.1) & (knee_bend_L > 0.1) & (knee_bend_R > 0.1)
+                  & roll_ok)
     weight = ctx.info.get("jump_curriculum", 1.0)
-    return height_ok.astype(np.float64) * crouching.astype(np.float64) * 0.5 * weight
+    return height_ok.astype(np.float64) * crouching.astype(np.float64) * posture_ok.astype(np.float64) * active * 0.5 * weight
+
+
+def _reward_crouch_depth(ctx: RewardContext, jump_cfg: XqRobotWLJumpRewardConfig) -> np.ndarray:
+    base_z = ctx.base_height
+    phase = ctx.info.get("jump_phase", np.zeros(ctx.num_envs, dtype=np.float64))
+    active = ((phase >= 1.0) & (phase <= 25.0)).astype(np.float64)
+    crouching = base_z < jump_cfg.base_height_target
+    depth = np.clip((jump_cfg.base_height_target - base_z) / 0.25, 0.0, 1.0)
+    # Same posture check as crouch_prep: no backward lean + bent knees
+    hip_fwd_L = ctx.dof_pos[:, 1]
+    hip_fwd_R = -ctx.dof_pos[:, 4]
+    knee_bend_L = ctx.dof_pos[:, 2]
+    knee_bend_R = -ctx.dof_pos[:, 5]
+    posture_ok = (hip_fwd_L > 0.1) & (hip_fwd_R > 0.1) & (knee_bend_L > 0.1) & (knee_bend_R > 0.1)
+    weight = ctx.info.get("jump_curriculum", 1.0)
+    return depth * crouching.astype(np.float64) * posture_ok.astype(np.float64) * active * 0.5 * weight
+
+
+def _reward_lean_forward(ctx: RewardContext) -> np.ndarray:
+    # 全局惩罚后仰: 时刻保持髋关节前倾
+    hip_fwd_L = ctx.dof_pos[:, 1]
+    hip_fwd_R = -ctx.dof_pos[:, 4]
+    penalty_L = np.clip(-hip_fwd_L, 0, 1)
+    penalty_R = np.clip(-hip_fwd_R, 0, 1)
+    knee_bend_L = ctx.dof_pos[:, 2]
+    knee_bend_R = -ctx.dof_pos[:, 5]
+    p_knee_L = np.clip(-knee_bend_L, 0, 1)
+    p_knee_R = np.clip(-knee_bend_R, 0, 1)
+    # Penalize hip_roll abduction beyond ±0.2 from default (±0.1)
+    roll_dev_L = np.clip(np.abs(ctx.dof_pos[:, 0] - 0.1) - 0.15, 0, 1)
+    roll_dev_R = np.clip(np.abs(ctx.dof_pos[:, 3] + 0.1) - 0.15, 0, 1)
+    return -(penalty_L + penalty_R + p_knee_L + p_knee_R + roll_dev_L + roll_dev_R) * 0.25
+
+
+def _reward_vertical_thrust(ctx: RewardContext, jump_cfg: XqRobotWLJumpRewardConfig) -> np.ndarray:
+    vz = ctx.linvel[:, 2]
+    phase = ctx.info.get("jump_phase", np.zeros(ctx.num_envs, dtype=np.float64))
+    wheel_contact = ctx.info.get("wheel_contact", np.ones((ctx.num_envs, 2)))
+    on_ground = (np.max(wheel_contact, axis=1) > 0.5).astype(np.float64)
+    active = ((phase >= 1.0) & (vz > 0.0) & (on_ground > 0)).astype(np.float64)
+    vz_capped = np.clip(vz, 0, 2.0)
+    weight = ctx.info.get("jump_curriculum", 1.0)
+    return vz_capped * active * weight
+
+
+def _reward_jump_height(ctx: RewardContext, jump_cfg: XqRobotWLJumpRewardConfig) -> np.ndarray:
+    base_z = ctx.base_height
+    phase = ctx.info.get("jump_phase", np.ones(ctx.num_envs, dtype=np.float64) * 1e9)
+    active = (phase >= 1.0).astype(np.float64)
+    target = jump_cfg.jump_height_target
+    clamped = np.clip(base_z / target, 0.0, 1.0)
+    wheel_contact = ctx.info.get("wheel_contact", np.ones((ctx.num_envs, 2)))
+    air_factor = 1.0 - np.mean(wheel_contact, axis=1)
+    weight = ctx.info.get("jump_curriculum", 1.0)
+    return clamped * active * air_factor * 2.0 * weight
+
+
+def _reward_wheel_air_time(ctx: RewardContext) -> np.ndarray:
+    wheel_contact = ctx.info.get("wheel_contact", np.ones((ctx.num_envs, 2)))
+    air = 1.0 - np.mean(wheel_contact, axis=1)
+    phase = ctx.info.get("jump_phase", np.zeros(ctx.num_envs, dtype=np.float64))
+    active = (phase >= 1.0).astype(np.float64)
+    weight = ctx.info.get("jump_curriculum", 1.0)
+    return air * 0.5 * weight * active
 
 
 def _reward_landing_soft(ctx: RewardContext) -> np.ndarray:
     base_linvel_z = ctx.linvel[:, 2]
     vz_mag = np.abs(base_linvel_z)
     soft = np.exp(-vz_mag / 0.5)
+    phase = ctx.info.get("jump_phase", np.zeros(ctx.num_envs, dtype=np.float64))
+    active = (phase >= 30.0).astype(np.float64)
     weight = ctx.info.get("jump_curriculum", 1.0)
-    return soft * 0.3 * weight
+    return soft * 0.3 * weight * active
 
 
-def _reward_vertical_thrust(ctx: RewardContext, jump_cfg: XqRobotWLJumpRewardConfig) -> np.ndarray:
-    jump_trigger = ctx.info["commands"][:, 4]
+def _reward_anti_loiter(ctx: RewardContext) -> np.ndarray:
+    # Penalize staying crouched after the crouch window closes (phase > 30)
+    phase = ctx.info.get("jump_phase", np.zeros(ctx.num_envs, dtype=np.float64))
     base_z = ctx.base_height
-    vz = ctx.linvel[:, 2]
-    active = (jump_trigger > 0.5) & (base_z < 0.55) & (vz > 0.0)
+    loitering = ((phase > 30.0) & (base_z < 0.55)).astype(np.float64)
+    # Deeper crouch = bigger penalty → forces extension or jump
+    penalty = np.clip((0.55 - base_z) / 0.3, 0.0, 2.0)
     weight = ctx.info.get("jump_curriculum", 1.0)
-    return vz * active.astype(np.float64) * weight
-
-
-def _reward_crouch_depth(ctx: RewardContext, jump_cfg: XqRobotWLJumpRewardConfig) -> np.ndarray:
-    base_z = ctx.base_height
-    jump_trigger = ctx.info["commands"][:, 4]
-    crouching = (jump_trigger > 0.5) & (base_z < jump_cfg.base_height_target)
-    depth = np.clip((jump_cfg.base_height_target - base_z) / 0.3, 0.0, 1.0)
-    weight = ctx.info.get("jump_curriculum", 1.0)
-    return depth * crouching.astype(np.float64) * 0.5 * weight
-
-
-def _reward_wheel_air_time(ctx: RewardContext) -> np.ndarray:
-    wheel_contact = ctx.info.get("wheel_contact", np.ones((ctx.num_envs, 2)))
-    air = 1.0 - np.mean(wheel_contact, axis=1)
-    weight = ctx.info.get("jump_curriculum", 1.0)
-    return air * 0.5 * weight
+    return -penalty * loitering * weight
 
 
 @registry.envcfg("XqRobotWLJumpFlat")
@@ -183,6 +239,8 @@ class XqRobotWLJumpFlatEnv(XqRobotWLWalkFlatEnv):
             "wheel_air_time": self._reward_wheel_air_time,
             "vertical_thrust": self._reward_vertical_thrust,
             "crouch_depth": self._reward_crouch_depth,
+            "anti_loiter": self._reward_anti_loiter,
+            "lean_forward": self._reward_lean_forward,
         }
 
     def _reward_jump_height(self, ctx: RewardContext) -> np.ndarray:
@@ -202,6 +260,12 @@ class XqRobotWLJumpFlatEnv(XqRobotWLWalkFlatEnv):
 
     def _reward_crouch_depth(self, ctx: RewardContext) -> np.ndarray:
         return _reward_crouch_depth(ctx, self._jump_cfg)
+
+    def _reward_anti_loiter(self, ctx: RewardContext) -> np.ndarray:
+        return _reward_anti_loiter(ctx)
+
+    def _reward_lean_forward(self, ctx: RewardContext) -> np.ndarray:
+        return _reward_lean_forward(ctx)
 
     def _reward_joint_action_rate(self, ctx: RewardContext) -> np.ndarray:
         current = ctx.info["current_actions"][:, :NUM_LEG_ACTIONS]
@@ -233,6 +297,11 @@ class XqRobotWLJumpFlatEnv(XqRobotWLWalkFlatEnv):
         )
         state.info["commands"][:, 4] *= np.float64(progress)
         state.info["jump_curriculum"] = np.float64(progress)
+        # Jump phase: consecutive steps with trigger > 0.5
+        trigger_active = state.info["commands"][:, 4] > 0.5
+        prev_phase = state.info.get("jump_phase", np.zeros(self._num_envs, dtype=np.float64))
+        new_phase = np.where(trigger_active, prev_phase + 1, np.float64(0))
+        state.info["jump_phase"] = new_phase
         linvel = self.get_local_linvel()
         gyro = self.get_gyro()
         gravity = self._backend.get_sensor_data(self._cfg.sensor.upvector)
@@ -268,8 +337,8 @@ class XqRobotWLJumpFlatEnv(XqRobotWLWalkFlatEnv):
         tilt = np.arccos(np.clip(gravity[:, 2], -1, 1))
         max_tilt = np.deg2rad(self._jump_cfg.max_tilt_deg)
         terminated = tilt > max_tilt
-        thigh_collapsed = (dof_pos[:, 1] < 0.02) | (dof_pos[:, 4] > -0.02)
-        calf_extreme = (np.abs(dof_pos[:, 2]) > 1.2) | (np.abs(dof_pos[:, 5]) > 1.2)
+        thigh_collapsed = (dof_pos[:, 1] < -1.0) | (dof_pos[:, 4] > 1.0)
+        calf_extreme = (np.abs(dof_pos[:, 2]) > 1.8) | (np.abs(dof_pos[:, 5]) > 1.8)
         terminated |= thigh_collapsed
         terminated |= calf_extreme
         return terminated
