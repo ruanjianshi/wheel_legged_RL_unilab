@@ -1289,7 +1289,7 @@ def play_interactive(args, cfg: DictConfig | None = None, *, algo: str | None = 
                             env.state.info["commands"][:, 4] = 1.0
                         commander.jump_frames = getattr(commander, "jump_frames", 0)
                         commander.jump_frames += 1
-                        if commander.jump_frames >= 150:
+                        if commander.jump_frames >= 80:
                             commander.jump_trigger = 0
                             commander.jump_frames = 0
                     elif nc >= 5:

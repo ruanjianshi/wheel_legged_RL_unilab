@@ -67,7 +67,7 @@ class XqRobotWLJumpCurriculumConfig(XqRobotWLCurriculumConfig):
 def _reward_crouch_prep(ctx: RewardContext, jump_cfg: XqRobotWLJumpRewardConfig) -> np.ndarray:
     base_z = ctx.base_height
     phase = ctx.info.get("jump_phase", np.zeros(ctx.num_envs, dtype=np.float64))
-    active = ((phase >= 1.0) & (phase <= 30.0)).astype(np.float64)
+    active = ((phase >= 1.0) & (phase <= 40.0)).astype(np.float64)
     crouching = base_z < jump_cfg.base_height_target
     target = jump_cfg.crouch_height_target
     height_ok = (base_z > jump_cfg.min_base_height) & (base_z < target + 0.15)
@@ -76,7 +76,7 @@ def _reward_crouch_prep(ctx: RewardContext, jump_cfg: XqRobotWLJumpRewardConfig)
     hip_fwd_R = -ctx.dof_pos[:, 4]  # -Y axis: negative=forward, so -value=forward
     knee_bend_L = ctx.dof_pos[:, 2]  # -Y axis: positive=bent
     knee_bend_R = -ctx.dof_pos[:, 5]  # +Y axis: negative=bent, so -value=bent
-    roll_ok = (np.abs(ctx.dof_pos[:, 0] - 0.1) < 0.2) & (np.abs(ctx.dof_pos[:, 3] + 0.1) < 0.2)
+    roll_ok = (np.abs(ctx.dof_pos[:, 0] - 0.1) < 0.12) & (np.abs(ctx.dof_pos[:, 3] + 0.1) < 0.12)
     posture_ok = ((hip_fwd_L > 0.1) & (hip_fwd_R > 0.1) & (knee_bend_L > 0.1) & (knee_bend_R > 0.1)
                   & roll_ok)
     weight = ctx.info.get("jump_curriculum", 1.0)
@@ -99,6 +99,16 @@ def _reward_crouch_depth(ctx: RewardContext, jump_cfg: XqRobotWLJumpRewardConfig
     return depth * crouching.astype(np.float64) * posture_ok.astype(np.float64) * active * 0.5 * weight
 
 
+def _reward_stand_posture(ctx: RewardContext) -> np.ndarray:
+    # When no trigger: reward staying at default posture + standing height
+    trigger = ctx.info["commands"][:, 4]
+    standing = (trigger <= 0.5).astype(np.float64)
+    height_err = np.square(ctx.base_height - 0.65)
+    dof_err = np.sum(np.square(ctx.dof_pos[:, :6] - ctx.default_angles[:6]), axis=1)
+    act_mag = np.sum(np.square(ctx.info["current_actions"][:, :6]), axis=1)
+    return -(height_err * 15.0 + dof_err * 3.0 + act_mag * 1.0) * standing
+
+
 def _reward_lean_forward(ctx: RewardContext) -> np.ndarray:
     # 全局惩罚后仰: 时刻保持髋关节前倾
     hip_fwd_L = ctx.dof_pos[:, 1]
@@ -110,9 +120,9 @@ def _reward_lean_forward(ctx: RewardContext) -> np.ndarray:
     p_knee_L = np.clip(-knee_bend_L, 0, 1)
     p_knee_R = np.clip(-knee_bend_R, 0, 1)
     # Penalize hip_roll abduction beyond ±0.2 from default (±0.1)
-    roll_dev_L = np.clip(np.abs(ctx.dof_pos[:, 0] - 0.1) - 0.15, 0, 1)
-    roll_dev_R = np.clip(np.abs(ctx.dof_pos[:, 3] + 0.1) - 0.15, 0, 1)
-    return -(penalty_L + penalty_R + p_knee_L + p_knee_R + roll_dev_L + roll_dev_R) * 0.25
+    roll_dev_L = np.clip(np.abs(ctx.dof_pos[:, 0] - 0.1) - 0.10, 0, 1)
+    roll_dev_R = np.clip(np.abs(ctx.dof_pos[:, 3] + 0.1) - 0.10, 0, 1)
+    return -(penalty_L + penalty_R + p_knee_L + p_knee_R + roll_dev_L + roll_dev_R) * 0.5
 
 
 def _reward_vertical_thrust(ctx: RewardContext, jump_cfg: XqRobotWLJumpRewardConfig) -> np.ndarray:
@@ -120,7 +130,7 @@ def _reward_vertical_thrust(ctx: RewardContext, jump_cfg: XqRobotWLJumpRewardCon
     phase = ctx.info.get("jump_phase", np.zeros(ctx.num_envs, dtype=np.float64))
     wheel_contact = ctx.info.get("wheel_contact", np.ones((ctx.num_envs, 2)))
     on_ground = (np.max(wheel_contact, axis=1) > 0.5).astype(np.float64)
-    active = ((phase >= 1.0) & (vz > 0.0) & (on_ground > 0)).astype(np.float64)
+    active = ((phase >= 25.0) & (vz > 0.0) & (on_ground > 0)).astype(np.float64)
     vz_capped = np.clip(vz, 0, 2.0)
     weight = ctx.info.get("jump_curriculum", 1.0)
     return vz_capped * active * weight
@@ -241,6 +251,7 @@ class XqRobotWLJumpFlatEnv(XqRobotWLWalkFlatEnv):
             "crouch_depth": self._reward_crouch_depth,
             "anti_loiter": self._reward_anti_loiter,
             "lean_forward": self._reward_lean_forward,
+            "lean_forward": self._reward_lean_forward,
         }
 
     def _reward_jump_height(self, ctx: RewardContext) -> np.ndarray:
@@ -266,6 +277,9 @@ class XqRobotWLJumpFlatEnv(XqRobotWLWalkFlatEnv):
 
     def _reward_lean_forward(self, ctx: RewardContext) -> np.ndarray:
         return _reward_lean_forward(ctx)
+
+    def _reward_stand_posture(self, ctx: RewardContext) -> np.ndarray:
+        return _reward_stand_posture(ctx)
 
     def _reward_joint_action_rate(self, ctx: RewardContext) -> np.ndarray:
         current = ctx.info["current_actions"][:, :NUM_LEG_ACTIONS]

@@ -15,6 +15,12 @@ _devlog/<robot>/<task>/<algo>/<date>/<序号>_<slug>.md
 
 ## 时间线 (最新在前)
 
+### 2026-07-17
+
+| 机器人 | 任务 | 算法 | 标题 |
+|--------|------|------|------|
+| xqrobotwl | jump | ppo | [站立姿态 + 先蹲后跳 + 按键优化](xqrobotwl/jump/ppo/2026-07-17/05_stand_still_crouch_first.md) |
+
 ### 2026-07-16
 
 | 机器人 | 任务 | 算法 | 标题 |
