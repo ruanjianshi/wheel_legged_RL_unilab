@@ -89,12 +89,14 @@ def _reward_crouch_depth(ctx: RewardContext, jump_cfg: XqRobotWLJumpRewardConfig
     active = ((phase >= 1.0) & (phase <= 25.0)).astype(np.float64)
     crouching = base_z < jump_cfg.base_height_target
     depth = np.clip((jump_cfg.base_height_target - base_z) / 0.25, 0.0, 1.0)
-    # Same posture check as crouch_prep: no backward lean + bent knees
+    # Same posture check as crouch_prep: no backward lean + bent knees + no hip spread
     hip_fwd_L = ctx.dof_pos[:, 1]
     hip_fwd_R = -ctx.dof_pos[:, 4]
     knee_bend_L = ctx.dof_pos[:, 2]
     knee_bend_R = -ctx.dof_pos[:, 5]
-    posture_ok = (hip_fwd_L > 0.1) & (hip_fwd_R > 0.1) & (knee_bend_L > 0.1) & (knee_bend_R > 0.1)
+    roll_ok = (np.abs(ctx.dof_pos[:, 0] - 0.1) < 0.12) & (np.abs(ctx.dof_pos[:, 3] + 0.1) < 0.12)
+    posture_ok = ((hip_fwd_L > 0.1) & (hip_fwd_R > 0.1) & (knee_bend_L > 0.1) & (knee_bend_R > 0.1)
+                  & roll_ok)
     weight = ctx.info.get("jump_curriculum", 1.0)
     return depth * crouching.astype(np.float64) * posture_ok.astype(np.float64) * active * 0.5 * weight
 
@@ -117,8 +119,8 @@ def _reward_lean_forward(ctx: RewardContext) -> np.ndarray:
     penalty_R = np.clip(-hip_fwd_R, 0, 1)
     knee_bend_L = ctx.dof_pos[:, 2]
     knee_bend_R = -ctx.dof_pos[:, 5]
-    p_knee_L = np.clip(-knee_bend_L, 0, 1)
-    p_knee_R = np.clip(-knee_bend_R, 0, 1)
+    p_knee_L = np.clip(-knee_bend_L, 0, 1) ** 2
+    p_knee_R = np.clip(-knee_bend_R, 0, 1) ** 2
     # Penalize hip_roll abduction beyond ±0.2 from default (±0.1)
     roll_dev_L = np.clip(np.abs(ctx.dof_pos[:, 0] - 0.1) - 0.10, 0, 1)
     roll_dev_R = np.clip(np.abs(ctx.dof_pos[:, 3] + 0.1) - 0.10, 0, 1)
@@ -144,8 +146,10 @@ def _reward_jump_height(ctx: RewardContext, jump_cfg: XqRobotWLJumpRewardConfig)
     clamped = np.clip(base_z / target, 0.0, 1.0)
     wheel_contact = ctx.info.get("wheel_contact", np.ones((ctx.num_envs, 2)))
     air_factor = 1.0 - np.mean(wheel_contact, axis=1)
+    # Don't reward height with locked knees
+    knee_ok = ((np.abs(ctx.dof_pos[:, 2]) < 0.8) & (np.abs(ctx.dof_pos[:, 5]) < 0.8)).astype(np.float64)
     weight = ctx.info.get("jump_curriculum", 1.0)
-    return clamped * active * air_factor * 2.0 * weight
+    return clamped * active * air_factor * knee_ok * 2.0 * weight
 
 
 def _reward_wheel_air_time(ctx: RewardContext) -> np.ndarray:
@@ -153,8 +157,11 @@ def _reward_wheel_air_time(ctx: RewardContext) -> np.ndarray:
     air = 1.0 - np.mean(wheel_contact, axis=1)
     phase = ctx.info.get("jump_phase", np.zeros(ctx.num_envs, dtype=np.float64))
     active = (phase >= 1.0).astype(np.float64)
+    # Penalize wheel spinning in the air
+    wheel_vel = ctx.info["current_actions"][:, -2:]
+    wheel_spin = np.sum(np.abs(wheel_vel), axis=1) * air
     weight = ctx.info.get("jump_curriculum", 1.0)
-    return air * 0.5 * weight * active
+    return (air * 0.5 - wheel_spin * 0.1) * weight * active
 
 
 def _reward_landing_soft(ctx: RewardContext) -> np.ndarray:
@@ -292,9 +299,10 @@ class XqRobotWLJumpFlatEnv(XqRobotWLWalkFlatEnv):
         return np.sum(np.square(current - last), axis=1)
 
     def _reward_leg_mirror(self, ctx: RewardContext) -> np.ndarray:
-        hip_error = ctx.dof_pos[:, 0] + ctx.dof_pos[:, 3]
+        hip_error = np.abs(ctx.dof_pos[:, 0] + ctx.dof_pos[:, 3])
         pitch_error = ctx.dof_pos[:, 1:3] + ctx.dof_pos[:, 4:6]
-        return np.square(hip_error) + np.sum(np.square(pitch_error), axis=1)
+        asym = hip_error + np.sum(np.abs(pitch_error), axis=1)
+        return np.clip(asym - 0.15, 0, 2.0)
 
     def _reward_tsk(self, ctx: RewardContext) -> np.ndarray:
         tsk_cmd = ctx.info["commands"][:, 3]

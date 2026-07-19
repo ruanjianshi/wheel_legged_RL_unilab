@@ -15,6 +15,12 @@ _devlog/<robot>/<task>/<algo>/<date>/<序号>_<slug>.md
 
 ## 时间线 (最新在前)
 
+### 2026-07-18
+
+| 机器人 | 任务 | 算法 | 标题 |
+|--------|------|------|------|
+| xqrobotwl | jump | ppo | [跳跃姿态优化 + 站姿根因](xqrobotwl/jump/ppo/2026-07-18/06_posture_knee_wheel.md) |
+
 ### 2026-07-17
 
 | 机器人 | 任务 | 算法 | 标题 |

@@ -2,6 +2,8 @@
 
 XqRobotWL 跳跃训练 — PPO 算法 + phase-gated 奖励。
 
+| 06 | 跳跃姿态优化 + 站姿根因 | [→](2026-07-18/06_posture_knee_wheel.md) |
+
 ## 2026-07-17
 
 | 序号 | 标题 | 文件 |

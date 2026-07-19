@@ -70,11 +70,11 @@ reward:
     tracking_ang_vel: 1.0
     lin_vel_z: -0.2
     ang_vel_xy: -0.05
-    base_height: -20.0
+    base_height: -60.0
     orientation: -5.0
     joint_action_rate: -0.1
     wheel_action_rate: -0.015
-    leg_mirror: -3.0
+    leg_mirror: -12.0
     tsk: -2.0
     alive: 1.0
     jump_height: 12.0
