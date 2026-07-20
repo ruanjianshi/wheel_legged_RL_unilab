@@ -69,8 +69,9 @@ class XqRobotWLJumpRewardConfig:
     jump_height_target: float = 1.0
     crouch_height_target: float = 0.40
     # Wheeled-SRL
-    feedback_gain: float = 0.5
+    feedback_gain: float = 0.2           # k_b: 反馈增益 (0.5→0.2, feedforward主导)
     wheel_matching_sigma: float = 0.3
+    jump_warmup_steps: int = 3000        # 前 N 轮 × 24 步 ≈ 72000 步只站立，之后引入跳跃
 
 
 @dataclass
@@ -92,54 +93,53 @@ def compute_slip_feedforward(
         mask = fsm_state == s
         if not mask.any():
             continue
-        if s == -1:  # 初始化—站立
+        if s == -1:  # 站立—保持默认姿态
             ff[mask, :NUM_LEG_ACTIONS] = default_angles[:NUM_LEG_ACTIONS]
             ff[mask, NUM_LEG_ACTIONS:] = 0.0
-        elif s == 0:  # 地面接触—下蹲
-            # hip_roll维持默认, hip_pitch前屈, knee深屈
-            ff[mask, 0] = 0.1   # L_hip_roll 外展
-            ff[mask, 1] = 0.05  # L_hip_pitch 微前
-            ff[mask, 2] = -0.8  # L_knee 深屈 (默认+0.15)
-            ff[mask, 3] = -0.1  # R_hip_roll 外展
-            ff[mask, 4] = -0.05 # R_hip_pitch
-            ff[mask, 5] = -0.8  # R_knee
-            ff[mask, 6:8] = 0.0
-        elif s == 1:  # 跳跃加速—爆发伸展
+        elif s == 0:  # 地面接触—浅蹲 (calf 更深弯曲)
+            # xqrobotwl: L_calf+=p→更弯, R_calf-→更弯
             ff[mask, 0] = 0.1
-            ff[mask, 1] = 0.25  # hip_pitch前推
-            ff[mask, 2] = 0.05  # knee伸展
+            ff[mask, 1] = 0.1
+            ff[mask, 2] = 0.2   # L_calf 加深弯曲 (→ 0.15+0.14=0.29)
             ff[mask, 3] = -0.1
-            ff[mask, 4] = -0.25
-            ff[mask, 5] = 0.05
-            expected_fwd = 0.5
-            ff[mask, 6] = expected_fwd / wheel_r * 0.5
-            ff[mask, 7] = expected_fwd / wheel_r * 0.5
-        elif s == 2:  # 飞行—轮速匹配
+            ff[mask, 4] = -0.1
+            ff[mask, 5] = -0.2  # R_calf 加深弯曲 (→ -0.15-0.14=-0.29)
+            ff[mask, 6:8] = 0.0
+        elif s == 1:  # 跳跃加速—伸直推地
+            ff[mask, 0] = 0.1
+            ff[mask, 1] = 0.0
+            ff[mask, 2] = -0.3  # L_calf 伸直推地 (→ 0.15-0.21=-0.06)
+            ff[mask, 3] = -0.1
+            ff[mask, 4] = 0.0
+            ff[mask, 5] = 0.3   # R_calf 伸直推地 (→ -0.15+0.21=0.06)
+            ff[mask, 6:8] = 0.0  # 轮子制动
+        elif s == 2:  # 飞行—收腿+轮速匹配
             progress = np.clip(fsm_timer[mask] / 0.3, 0.0, 1.0)
-            grasp = 0.2 * (1 - progress)  # 收腿
+            grasp = 0.2 * (1 - progress)
             ff[mask, 0] = 0.1
             ff[mask, 1] = 0.15 - grasp
-            ff[mask, 2] = 0.0 - grasp
+            ff[mask, 2] = grasp         # L_calf 收腿 (加深弯曲)
             ff[mask, 3] = -0.1
             ff[mask, 4] = -0.15 + grasp
-            ff[mask, 5] = 0.0 - grasp
+            ff[mask, 5] = -grasp        # R_calf 收腿 (加深弯曲)
             ground_vel = np.abs(base_linvel[mask, 0])
             target_rps = ground_vel / wheel_r
             ff[mask, 6] = target_rps * 0.5
             ff[mask, 7] = target_rps * 0.5
         elif s == 3:  # 着陆—缓冲
             lp = np.clip(fsm_timer[mask] / 0.1, 0.0, 1.0)
-            bend = -0.15 * lp
+            bend = 0.3 * lp              # 着地后微屈缓冲
             ff[mask, 0] = 0.1
-            ff[mask, 1] = 0.15 + bend
-            ff[mask, 2] = bend
+            ff[mask, 1] = 0.15 + bend * 0.5
+            ff[mask, 2] = bend          # L_calf 弯曲缓冲
             ff[mask, 3] = -0.1
-            ff[mask, 4] = -0.15 - bend
-            ff[mask, 5] = bend
+            ff[mask, 4] = -0.15 - bend * 0.5
+            ff[mask, 5] = -bend         # R_calf 弯曲缓冲
             gv = base_linvel[mask, 0]
-            ff[mask, 6] = gv / wheel_r * 0.5
-            ff[mask, 7] = gv / wheel_r * 0.5
-        elif s == 4:  # 恢复
+            sync = gv / wheel_r
+            ff[mask, 6] = sync * 0.5
+            ff[mask, 7] = sync * 0.5
+        elif s == 4:  # 恢复—回到站姿
             r = np.clip(fsm_timer[mask] / 0.2, 0.0, 1.0)
             cur = dof_pos[mask, :NUM_LEG_ACTIONS]
             df = default_angles[:NUM_LEG_ACTIONS]
@@ -149,7 +149,7 @@ def compute_slip_feedforward(
 
 
 def update_fsm(fsm_state, fsm_timer, base_height, base_linvel, dof_pos, jump_trigger, default_height, dt):
-    """更新六状态FSM"""
+    """更新六状态FSM — xqrobotwl 专用阈值"""
     v_z = base_linvel[:, 2]
     ground = base_height < default_height + 0.02
     fsm_timer += dt
@@ -163,21 +163,30 @@ def update_fsm(fsm_state, fsm_timer, base_height, base_linvel, dof_pos, jump_tri
             next_mask[mask] = trigger
             fsm_state[next_mask] = 0; fsm_timer[next_mask] = 0.0
         elif s == 0:
-            deep = (dof_pos[mask, 2] < -0.5) & (dof_pos[mask, 5] < -0.5)
-            to = fsm_timer[mask] > 0.3
+            # 浅蹲快速过渡: 100ms 或 calf 微屈到位
+            deep = (dof_pos[mask, 2] < 0.0) & (dof_pos[mask, 5] > 0.0)
+            to = fsm_timer[mask] > 0.1
             next_mask = np.zeros_like(mask, dtype=bool)
             next_mask[mask] = deep | to
             fsm_state[next_mask] = 1; fsm_timer[next_mask] = 0.0
         elif s == 1:
-            ext = (dof_pos[mask, 2] > -0.1) & (dof_pos[mask, 5] > -0.1)
+            # ★ 防级联跳过: 最少 50ms 才允许转换
+            if not np.any(fsm_timer[mask] > 0.05):
+                continue
+            # 腿伸展到位 或 200ms超时
+            ext = (dof_pos[mask, 2] > 0.05) & (dof_pos[mask, 5] < -0.05)
             to = fsm_timer[mask] > 0.2
             next_mask = np.zeros_like(mask, dtype=bool)
             next_mask[mask] = ext | to
             fsm_state[next_mask] = 2; fsm_timer[next_mask] = 0.0
         elif s == 2:
+            # ★ 防级联跳过: 最少 100ms 飞行时间
+            if not np.any(fsm_timer[mask] > 0.1):
+                continue
+            # 下降+近地 或 800ms超时
             descending = v_z[mask] < 0
-            near = base_height[mask] < default_height + 0.15
-            to = fsm_timer[mask] > 0.5
+            near = base_height[mask] < default_height + 0.2
+            to = fsm_timer[mask] > 0.8
             next_mask = np.zeros_like(mask, dtype=bool)
             next_mask[mask] = descending & (near | to)
             fsm_state[next_mask] = 3; fsm_timer[next_mask] = 0.0
@@ -271,6 +280,7 @@ class XqRobotWLJumpFlatEnv(XqRobotWLWalkFlatEnv):
     def __init__(self, cfg, num_envs=1, backend_type="mujoco"):
         self._jump_cfg = cfg.reward_config
         super().__init__(cfg, num_envs=num_envs, backend_type=backend_type)
+        self._init_reward_functions()  # ★ 覆盖父类的 flat walk 奖励
         self._dr_manager._provider = XqRobotWLJumpDRProvider()
         # FSM
         self._fsm_state = -np.ones(num_envs, dtype=np.int32)
@@ -278,7 +288,11 @@ class XqRobotWLJumpFlatEnv(XqRobotWLWalkFlatEnv):
         self._jump_phase = np.zeros(num_envs, dtype=np.float64)
         self._peak_height = np.zeros(num_envs, dtype=np.float64)
         self._feedback_gain = np.full(num_envs, cfg.reward_config.feedback_gain, dtype=np.float64)
-        # 观测: 33 + fsm(1) + phase(1) = 35 / 38
+        # 分阶段训练: 前 warmup 轮只站立，不触发跳跃
+        # step_counter 每次 step() +1，每个 iter 调用 24 次
+        # 渐进式预热: 单 env(play) 跳过, 多 env(train) 执行
+        warmup_iters = cfg.reward_config.jump_warmup_steps
+        self._warmup_cutoff = 0 if num_envs == 1 else warmup_iters * 24
         self._obs_frame_dim = 35
         self._critic_frame_dim = 38
         self._obs_history = np.zeros((num_envs, self._hist_len, self._obs_frame_dim), dtype=self._np_dtype)
@@ -308,6 +322,7 @@ class XqRobotWLJumpFlatEnv(XqRobotWLWalkFlatEnv):
             "wheel_ground_matching": self._reward_wheel_ground_matching,  # ★ 替代 wheel_air_time
             "vertical_thrust": self._reward_vertical_thrust,
             "crouch_depth": self._reward_crouch_depth,
+            "action_magnitude": self._reward_action_magnitude,          # ★ 惩罚大动作
         }
 
     # 奖励委托
@@ -317,6 +332,10 @@ class XqRobotWLJumpFlatEnv(XqRobotWLWalkFlatEnv):
     def _reward_vertical_thrust(self, ctx): return _reward_vertical_thrust(ctx, self._jump_cfg)
     def _reward_crouch_depth(self, ctx): return _reward_crouch_depth(ctx, self._jump_cfg)
     def _reward_wheel_ground_matching(self, ctx): return _reward_wheel_ground_matching(ctx)
+
+    def _reward_action_magnitude(self, ctx):
+        """★ 惩罚策略输出大动作 — 促使策略收敛到零，让前馈主导"""
+        return np.sum(np.square(ctx.info["current_actions"]), axis=1)
 
     def _reward_joint_action_rate(self, ctx):
         cur = ctx.info["current_actions"][:, :NUM_LEG_ACTIONS]
@@ -352,6 +371,16 @@ class XqRobotWLJumpFlatEnv(XqRobotWLWalkFlatEnv):
 
     def update_state(self, state):
         self._update_commands(state.info)
+        # 渐进式跳跃预热: 0 → 1 线性斜坡，避免突变导致发散
+        warmup_end = self._warmup_cutoff
+        ramp_len = warmup_end * 2  # 3000→6000 iter 的斜坡区间
+        if self.step_counter < warmup_end:
+            state.info["commands"][:, 4] = 0.0  # 纯站立
+        elif self.step_counter < ramp_len:
+            # 线性斜坡: 0 → 1
+            alpha = (self.step_counter - warmup_end) / (ramp_len - warmup_end)
+            state.info["commands"][:, 4] *= alpha  # 逐渐放开 jump_trigger
+        # 超过 ramp_len 后完全放开
         linvel = self.get_local_linvel()
         gyro = self.get_gyro()
         gravity = self._backend.get_sensor_data(self._cfg.sensor.upvector)
@@ -396,8 +425,9 @@ class XqRobotWLJumpFlatEnv(XqRobotWLWalkFlatEnv):
         tilt = np.arccos(np.clip(gravity[:, 2], -1, 1))
         terminated = tilt > np.deg2rad(self._jump_cfg.max_tilt_deg)
         terminated |= np.asarray(self._backend.get_base_pos(), dtype=get_global_dtype())[:, 2] < self._jump_cfg.min_base_height
-        terminated |= (dof_pos[:, 1] < 0.02) | (dof_pos[:, 4] > -0.02)
-        terminated |= (np.abs(dof_pos[:, 2]) > 1.2) | (np.abs(dof_pos[:, 5]) > 1.2)
+        # xqrobotwl: 放宽关节限制 (默认角度与V2不同)
+        terminated |= (dof_pos[:, 1] < -0.3) | (dof_pos[:, 4] > 0.3)
+        terminated |= (np.abs(dof_pos[:, 2]) > 1.5) | (np.abs(dof_pos[:, 5]) > 1.5)
         # 轮滑移终止
         linvel = self.get_local_linvel()
         wv = self.get_dof_vel()[:, NUM_LEG_ACTIONS:]

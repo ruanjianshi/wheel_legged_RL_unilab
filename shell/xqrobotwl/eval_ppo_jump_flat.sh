@@ -37,7 +37,7 @@ for arg in "$@"; do
     esac
 done
 
-CMD="uv run scripts/play/play_interactive.py"
+CMD="uv run mjpython scripts/play/play_interactive.py"
 CMD="$CMD --algo ppo --task xqrobotwl_jump_flat --sim mujoco"
 CMD="$CMD interactive.action_mode=${ACTION_MODE}"
 if [ -n "$KEYBOARD" ]; then
