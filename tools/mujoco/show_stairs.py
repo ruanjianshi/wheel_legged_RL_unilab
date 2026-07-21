@@ -30,7 +30,9 @@ print(f"Terrain: {hf.shape[1]}x{hf.shape[0]}, z=[{hf.min():.3f}, {hf.max():.3f}]
 print(f"Cells: {result.terrain_origins.shape[0]}x{result.terrain_origins.shape[1]}")
 print(f"Sub-terrains: {list(cfg.sub_terrains.keys())}")
 for name, st in cfg.sub_terrains.items():
-    print(f"  {name}: step_height={st.step_height_range}, step_width={st.step_width}m, prop={st.proportion}")
+    print(
+        f"  {name}: step_height={st.step_height_range}, step_width={st.step_width}m, prop={st.proportion}"
+    )
 hsize = result.hfield_size
 
 tmpdir = tempfile.mkdtemp(prefix="xq_stairs_")

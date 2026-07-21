@@ -18,8 +18,12 @@ from unilab.dtype_config import get_global_dtype
 from unilab.envs.locomotion.common import rewards
 from unilab.envs.locomotion.common.commands import Commands
 from unilab.envs.locomotion.common.rewards import RewardContext
+from unilab.envs.locomotion.xqrobotwl.base import (
+    DEFAULT_LEG_ANGLES,
+    NUM_LEG_ACTIONS,
+    NUM_WHEEL_ACTIONS,
+)
 
-from unilab.envs.locomotion.xqrobotwl.base import DEFAULT_LEG_ANGLES, NUM_LEG_ACTIONS, NUM_WHEEL_ACTIONS
 from .joystick import (
     XqRobotWLCurriculumConfig,
     XqRobotWLDRProvider,

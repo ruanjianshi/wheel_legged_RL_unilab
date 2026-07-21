@@ -317,8 +317,10 @@ def main(cfg: DictConfig) -> None:
     if not cfg.training.play_only:
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         log_root = _get_log_root(cfg)
+        run_suffix = getattr(cfg.training, "run_suffix", "")
+        suffix = f"_{run_suffix}" if run_suffix else ""
         log_dir = str(
-            Path(log_root) / cfg.training.task_name / f"{timestamp}_{cfg.training.sim_backend}"
+            Path(log_root) / cfg.training.task_name / f"{timestamp}_{cfg.training.sim_backend}{suffix}"
         )
     else:
         log_dir = None

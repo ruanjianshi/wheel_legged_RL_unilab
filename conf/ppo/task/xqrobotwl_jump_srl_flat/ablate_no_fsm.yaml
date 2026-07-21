@@ -1,0 +1,15 @@
+# @package _global_
+# 消融实验: no_fsm — 移除FSM前馈, action=纯PPO输出 (feedback_gain=1.0)
+# 继承自 xqrobotwl_jump_srl_flat/mujoco.yaml 的所有默认值
+
+training:
+  task_name: XqRobotWLJumpSRLFlat
+  run_suffix: no_fsm
+
+env:
+  ablation_mode: no_fsm
+
+reward:
+  feedback_gain: 1.0
+  scales:
+    wheel_ground_matching: 20.0

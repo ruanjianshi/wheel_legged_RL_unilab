@@ -893,7 +893,10 @@ def _build_keyboard_commander(env: Any, args) -> KeyboardCommander | None:
         commander.height_max = float(limit[1, 4])
     env.state.info["commands"][:, :3] = commander.command
     if env.state.info["commands"].shape[1] >= 5:
-        if not (str(getattr(args, "task", "")).startswith("xqrobotV2_jump") or str(getattr(args, "task", "")).startswith("xqrobotwl_jump")):
+        if not (
+            str(getattr(args, "task", "")).startswith("xqrobotV2_jump")
+            or str(getattr(args, "task", "")).startswith("xqrobotwl_jump")
+        ):
             env.state.info["commands"][:, 4] = commander.height_target
     return commander
 
@@ -1282,7 +1285,10 @@ def play_interactive(args, cfg: DictConfig | None = None, *, algo: str | None = 
                     env.state.info["commands"][:, :] = 0.0
                     env.state.info["commands"][:, :3] = commander.command
                     nc = env.state.info["commands"].shape[1]
-                    if nc >= 5 and not (str(args.task).startswith("xqrobotV2_jump") or str(args.task).startswith("xqrobotwl_jump")):
+                    if nc >= 5 and not (
+                        str(args.task).startswith("xqrobotV2_jump")
+                        or str(args.task).startswith("xqrobotwl_jump")
+                    ):
                         env.state.info["commands"][:, 4] = commander.height_target
                     if commander.jump_trigger:
                         if nc >= 5:

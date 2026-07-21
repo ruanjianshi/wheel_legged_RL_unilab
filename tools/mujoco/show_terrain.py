@@ -44,7 +44,7 @@ for name, st in cfg.sub_terrains.items():
             detail = f" slope={st.slope_range}"
         elif hasattr(st, "amplitude_range"):
             detail = f" amp={st.amplitude_range}"
-        print(f"  {name} ({st.proportion*100:.0f}%):{detail}")
+        print(f"  {name} ({st.proportion * 100:.0f}%):{detail}")
 
 tmpdir = tempfile.mkdtemp(prefix="xq_terrain_")
 png_path = os.path.join(tmpdir, "hfield.png")

@@ -232,11 +232,11 @@ register_env_builder("rough_walk", build_env_rough)
 
 
 def build_env_stairs():
+    from unilab.envs.locomotion.common.commands import Commands
     from unilab.envs.locomotion.xqrobotV2.stairs import (
         XqRobotV2StairsCfg,
         XqRobotV2StairsEnv,
     )
-    from unilab.envs.locomotion.common.commands import Commands
 
     cfg = XqRobotV2StairsCfg()
     cfg.control_config.action_scale = 0.35
@@ -286,12 +286,12 @@ register_env_builder("stairs", build_env_stairs)
 
 
 def build_env_jump():
+    from unilab.envs.locomotion.common.commands import Commands
     from unilab.envs.locomotion.xqrobotV2.jump import (
+        XqRobotJumpRewardConfig,
         XqRobotV2JumpFlatCfg,
         XqRobotV2JumpFlatEnv,
-        XqRobotJumpRewardConfig,
     )
-    from unilab.envs.locomotion.common.commands import Commands
 
     cfg = XqRobotV2JumpFlatCfg()
     cfg.control_config.action_scale = 0.5

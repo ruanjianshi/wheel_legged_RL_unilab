@@ -27,6 +27,7 @@ from unilab.envs.locomotion.common.terrain_spawn import (
     TerrainCurriculumCfg,
     TerrainSpawnManager,
 )
+from unilab.envs.locomotion.xqrobotwl.base import NUM_ACTIONS, NUM_LEG_ACTIONS
 from unilab.terrains import (
     SubTerrainCfg,
     TerrainGeneratorCfg,
@@ -37,7 +38,6 @@ from unilab.terrains import (
     wave_terrain,
 )
 
-from unilab.envs.locomotion.xqrobotwl.base import NUM_ACTIONS, NUM_LEG_ACTIONS
 from .joystick import (
     XqRobotWLDRProvider,
     XqRobotWLWalkFlatCfg,

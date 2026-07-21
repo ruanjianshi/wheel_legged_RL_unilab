@@ -77,10 +77,18 @@ def _reward_crouch_prep(ctx: RewardContext, jump_cfg: XqRobotWLJumpRewardConfig)
     knee_bend_L = ctx.dof_pos[:, 2]  # -Y axis: positive=bent
     knee_bend_R = -ctx.dof_pos[:, 5]  # +Y axis: negative=bent, so -value=bent
     roll_ok = (np.abs(ctx.dof_pos[:, 0] - 0.1) < 0.12) & (np.abs(ctx.dof_pos[:, 3] + 0.1) < 0.12)
-    posture_ok = ((hip_fwd_L > 0.1) & (hip_fwd_R > 0.1) & (knee_bend_L > 0.1) & (knee_bend_R > 0.1)
-                  & roll_ok)
+    posture_ok = (
+        (hip_fwd_L > 0.1) & (hip_fwd_R > 0.1) & (knee_bend_L > 0.1) & (knee_bend_R > 0.1) & roll_ok
+    )
     weight = ctx.info.get("jump_curriculum", 1.0)
-    return height_ok.astype(np.float64) * crouching.astype(np.float64) * posture_ok.astype(np.float64) * active * 0.5 * weight
+    return (
+        height_ok.astype(np.float64)
+        * crouching.astype(np.float64)
+        * posture_ok.astype(np.float64)
+        * active
+        * 0.5
+        * weight
+    )
 
 
 def _reward_crouch_depth(ctx: RewardContext, jump_cfg: XqRobotWLJumpRewardConfig) -> np.ndarray:
@@ -95,10 +103,13 @@ def _reward_crouch_depth(ctx: RewardContext, jump_cfg: XqRobotWLJumpRewardConfig
     knee_bend_L = ctx.dof_pos[:, 2]
     knee_bend_R = -ctx.dof_pos[:, 5]
     roll_ok = (np.abs(ctx.dof_pos[:, 0] - 0.1) < 0.12) & (np.abs(ctx.dof_pos[:, 3] + 0.1) < 0.12)
-    posture_ok = ((hip_fwd_L > 0.1) & (hip_fwd_R > 0.1) & (knee_bend_L > 0.1) & (knee_bend_R > 0.1)
-                  & roll_ok)
+    posture_ok = (
+        (hip_fwd_L > 0.1) & (hip_fwd_R > 0.1) & (knee_bend_L > 0.1) & (knee_bend_R > 0.1) & roll_ok
+    )
     weight = ctx.info.get("jump_curriculum", 1.0)
-    return depth * crouching.astype(np.float64) * posture_ok.astype(np.float64) * active * 0.5 * weight
+    return (
+        depth * crouching.astype(np.float64) * posture_ok.astype(np.float64) * active * 0.5 * weight
+    )
 
 
 def _reward_stand_posture(ctx: RewardContext) -> np.ndarray:
@@ -147,7 +158,9 @@ def _reward_jump_height(ctx: RewardContext, jump_cfg: XqRobotWLJumpRewardConfig)
     wheel_contact = ctx.info.get("wheel_contact", np.ones((ctx.num_envs, 2)))
     air_factor = 1.0 - np.mean(wheel_contact, axis=1)
     # Don't reward height with locked knees
-    knee_ok = ((np.abs(ctx.dof_pos[:, 2]) < 0.8) & (np.abs(ctx.dof_pos[:, 5]) < 0.8)).astype(np.float64)
+    knee_ok = ((np.abs(ctx.dof_pos[:, 2]) < 0.8) & (np.abs(ctx.dof_pos[:, 5]) < 0.8)).astype(
+        np.float64
+    )
     weight = ctx.info.get("jump_curriculum", 1.0)
     return clamped * active * air_factor * knee_ok * 2.0 * weight
 
@@ -315,7 +328,8 @@ class XqRobotWLJumpFlatEnv(XqRobotWLWalkFlatEnv):
         self._total_env_steps += self._num_envs
         progress = np.clip(
             (self._total_env_steps - self._jump_curriculum_start) / self._jump_curriculum_step,
-            0.0, 1.0,
+            0.0,
+            1.0,
         )
         state.info["commands"][:, 4] *= np.float64(progress)
         state.info["jump_curriculum"] = np.float64(progress)

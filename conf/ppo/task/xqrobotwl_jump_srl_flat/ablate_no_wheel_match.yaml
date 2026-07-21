@@ -1,0 +1,14 @@
+# @package _global_
+# 消融实验: no_wheel_match — 移除轮地速度匹配奖励
+# 继承自 xqrobotwl_jump_srl_flat/mujoco.yaml 的所有默认值
+
+training:
+  task_name: XqRobotWLJumpSRLFlat
+  run_suffix: no_wheel_match
+
+env:
+  ablation_mode: no_wheel_match
+
+reward:
+  scales:
+    wheel_ground_matching: 0.0
