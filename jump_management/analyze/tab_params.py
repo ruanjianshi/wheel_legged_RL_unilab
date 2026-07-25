@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """机器人参数表 — LaTeX 格式."""
+
 from __future__ import annotations
 
 

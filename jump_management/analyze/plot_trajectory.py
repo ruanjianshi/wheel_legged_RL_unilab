@@ -5,6 +5,7 @@
 三子图: fix_01m / fix_02m / fix_03m
 每子图: PPO-only vs Wheeled-SRL 各一条
 """
+
 from __future__ import annotations
 
 import json
@@ -45,8 +46,7 @@ def plot_trajectory(
                     heights.append(j["max_height"])
 
             if distances:
-                ax.scatter(distances, heights, label=label,
-                          color=colors[label], alpha=0.6, s=30)
+                ax.scatter(distances, heights, label=label, color=colors[label], alpha=0.6, s=30)
 
         ax.set_xlabel("Jump Distance (m)")
         ax.set_ylabel("Max Height (m)")
@@ -63,6 +63,7 @@ def plot_trajectory(
 
 if __name__ == "__main__":
     import sys
+
     ppo_dir = sys.argv[1] if len(sys.argv) > 1 else "results/ppo_only"
     srl_dir = sys.argv[2] if len(sys.argv) > 2 else "results/srl_full"
     plot_trajectory(ppo_dir, srl_dir)

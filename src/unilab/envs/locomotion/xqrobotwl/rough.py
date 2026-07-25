@@ -50,7 +50,7 @@ _HISTORY_LEN = 9
 @dataclass
 class XqRobotWLRoughCommands(Commands):
     vel_limit: list[list[float]] = field(
-        default_factory=lambda: [[-1.0, -0.5, -1.5, -0.1, 0.40], [1.0, 0.5, 1.5, 0.1, 0.90]]
+        default_factory=lambda: [[-1.0, -0.5, -1.5, -0.1], [1.0, 0.5, 1.5, 0.1]]
     )
     resampling_time: float = 10.0
 
@@ -71,28 +71,28 @@ class XqRobotWLRoughTerrainCfg(TerrainGeneratorCfg):
 
     sub_terrains: dict[str, SubTerrainCfg] = field(
         default_factory=lambda: {
-            "flat": flat(proportion=0.2),
+            "flat": flat(proportion=0.05),
             "random_rough": random_rough(
-                proportion=0.35,
-                noise_range=(0.005, 0.04),
-                noise_step=0.01,
+                proportion=0.30,
+                noise_range=(0.02, 0.08),
+                noise_step=0.02,
                 border_width=0.2,
             ),
             "wave_terrain": wave_terrain(
-                proportion=0.35,
-                amplitude_range=(0.0, 0.12),
+                proportion=0.25,
+                amplitude_range=(0.03, 0.18),
                 num_waves=4,
                 border_width=0.2,
             ),
             "hf_pyramid_slope": hf_pyramid_slope(
-                proportion=0.05,
-                slope_range=(0.1, 0.35),
+                proportion=0.20,
+                slope_range=(0.15, 0.50),
                 platform_width=2.0,
                 border_width=0.2,
             ),
             "hf_pyramid_slope_inv": hf_pyramid_slope_inv(
-                proportion=0.05,
-                slope_range=(0.1, 0.35),
+                proportion=0.20,
+                slope_range=(0.15, 0.50),
                 platform_width=2.0,
                 border_width=0.2,
             ),
@@ -153,6 +153,15 @@ class XqRobotWLWalkRoughEnv(XqRobotWLWalkFlatEnv):
 
     def __init__(self, cfg: XqRobotWLWalkRoughCfg, num_envs=1, backend_type="mujoco"):
         super().__init__(cfg, num_envs=num_envs, backend_type=backend_type)
+        # 4D commands [vx,vy,vyaw,tsk] → obs 比 flat(5D) 少 1 维
+        self._obs_frame_dim = 32
+        self._critic_frame_dim = 35
+        self._obs_history = np.zeros(
+            (num_envs, self._hist_len, self._obs_frame_dim), dtype=self._np_dtype
+        )
+        self._critic_history = np.zeros(
+            (num_envs, self._hist_len, self._critic_frame_dim), dtype=self._np_dtype
+        )
         terrain_origins = getattr(self._backend, "terrain_origins", None)
         terrain_generator = cfg.scene.terrain.generator if cfg.scene.terrain is not None else None
         if terrain_origins is not None and terrain_generator is not None:

@@ -320,7 +320,9 @@ def main(cfg: DictConfig) -> None:
         run_suffix = getattr(cfg.training, "run_suffix", "")
         suffix = f"_{run_suffix}" if run_suffix else ""
         log_dir = str(
-            Path(log_root) / cfg.training.task_name / f"{timestamp}_{cfg.training.sim_backend}{suffix}"
+            Path(log_root)
+            / cfg.training.task_name
+            / f"{timestamp}_{cfg.training.sim_backend}{suffix}"
         )
     else:
         log_dir = None

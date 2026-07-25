@@ -37,10 +37,12 @@ backup/
 
 ## 版本列表
 
-| 任务 | 版本 | 算法 | 奖励 | 日期 | 说明 |
-|------|------|------|------|------|------|
-| XqRobotV2WalkFlat | [flat_walk_ppo_v1](XqRobotV2WalkFlat/flat_walk_ppo_v1/README.md) | PPO | 54.1 | 2026-06-26 | 位置控制，50Hz |
-| XqRobotV2WalkFlat | [flat_walk_ppo_v2](XqRobotV2WalkFlat/flat_walk_ppo_v2/README.md) | PPO | 训练中 | 2026-06-27 | **速度控制，100Hz，轮子对称** |
+| 任务 | 版本 | 算法 | 日期 | 说明 |
+|------|------|------|------|------|
+| XqRobotV2WalkFlat | [flat_walk_ppo_v1](XqRobotV2WalkFlat/flat_walk_ppo_v1/README.md) | PPO | 2026-06-26 | 位置控制，50Hz |
+| XqRobotV2WalkFlat | [flat_walk_ppo_v2](XqRobotV2WalkFlat/flat_walk_ppo_v2/README.md) | PPO | 2026-06-27 | **速度控制，100Hz，轮子对称** |
+| XqRobotWLJumpSRLFlat | [jump_srl_ppo_v1](XqRobotWLJumpSRLFlat/jump_srl_ppo_v1/README.md) | PPO+SLIP | 2026-07-25 | SLIP FSM观测, jump_height=1.45, lean=-0.25 |
+| XqRobotWLToeWalkFlat | [toe_walk_ppo_v1](XqRobotWLToeWalkFlat/toe_walk_ppo_v1/README.md) | PPO | 2026-07-25 | 相位门控, swing_lift=14.34, std=0.15 |
 
 ## 使用指南
 

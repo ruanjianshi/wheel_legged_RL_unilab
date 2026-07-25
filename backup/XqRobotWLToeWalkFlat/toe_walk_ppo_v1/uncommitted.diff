@@ -1,0 +1,2613 @@
+diff --git a/_devlog/xqrobotwl/2026-07-12/01_create_robot.md b/_devlog/xqrobotwl/2026-07-12/01_create_robot.md
+deleted file mode 100644
+index e9de187..0000000
+--- a/_devlog/xqrobotwl/2026-07-12/01_create_robot.md
++++ /dev/null
+@@ -1,91 +0,0 @@
+-# 01 基于 xqrobotV2 创建 xqrobotwl 机器人
+-
+-**日期**: 2026-07-12
+-**来源**: 用户需求 — xqrobotwl 是 xqrobotV2 的简化碰撞体+优化质量版本
+-**关联**: `/home/robot/xiaoq/Myrobot/xqrobotwl/`
+-
+----
+-
+-## 问题描述
+-
+-xqrobotwl 是 xqrobotV2 的变体：简化碰撞几何（box/cylinder 替代 mesh）、调整质量/惯量、优化关节结构。需要为它创建完整的训练环境，与 xqrobotV2 保持功能对等。
+-
+-## 解决方案
+-
+-### 1. 资产层
+-
+-| 文件 | 说明 |
+-|------|------|
+-| `assets/robots/xqrobotwl/xqrobotwl.xml` | MuJoCo XML（简化碰撞体） |
+-| `assets/robots/xqrobotwl/scene_flat.xml` | 平地场景 + keyframe (z=0.65) |
+-| `assets/robots/xqrobotwl/locomotion_task.xml` | 步态 keyframe |
+-| `assets/robots/xqrobotwl/meshes/` | 9 个 STL 网格 |
+-
+-### 2. 环境层
+-
+-从 xqrobotV2 完整复制并适配：
+-
+-```
+-envs/locomotion/xqrobotwl/
+-├── base.py         # 关节/传感器常量
+-├── joystick.py     # 平地行走 (含 sign_flip)
+-├── rough.py        # 粗糙地形
+-├── stairs.py       # 楼梯专项 (NP3O)
+-├── jump.py         # 跳跃
+-├── toe_walk.py     # 脚趾行走
+-└── __init__.py
+-```
+-
+-### 3. 与 xqrobotV2 的关键差异
+-
+-| 维度 | xqrobotV2 | xqrobotwl | 处理方式 |
+-|------|------|------|------|
+-| 关节名 | `left_joint_1/2/3` | `joint_left_hip_roll/pitch/knee` | base.py 常量 |
+-| 右腿关节轴 | 全 +Y | 右 hip_pitch/knee/ wheel 为 -Y | `apply_action` sign_flip `[1,1,-1,1,-1,1,1,-1]` |
+-| 碰撞体 | mesh | box/cylinder | XML 直接定义 |
+-| 轮碰撞 | mesh 自动对齐 | cylinder 需 euler 旋转 | `euler="1.5708 0 0"` |
+-| 质量 | ~6.7kg | ~10.5kg | XML 惯性参数 |
+-| 默认角度 | `[-0.1,0.1,-0.1, 0.1,0.1,-0.1]` | `[0.1,0.15,0.15, -0.1,0.15,0.15]` | + sign flip 保持对称 |
+-
+-### 4. 注册
+-
+-`locomotion/__init__.py` 添加 `"unilab.envs.locomotion.xqrobotwl"`。
+-
+-### 5. 配置和脚本
+-
+-```
+-conf/ppo/task/xqrobotwl_{walk_flat,w walk_rough,jump_flat}/mujoco.yaml
+-conf/np3o/task/xqrobotwl_stairs/mujoco.yaml
+-shell/xqrobotwl/train_ppo_{flat,rough,jump_flat}.sh
+-shell/xqrobotwl/train_np3o_stairs.sh
+-shell/xqrobotwl/eval_*.sh
+-```
+-
+----
+-
+-## 修改文件
+-
+-| 文件 | 改动 |
+-|------|------|
+-| `src/unilab/assets/robots/xqrobotwl/` | 新建完整资产目录 |
+-| `src/unilab/envs/locomotion/xqrobotwl/` | 新建 7 个 py 文件 |
+-| `src/unilab/envs/locomotion/__init__.py` | 添加 xqrobotwl |
+-| `conf/ppo/task/xqrobotwl_*/` | 新建 3 个 YAML |
+-| `conf/np3o/task/xqrobotwl_stairs/` | 新建 1 个 YAML |
+-| `shell/xqrobotwl/` | 新建 8 个脚本 |
+-| `shell/xqrobotV2/` | 原脚本移入子目录 |
+-
+----
+-
+-## 验证
+-
+-```bash
+-bash shell/xqrobotwl/train_ppo_flat.sh
+-bash shell/xqrobotwl/train_ppo_rough.sh
+-bash shell/xqrobotwl/train_np3o_stairs.sh
+-bash shell/xqrobotwl/train_ppo_jump_flat.sh
+-```
+-
+----
+-
+-*记录人: AI (opencode)*
+diff --git a/_devlog/xqrobotwl/2026-07-13/01_fix_keyframe_and_termination.md b/_devlog/xqrobotwl/2026-07-13/01_fix_keyframe_and_termination.md
+deleted file mode 100644
+index 6d39f45..0000000
+--- a/_devlog/xqrobotwl/2026-07-13/01_fix_keyframe_and_termination.md
++++ /dev/null
+@@ -1,82 +0,0 @@
+-# 01 修复 keyframe 默认角度 + 终止条件
+-
+-**日期**: 2026-07-13
+-**来源**: 重训后姿态仍异常，排查发现 keyframe 未同步 + 终止条件误杀
+-**关联**: [01_create_robot](../2026-07-12/01_create_robot.md)
+-
+----
+-
+-## 问题描述
+-
+-1. **姿态"一前一后"**：修正 `base.py` DEFAULT_LEG_ANGLES 后重训，reset 时右腿仍然向后踢
+-2. **episode_length=1**：修正 keyframe 后立即触发终止，每帧跌倒
+-
+-## 根因分析
+-
+-### Bug 1：keyframe 与 DEFAULT_ANGLE 不同步
+-
+-`_devlog/xqrobotwl/ppo/2026-07-12/01_create_robot.md` 里改了 `base.py` 的 `DEFAULT_LEG_ANGLES`，但 ignorred 了 keyframe XML。reset 时 `_init_qpos` 来自 keyframe，所以 Python 常量的修改从未生效。
+-
+-| 层 | 原值 | 修改后 |
+-|------|------|--------|
+-| `base.py` DEFAULT_LEG_ANGLES | `[0.1,0.15,0.15,-0.1,-0.15,-0.15]` | 已改 ✅ |
+-| `locomotion_task.xml` keyframe | `0.1,0.2,-0.2, -0.1,0.2,-0.2` | **未改** ❌ |
+-| `scene_flat.xml` keyframe | `0.1,0.2,-0.2, -0.1,0.2,-0.2` | **未改** ❌ |
+-
+-旧 keyframe 中 `R_hip_pitch=+0.2` 在 axis `0 -1 0` 上 = 向后踢腿。
+-
+-### Bug 2：终止条件未适配翻转轴
+-
+-`_compute_terminated` 沿用 xqrobotV2 的阈值：
+-
+-```python
+-thigh_collapsed = (dof_pos[:, 1] < 0.02) | (dof_pos[:, 4] < 0.02)
+-```
+-
+-xqrobotV2 里所有 hip_pitch 轴均为 `+Y`，用 `< 0.02` 检测"腿过直坍塌"。
+-xqrobotwl 里 R_hip_pitch 轴为 `-Y`，默认值 `-0.15`，**永远 `< 0.02`** → 每秒终止。
+-
+-在 `-Y` 轴上"向 0 靠近"意味着从负侧升上来 → 应检测 `> -0.02`。
+-
+-## 解决方案
+-
+-### 1. 同步 keyframe XML
+-
+-`locomotion_task.xml` 和 `scene_flat.xml` 的 qpos 改为：
+-
+-```
+-0.1 0.15 0.15 0
+--0.1 -0.15 -0.15 0
+-```
+-
+-与 `base.py` 的 `DEFAULT_LEG_ANGLES` 一致。
+-
+-### 2. 修正右 hip_pitch 终止阈值
+-
+-4 个文件的 `_compute_terminated` 中 `dof_pos[:, 4]` 检测翻转为 `> -0.02`。
+-
+-## 修改文件
+-
+-| 文件 | 修改内容 |
+-|------|---------|
+-| `src/unilab/assets/robots/xqrobotwl/locomotion_task.xml` | keyframe qpos: `0.2,-0.2` → `0.15,0.15`（左右对称符号） |
+-| `src/unilab/assets/robots/xqrobotwl/scene_flat.xml` | 同上 |
+-| `src/unilab/envs/locomotion/xqrobotwl/joystick.py:404` | `dof_pos[:,4] < 0.02` → `dof_pos[:,4] > -0.02` |
+-| `src/unilab/envs/locomotion/xqrobotwl/rough.py:262` | 同上 |
+-| `src/unilab/envs/locomotion/xqrobotwl/jump.py:223` | 同上 |
+-| `src/unilab/envs/locomotion/xqrobotwl/toe_walk.py:351` | 同上 |
+-
+-## 验证方法
+-
+-- 重训 flat/rough/stairs/jump 四任务
+-- 观察 episode_length 应正常增长（≥ 24 steps）
+-- base_height 应稳定在 0.65±0.05
+-
+-## 后续计划
+-
+-- [ ] 四任务重训
+-- [ ] 训练收敛后全量评估
+-
+----
+-
+-*记录人: AI (opencode)*
+diff --git a/_devlog/xqrobotwl/jump/ppo/INDEX.md b/_devlog/xqrobotwl/jump/ppo/INDEX.md
+index 233b07f..dd9f566 100644
+--- a/_devlog/xqrobotwl/jump/ppo/INDEX.md
++++ b/_devlog/xqrobotwl/jump/ppo/INDEX.md
+@@ -1,6 +1,18 @@
+ # xqrobotwl/jump/ppo 开发索引
+ 
+-XqRobotWL 跳跃训练 — PPO 算法 + phase-gated 奖励。
++XqRobotWL 跳跃训练 — PPO 算法 + phase-gated 奖励 / Wheeled-SRL。
++
++## 2026-07-22
++
++| 序号 | 标题 | 文件 |
++|------|------|------|
++| 08 | Wheeled-SRL 框架构建 & 训练诊断修复 | [→](2026-07-22/08_wheeled_srl_framework_diag.md) |
++| 09 | FSM 参数修复 + 预热逻辑 + 自适应增益 | [→](2026-07-22/09_fsm_warmup_adaptive_gain.md) |
++| 10 | 站姿参数修复 + 高度目标修正 | [→](2026-07-22/10_stand_height_platform_fix.md) |
++| 11 | SRL 跳跃训练成功收敛 | [→](2026-07-22/11_srl_convergence.md) |
++| 15 | jump gain 修复 (0.05→0.2) | [→](2026-07-22/15_jump_gain_fix.md) |
++
++## 2026-07-18
+ 
+ | 06 | 跳跃姿态优化 + 站姿根因 | [→](2026-07-18/06_posture_knee_wheel.md) |
+ 
+diff --git a/conf/np3o/task/xqrobotwl_stairs/mujoco.yaml b/conf/np3o/task/xqrobotwl_stairs/mujoco.yaml
+index 49741b3..932cd98 100644
+--- a/conf/np3o/task/xqrobotwl_stairs/mujoco.yaml
++++ b/conf/np3o/task/xqrobotwl_stairs/mujoco.yaml
+@@ -84,6 +84,6 @@ reward:
+     collision: -1.0
+     alive: 0.0
+   tracking_sigma: 0.15
+-  base_height_target: 0.65
++  base_height_target: 0.55
+   max_tilt_deg: 60.0
+   min_base_height: 0.20
+diff --git a/conf/ppo/task/xqrobotwl_jump_flat/mujoco.yaml b/conf/ppo/task/xqrobotwl_jump_flat/mujoco.yaml
+index 80e4315..7cbdf62 100644
+--- a/conf/ppo/task/xqrobotwl_jump_flat/mujoco.yaml
++++ b/conf/ppo/task/xqrobotwl_jump_flat/mujoco.yaml
+@@ -86,7 +86,7 @@ reward:
+     anti_loiter: 5.0
+     lean_forward: 5.0
+   tracking_sigma: 0.3
+-  base_height_target: 0.65
++  base_height_target: 0.55
+   jump_height_target: 1.0
+   crouch_height_target: 0.40
+   max_tilt_deg: 45.0
+diff --git a/conf/ppo/task/xqrobotwl_jump_srl_flat/mujoco.yaml b/conf/ppo/task/xqrobotwl_jump_srl_flat/mujoco.yaml
+index c72dae4..d267eca 100644
+--- a/conf/ppo/task/xqrobotwl_jump_srl_flat/mujoco.yaml
++++ b/conf/ppo/task/xqrobotwl_jump_srl_flat/mujoco.yaml
+@@ -34,6 +34,8 @@ algo:
+       - actor
+     critic:
+       - critic
++    default:
++      - policy
+   policy:
+     activation: elu
+     actor_hidden_dims: [512, 512, 256, 128]
+@@ -41,7 +43,7 @@ algo:
+     init_noise_std: 0.3
+   algorithm:
+     learning_rate: 1.0e-4
+-    entropy_coef: 0.008
++    entropy_coef: 0.005
+     clip_param: 0.2
+     gamma: 0.99
+     lam: 0.95
+@@ -50,7 +52,7 @@ algo:
+ 
+ env:
+   control_config:
+-    action_scale: 0.7
++    action_scale: 0.6
+     wheel_action_scale: 10.0
+     clip_actions: 100.0
+   commands:
+@@ -67,7 +69,6 @@ env:
+     randomize_kd: false
+     random_com: false
+     randomize_leg_length: false
+-  ablation_mode: "full"
+ 
+ reward:
+   only_positive_rewards: false
+@@ -76,25 +77,28 @@ reward:
+     tracking_ang_vel: 1.0
+     lin_vel_z: -0.2
+     ang_vel_xy: -0.05
+-    base_height: -2.0
+-    orientation: -2.0
++    base_height: -60.0
++    orientation: -5.0
+     joint_action_rate: -0.1
+     wheel_action_rate: -0.015
+-    leg_mirror: -2.0
++    leg_mirror: -12.0
+     tsk: -2.0
+     alive: 1.0
+-    jump_height: 20.0
+-    crouch_prep: 6.0
++    jump_height: 15.0
++    crouch_prep: 8.0
+     landing_soft: 4.0
+     wheel_ground_matching: 20.0
+-    vertical_thrust: 12.0
++    vertical_thrust: 30.0
+     crouch_depth: 6.0
+-    action_magnitude: -0.02
++    action_magnitude: -0.1
++    height_progress: 10.0
++    lean_forward: 3.0
+   tracking_sigma: 0.3
+-  base_height_target: 0.65
++  base_height_target: 0.55
+   jump_height_target: 1.0
+   crouch_height_target: 0.40
+   max_tilt_deg: 45.0
+   min_base_height: 0.15
+-  jump_warmup_steps: 3000
+-  feedback_gain: 0.2
++  # 跳跃课程: [start, end] 环境步数, 线性 ramp jump_trigger + 跳跃奖励权重
++  jump_curriculum_start: 0
++  jump_curriculum_end: 0  # 无预热，直接全开跳跃
+diff --git a/conf/ppo/task/xqrobotwl_walk_flat/mujoco.yaml b/conf/ppo/task/xqrobotwl_walk_flat/mujoco.yaml
+index 4ef6183..f9b3499 100644
+--- a/conf/ppo/task/xqrobotwl_walk_flat/mujoco.yaml
++++ b/conf/ppo/task/xqrobotwl_walk_flat/mujoco.yaml
+@@ -33,9 +33,10 @@ algo:
+ 
+ env:
+   control_config:
+-    action_scale: 0.5
++    action_scale: 0.6
+     wheel_action_scale: 10.0
+     clip_actions: 100.0
++  max_episode_seconds: 10.0
+   commands:
+     # 5D: [vx, vy, vyaw, tsk, height]
+     vel_limit:
+@@ -59,7 +60,7 @@ reward:
+     tracking_ang_vel: 1.5
+     lin_vel_z: -0.2
+     ang_vel_xy: -0.02
+-    base_height: -5.0
++    base_height: -40.0
+     orientation: -10.0                  # 加重: 强制纠正内置倾斜
+     joint_action_rate: -0.1
+     wheel_action_rate: -0.005               # 速度控制下放宽
+@@ -70,6 +71,6 @@ reward:
+     feet_distance: -1.0
+     alive: 1.0
+   tracking_sigma: 0.3
+-  base_height_target: 0.65
++  base_height_target: 0.55
+   max_tilt_deg: 60.0
+   min_base_height: 0.20
+diff --git a/conf/ppo/task/xqrobotwl_walk_rough/mujoco.yaml b/conf/ppo/task/xqrobotwl_walk_rough/mujoco.yaml
+index c266fa7..f0aad27 100644
+--- a/conf/ppo/task/xqrobotwl_walk_rough/mujoco.yaml
++++ b/conf/ppo/task/xqrobotwl_walk_rough/mujoco.yaml
+@@ -50,10 +50,11 @@ env:
+     wheel_action_scale: 8.0
+     clip_actions: 100.0
+     action_smoothing: 0.2
++  max_episode_seconds: 10.0
+   commands:
+     vel_limit:
+-      - [-1.0, 0.0, -1.5, -0.1, 0.40]
+-      - [1.0, 0.0, 1.5, 0.1, 0.90]
++      - [-1.0, 0.0, -1.5, -0.1]
++      - [1.0, 0.0, 1.5, 0.1]
+     resampling_time: 6.0
+   terrain_scan:
+     enabled: true
+@@ -90,7 +91,7 @@ reward:
+     tracking_ang_vel: 1.0
+     lin_vel_z: -0.2
+     ang_vel_xy: -0.02
+-    base_height: -5.0
++    base_height: -30.0
+     orientation: -8.0
+     joint_action_rate: -0.1
+     wheel_action_rate: -0.005
+@@ -102,6 +103,6 @@ reward:
+     collision: -1.0
+     alive: 2.0
+   tracking_sigma: 0.15
+-  base_height_target: 0.65
++  base_height_target: 0.55
+   max_tilt_deg: 60.0
+   min_base_height: 0.20
+diff --git a/jump_management/analyze/plot_ablation.py b/jump_management/analyze/plot_ablation.py
+index 3d56e1f..85b8665 100644
+--- a/jump_management/analyze/plot_ablation.py
++++ b/jump_management/analyze/plot_ablation.py
+@@ -4,6 +4,7 @@
+ 横轴: full / no_fsm / no_wheel_match / no_flight_mod / no_vel_track
+ 纵轴: 跳跃成功率 / 平均跳距 / 着陆轮滑
+ """
++
+ from __future__ import annotations
+ 
+ import json
+@@ -49,8 +50,13 @@ def plot_ablation(
+     axes[0].set_xticks(x)
+     axes[0].set_xticklabels(labels, rotation=15)
+     for bar, v in zip(bars, sr):
+-        axes[0].text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.01,
+-                    f"{v:.2f}", ha="center", fontsize=8)
++        axes[0].text(
++            bar.get_x() + bar.get_width() / 2,
++            bar.get_height() + 0.01,
++            f"{v:.2f}",
++            ha="center",
++            fontsize=8,
++        )
+ 
+     # (b) Avg Jump Distance
+     jd = [metrics_data.get(l, {}).get("avg_jump_distance", 0) for l in labels]
+@@ -60,8 +66,13 @@ def plot_ablation(
+     axes[1].set_xticks(x)
+     axes[1].set_xticklabels(labels, rotation=15)
+     for bar, v in zip(bars, jd):
+-        axes[1].text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.005,
+-                    f"{v:.3f}", ha="center", fontsize=8)
++        axes[1].text(
++            bar.get_x() + bar.get_width() / 2,
++            bar.get_height() + 0.005,
++            f"{v:.3f}",
++            ha="center",
++            fontsize=8,
++        )
+ 
+     # (c) Wheel Slip
+     ws = [min(metrics_data.get(l, {}).get("avg_wheel_slip", 1.0), 1.0) for l in labels]
+@@ -71,8 +82,13 @@ def plot_ablation(
+     axes[2].set_xticks(x)
+     axes[2].set_xticklabels(labels, rotation=15)
+     for bar, v in zip(bars, ws):
+-        axes[2].text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.01,
+-                    f"{v:.3f}", ha="center", fontsize=8)
++        axes[2].text(
++            bar.get_x() + bar.get_width() / 2,
++            bar.get_height() + 0.01,
++            f"{v:.3f}",
++            ha="center",
++            fontsize=8,
++        )
+ 
+     fig.suptitle("Ablation Study", fontsize=13, fontweight="bold")
+     fig.tight_layout()
+@@ -83,5 +99,6 @@ def plot_ablation(
+ 
+ if __name__ == "__main__":
+     import sys
++
+     base = sys.argv[1] if len(sys.argv) > 1 else "results"
+     plot_ablation(base)
+diff --git a/jump_management/analyze/plot_training_curves.py b/jump_management/analyze/plot_training_curves.py
+index 3a23dc9..f33dd39 100644
+--- a/jump_management/analyze/plot_training_curves.py
++++ b/jump_management/analyze/plot_training_curves.py
+@@ -5,6 +5,7 @@
+   (a) mean_reward  (b) episode_length
+   (c) jump_height reward  (d) action_std
+ """
++
+ from __future__ import annotations
+ 
+ import matplotlib.pyplot as plt
+@@ -29,6 +30,7 @@ def load_tb_metrics(logdir: str, tags: list[str]) -> dict[str, np.ndarray]:
+ 
+ def find_latest_run(base_dir: str) -> str | None:
+     import glob
++
+     runs = glob.glob(f"{base_dir}/2*/")
+     if not runs:
+         return None
+@@ -64,15 +66,22 @@ def plot_training_curves(
+     ]:
+         if not run:
+             continue
+-        metrics = load_tb_metrics(run, [
+-            "reward/mean", "episode_length/mean",
+-            "reward/jump_height", "std/mean",
+-        ])
+-
+-        for i, (tag, label) in enumerate(zip(
+-            ["reward/mean", "episode_length/mean", "reward/jump_height", "std/mean"],
+-            labels,
+-        )):
++        metrics = load_tb_metrics(
++            run,
++            [
++                "reward/mean",
++                "episode_length/mean",
++                "reward/jump_height",
++                "std/mean",
++            ],
++        )
++
++        for i, (tag, label) in enumerate(
++            zip(
++                ["reward/mean", "episode_length/mean", "reward/jump_height", "std/mean"],
++                labels,
++            )
++        ):
+             if tag in metrics:
+                 axes[i].plot(
+                     metrics[tag]["steps"],
+@@ -96,6 +105,7 @@ def plot_training_curves(
+ 
+ if __name__ == "__main__":
+     import sys
++
+     ppo_dir = sys.argv[1] if len(sys.argv) > 1 else "logs/rsl_rl_ppo/XqRobotWLJumpFlat"
+     srl_dir = sys.argv[2] if len(sys.argv) > 2 else "logs/rsl_rl_ppo/XqRobotWLJumpSRLFlat"
+     plot_training_curves(ppo_dir, srl_dir)
+diff --git a/jump_management/analyze/plot_trajectory.py b/jump_management/analyze/plot_trajectory.py
+index 3fe1c04..0e42e69 100644
+--- a/jump_management/analyze/plot_trajectory.py
++++ b/jump_management/analyze/plot_trajectory.py
+@@ -5,6 +5,7 @@
+ 三子图: fix_01m / fix_02m / fix_03m
+ 每子图: PPO-only vs Wheeled-SRL 各一条
+ """
++
+ from __future__ import annotations
+ 
+ import json
+@@ -45,8 +46,7 @@ def plot_trajectory(
+                     heights.append(j["max_height"])
+ 
+             if distances:
+-                ax.scatter(distances, heights, label=label,
+-                          color=colors[label], alpha=0.6, s=30)
++                ax.scatter(distances, heights, label=label, color=colors[label], alpha=0.6, s=30)
+ 
+         ax.set_xlabel("Jump Distance (m)")
+         ax.set_ylabel("Max Height (m)")
+@@ -63,6 +63,7 @@ def plot_trajectory(
+ 
+ if __name__ == "__main__":
+     import sys
++
+     ppo_dir = sys.argv[1] if len(sys.argv) > 1 else "results/ppo_only"
+     srl_dir = sys.argv[2] if len(sys.argv) > 2 else "results/srl_full"
+     plot_trajectory(ppo_dir, srl_dir)
+diff --git a/jump_management/analyze/tab_ablation.py b/jump_management/analyze/tab_ablation.py
+index 99ca9aa..61b0626 100644
+--- a/jump_management/analyze/tab_ablation.py
++++ b/jump_management/analyze/tab_ablation.py
+@@ -3,6 +3,7 @@
+ 
+ 生成 LaTeX 格式的表格.
+ """
++
+ from __future__ import annotations
+ 
+ import json
+diff --git a/jump_management/analyze/tab_baseline.py b/jump_management/analyze/tab_baseline.py
+index 087dae8..b8bf4f3 100644
+--- a/jump_management/analyze/tab_baseline.py
++++ b/jump_management/analyze/tab_baseline.py
+@@ -3,6 +3,7 @@
+ 
+ 生成 LaTeX 格式的表格.
+ """
++
+ from __future__ import annotations
+ 
+ import json
+diff --git a/jump_management/analyze/tab_params.py b/jump_management/analyze/tab_params.py
+index d8c4145..82ee379 100644
+--- a/jump_management/analyze/tab_params.py
++++ b/jump_management/analyze/tab_params.py
+@@ -1,5 +1,6 @@
+ #!/usr/bin/env python3
+ """机器人参数表 — LaTeX 格式."""
++
+ from __future__ import annotations
+ 
+ 
+diff --git a/jump_management/analyze/tab_task_breakdown.py b/jump_management/analyze/tab_task_breakdown.py
+index 1b63fed..dac3775 100644
+--- a/jump_management/analyze/tab_task_breakdown.py
++++ b/jump_management/analyze/tab_task_breakdown.py
+@@ -3,6 +3,7 @@
+ 
+ 生成 LaTeX 格式的表格.
+ """
++
+ from __future__ import annotations
+ 
+ import json
+diff --git a/jump_management/evaluate/metrics.py b/jump_management/evaluate/metrics.py
+index 36d2421..51ba6f1 100644
+--- a/jump_management/evaluate/metrics.py
++++ b/jump_management/evaluate/metrics.py
+@@ -1,4 +1,5 @@
+ """跳跃评估专用指标计算."""
++
+ from __future__ import annotations
+ 
+ import json
+@@ -11,6 +12,7 @@ import numpy as np
+ @dataclass
+ class SummaryMetrics:
+     """汇总指标."""
++
+     model_name: str
+     num_episodes: int
+     success_rate: float = 0.0
+diff --git a/jump_management/evaluate/runner.py b/jump_management/evaluate/runner.py
+index c7b17f5..16f4139 100644
+--- a/jump_management/evaluate/runner.py
++++ b/jump_management/evaluate/runner.py
+@@ -1,4 +1,5 @@
+ """跳跃评估 runner — 加载模型, 运行指定场景, 记录结果."""
++
+ from __future__ import annotations
+ 
+ import json
+@@ -7,23 +8,21 @@ import sys
+ from pathlib import Path
+ 
+ import numpy as np
+-
+ from jump_management.evaluate.scenarios import (
+-    JumpCycleRecord,
+     EvalResult,
++    JumpCycleRecord,
+     generate_jump_commands,
+ )
+ 
+ # 将项目根目录加入 path
+-_project_root = os.path.abspath(
+-    os.path.join(os.path.dirname(__file__), "..", "..")
+-)
++_project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+ if _project_root not in sys.path:
+     sys.path.insert(0, _project_root)
+ 
+ 
+ def _get_scenario_vx(scenario: str) -> float:
+     from jump_management.evaluate.scenarios import FIXED_DIST_SCENARIOS, PLATFORM_SCENARIO
++
+     if scenario in FIXED_DIST_SCENARIOS:
+         return FIXED_DIST_SCENARIOS[scenario]["vx"]
+     if scenario == "random":
+@@ -60,10 +59,12 @@ def eval_one_scenario(
+ 
+     # 加载模型
+     import torch
++
+     checkpoint = torch.load(model_path, map_location="cpu", weights_only=False)
+ 
+     # 创建环境 (无DR, 单env)
+     from unilab.base.registry import make
++
+     env = make(unilab_task, "mujoco", num_envs=1)
+     env.reset()
+ 
+@@ -72,6 +73,7 @@ def eval_one_scenario(
+     if "actor_state_dict" in checkpoint:
+         # 仅加载 actor
+         from unilab.algos.torch.ppo.network import ActorCritic
++
+         # 根据观测维度构建网络
+         obs_dim = env.obs_groups_spec["obs"]
+         action_dim = 8
+@@ -107,8 +109,9 @@ def eval_one_scenario(
+ 
+         for step in range(1000):
+             # 覆盖命令
+-            cmds = np.array([[vx_target, 0.0, 0.0, 0.0,
+-                             1.0 if (step % 200) < 100 else 0.0]], dtype=np.float64)
++            cmds = np.array(
++                [[vx_target, 0.0, 0.0, 0.0, 1.0 if (step % 200) < 100 else 0.0]], dtype=np.float64
++            )
+             info["commands"] = cmds
+ 
+             # 推理
+@@ -130,24 +133,30 @@ def eval_one_scenario(
+                     info = obs_dict[1]
+ 
+             # 记录轨迹
+-            if hasattr(env, 'get_dof_pos'):
++            if hasattr(env, "get_dof_pos"):
+                 pass  # 简化处理
+             ep_height_history.append(float(info.get("base_height", 0)))
+             ep_x_history.append(float(info.get("base_x", 0)))
+ 
+             # FSM 检测跳跃周期
+-            fsm = int(info.get("fsm_state", [-1])[0] if isinstance(info.get("fsm_state"), np.ndarray) else -1)
++            fsm = int(
++                info.get("fsm_state", [-1])[0]
++                if isinstance(info.get("fsm_state"), np.ndarray)
++                else -1
++            )
+             if fsm == 2 and current_jump is None:
+-                current_jump = JumpCycleRecord(
+-                    takeoff_x=ep_x_history[-1] if ep_x_history else 0.0
+-                )
++                current_jump = JumpCycleRecord(takeoff_x=ep_x_history[-1] if ep_x_history else 0.0)
+             if fsm >= 3 and current_jump is not None:
+-                current_jump.landing_x = ep_x_history[-1] if ep_x_history else current_jump.takeoff_x
++                current_jump.landing_x = (
++                    ep_x_history[-1] if ep_x_history else current_jump.takeoff_x
++                )
+                 current_jump.max_height = max(ep_height_history[-50:]) if ep_height_history else 0.0
+                 current_jump.duration_steps = 100  # rough estimate
+                 # 轮滑: wheel_vel * r - base_vx
+                 current_jump.wheel_slip_at_landing = float(
+-                    info.get("wheel_slip", [0])[0] if isinstance(info.get("wheel_slip"), np.ndarray) else 0
++                    info.get("wheel_slip", [0])[0]
++                    if isinstance(info.get("wheel_slip"), np.ndarray)
++                    else 0
+                 )
+                 jump_cycles.append(current_jump)
+                 current_jump = None
+diff --git a/jump_management/evaluate/scenarios.py b/jump_management/evaluate/scenarios.py
+index 3e12e88..3aeefa3 100644
+--- a/jump_management/evaluate/scenarios.py
++++ b/jump_management/evaluate/scenarios.py
+@@ -5,6 +5,7 @@
+   - random: vx~U[0, 1.0]
+   - platform: 跳上 0.15m 平台
+ """
++
+ from __future__ import annotations
+ 
+ from dataclasses import dataclass, field
+@@ -14,13 +15,13 @@ import numpy as np
+ 
+ # 触发周期: 每2秒触发一次跳跃 (0.01s控制周期)
+ JUMP_PERIOD = 200  # 2s
+-JUMP_DUTY = 100    # 1s 触发
++JUMP_DUTY = 100  # 1s 触发
+ 
+ # 固定距离场景: vx 映射到目标跳距
+ FIXED_DIST_SCENARIOS = {
+-    "fix_01m": {"vx": 0.3,  "target_distance": 0.10},   # 实际跳距还需训练验证
+-    "fix_02m": {"vx": 0.6,  "target_distance": 0.20},
+-    "fix_03m": {"vx": 1.0,  "target_distance": 0.30},
++    "fix_01m": {"vx": 0.3, "target_distance": 0.10},  # 实际跳距还需训练验证
++    "fix_02m": {"vx": 0.6, "target_distance": 0.20},
++    "fix_03m": {"vx": 1.0, "target_distance": 0.30},
+ }
+ 
+ RANDOM_SCENARIO = {
+@@ -68,6 +69,7 @@ def generate_jump_commands(
+ @dataclass
+ class JumpCycleRecord:
+     """单次跳跃周期记录."""
++
+     takeoff_x: float = 0.0
+     landing_x: float = 0.0
+     max_height: float = 0.0
+@@ -78,6 +80,7 @@ class JumpCycleRecord:
+ @dataclass
+ class EvalResult:
+     """单回合评估结果."""
++
+     scenario: str
+     survived: bool
+     jump_cycles: list[JumpCycleRecord] = field(default_factory=list)
+diff --git a/scripts/training/train_rsl_rl.py b/scripts/training/train_rsl_rl.py
+index aaf4616..4d2e41e 100644
+--- a/scripts/training/train_rsl_rl.py
++++ b/scripts/training/train_rsl_rl.py
+@@ -320,7 +320,9 @@ def main(cfg: DictConfig) -> None:
+         run_suffix = getattr(cfg.training, "run_suffix", "")
+         suffix = f"_{run_suffix}" if run_suffix else ""
+         log_dir = str(
+-            Path(log_root) / cfg.training.task_name / f"{timestamp}_{cfg.training.sim_backend}{suffix}"
++            Path(log_root)
++            / cfg.training.task_name
++            / f"{timestamp}_{cfg.training.sim_backend}{suffix}"
+         )
+     else:
+         log_dir = None
+diff --git a/shell/xqrobotwl/eval_np3o_stairs.sh b/shell/xqrobotwl/eval_np3o_stairs.sh
+index 728cf7d..3f9fe4c 100755
+--- a/shell/xqrobotwl/eval_np3o_stairs.sh
++++ b/shell/xqrobotwl/eval_np3o_stairs.sh
+@@ -9,6 +9,13 @@ ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+ cd "$ROOT_DIR"
+ set -e
+ 
++# Platform detection: use mjpython on macOS, uv run on Linux
++if [[ "$(uname)" == "Darwin" ]]; then
++    PYTHON="uv run mjpython"
++else
++    PYTHON="uv run"
++fi
++
+ ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+ cd "$ROOT_DIR"
+ 
+@@ -42,7 +49,7 @@ for arg in "$@"; do
+     esac
+ done
+ 
+-CMD="uv run scripts/play/play_interactive.py"
++CMD="$PYTHON scripts/play/play_interactive.py"
+ CMD="$CMD --algo np3o --task xqrobotwl_stairs --sim mujoco"
+ CMD="$CMD interactive.action_mode=${ACTION_MODE}"
+ if [ -n "$KEYBOARD" ]; then
+diff --git a/shell/xqrobotwl/eval_ppo_flat.sh b/shell/xqrobotwl/eval_ppo_flat.sh
+index 6148743..3a37166 100755
+--- a/shell/xqrobotwl/eval_ppo_flat.sh
++++ b/shell/xqrobotwl/eval_ppo_flat.sh
+@@ -9,6 +9,13 @@ ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+ cd "$ROOT_DIR"
+ set -e
+ 
++# Platform detection: use mjpython on macOS, uv run on Linux
++if [[ "$(uname)" == "Darwin" ]]; then
++    PYTHON="uv run mjpython"
++else
++    PYTHON="uv run"
++fi
++
+ ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+ cd "$ROOT_DIR"
+ 
+@@ -38,7 +45,7 @@ for arg in "$@"; do
+     esac
+ done
+ 
+-CMD="uv run scripts/play/play_interactive.py"
++CMD="$PYTHON scripts/play/play_interactive.py"
+ CMD="$CMD --algo ppo --task xqrobotwl_walk_flat --sim mujoco"
+ CMD="$CMD interactive.action_mode=${ACTION_MODE}"
+ if [ -n "$KEYBOARD" ]; then
+diff --git a/shell/xqrobotwl/eval_ppo_jump_flat.sh b/shell/xqrobotwl/eval_ppo_jump_flat.sh
+index bcf071d..1631e33 100755
+--- a/shell/xqrobotwl/eval_ppo_jump_flat.sh
++++ b/shell/xqrobotwl/eval_ppo_jump_flat.sh
+@@ -11,6 +11,13 @@ cd "$ROOT_DIR"
+ ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+ cd "$ROOT_DIR"
+ 
++# Platform detection: use mjpython on macOS, uv run on Linux
++if [[ "$(uname)" == "Darwin" ]]; then
++    PYTHON="uv run mjpython"
++else
++    PYTHON="uv run"
++fi
++
+ LOAD_RUN=""
+ ACTION_MODE="policy"
+ KEYBOARD=""
+@@ -37,7 +44,7 @@ for arg in "$@"; do
+     esac
+ done
+ 
+-CMD="uv run scripts/play/play_interactive.py"
++CMD="$PYTHON scripts/play/play_interactive.py"
+ CMD="$CMD --algo ppo --task xqrobotwl_jump_flat --sim mujoco"
+ CMD="$CMD interactive.action_mode=${ACTION_MODE}"
+ if [ -n "$KEYBOARD" ]; then
+diff --git a/shell/xqrobotwl/eval_ppo_jump_srl_flat.sh b/shell/xqrobotwl/eval_ppo_jump_srl_flat.sh
+index 5d055b5..d921c16 100755
+--- a/shell/xqrobotwl/eval_ppo_jump_srl_flat.sh
++++ b/shell/xqrobotwl/eval_ppo_jump_srl_flat.sh
+@@ -7,6 +7,13 @@
+ #   bash shell/xqrobotwl/eval_ppo_jump_srl_flat.sh <run_id> --keyboard
+ set -e
+ 
++# Platform detection: use mjpython on macOS, uv run on Linux
++if [[ "$(uname)" == "Darwin" ]]; then
++    PYTHON="uv run mjpython"
++else
++    PYTHON="uv run"
++fi
++
+ ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+ cd "$ROOT_DIR"
+ 
+@@ -36,7 +43,7 @@ for arg in "$@"; do
+     esac
+ done
+ 
+-CMD="uv run scripts/play/play_interactive.py"
++CMD="$PYTHON scripts/play/play_interactive.py"
+ CMD="$CMD --algo ppo --task xqrobotwl_jump_srl_flat --sim mujoco"
+ CMD="$CMD interactive.action_mode=${ACTION_MODE}"
+ if [ -n "$KEYBOARD" ]; then
+diff --git a/shell/xqrobotwl/eval_ppo_rough.sh b/shell/xqrobotwl/eval_ppo_rough.sh
+index 49478af..ba882d5 100755
+--- a/shell/xqrobotwl/eval_ppo_rough.sh
++++ b/shell/xqrobotwl/eval_ppo_rough.sh
+@@ -9,6 +9,13 @@ ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+ cd "$ROOT_DIR"
+ set -e
+ 
++# Platform detection: use mjpython on macOS, uv run on Linux
++if [[ "$(uname)" == "Darwin" ]]; then
++    PYTHON="uv run mjpython"
++else
++    PYTHON="uv run"
++fi
++
+ ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+ cd "$ROOT_DIR"
+ 
+@@ -42,7 +49,7 @@ for arg in "$@"; do
+     esac
+ done
+ 
+-CMD="uv run scripts/play/play_interactive.py"
++CMD="$PYTHON scripts/play/play_interactive.py"
+ CMD="$CMD --algo ppo --task xqrobotwl_walk_rough --sim mujoco"
+ CMD="$CMD interactive.action_mode=${ACTION_MODE}"
+ if [ -n "$KEYBOARD" ]; then
+diff --git a/shell/xqrobotwl/train_np3o_stairs.sh b/shell/xqrobotwl/train_np3o_stairs.sh
+index b23af21..265cea1 100755
+--- a/shell/xqrobotwl/train_np3o_stairs.sh
++++ b/shell/xqrobotwl/train_np3o_stairs.sh
+@@ -5,12 +5,19 @@
+ # ============================================================
+ set -e
+ 
++# Platform detection: use mjpython on macOS, uv run on Linux
++if [[ "$(uname)" == "Darwin" ]]; then
++    PYTHON="uv run mjpython"
++else
++    PYTHON="uv run"
++fi
++
+ ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+ cd "$ROOT_DIR"
+ 
+ TASK="xqrobotwl_stairs/mujoco"
+ 
+-uv run scripts/training/train_np3o.py \
++$PYTHON scripts/training/train_np3o.py \
+     task="${TASK}" \
+     training.task_name=XqRobotWLStairs \
+     "$@"
+diff --git a/shell/xqrobotwl/train_ppo_flat.sh b/shell/xqrobotwl/train_ppo_flat.sh
+index dd11044..ff12b85 100755
+--- a/shell/xqrobotwl/train_ppo_flat.sh
++++ b/shell/xqrobotwl/train_ppo_flat.sh
+@@ -5,12 +5,19 @@
+ # ============================================================
+ set -e
+ 
++# Platform detection: use mjpython on macOS, uv run on Linux
++if [[ "$(uname)" == "Darwin" ]]; then
++    PYTHON="uv run mjpython"
++else
++    PYTHON="uv run"
++fi
++
+ ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+ cd "$ROOT_DIR"
+ 
+ TASK="xqrobotwl_walk_flat/mujoco"
+ 
+-uv run scripts/training/train_rsl_rl.py \
++$PYTHON scripts/training/train_rsl_rl.py \
+     task="${TASK}" \
+     training.task_name=XqRobotWLWalkFlat \
+     "$@"
+diff --git a/shell/xqrobotwl/train_ppo_jump_flat.sh b/shell/xqrobotwl/train_ppo_jump_flat.sh
+index 27c46d3..068fc70 100755
+--- a/shell/xqrobotwl/train_ppo_jump_flat.sh
++++ b/shell/xqrobotwl/train_ppo_jump_flat.sh
+@@ -5,12 +5,19 @@
+ # ============================================================
+ set -e
+ 
++# Platform detection: use mjpython on macOS, uv run on Linux
++if [[ "$(uname)" == "Darwin" ]]; then
++    PYTHON="uv run mjpython"
++else
++    PYTHON="uv run"
++fi
++
+ ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+ cd "$ROOT_DIR"
+ 
+ TASK="xqrobotwl_jump_flat/mujoco"
+ 
+-uv run scripts/training/train_rsl_rl.py \
++$PYTHON scripts/training/train_rsl_rl.py \
+     task="${TASK}" \
+     training.task_name=XqRobotWLJumpFlat \
+     "$@"
+diff --git a/shell/xqrobotwl/train_ppo_jump_srl.sh b/shell/xqrobotwl/train_ppo_jump_srl.sh
+index f42edc8..b93f75f 100755
+--- a/shell/xqrobotwl/train_ppo_jump_srl.sh
++++ b/shell/xqrobotwl/train_ppo_jump_srl.sh
+@@ -8,12 +8,19 @@
+ # ============================================================
+ set -e
+ 
++# Platform detection: use mjpython on macOS, uv run on Linux
++if [[ "$(uname)" == "Darwin" ]]; then
++    PYTHON="uv run mjpython"
++else
++    PYTHON="uv run"
++fi
++
+ ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+ cd "$ROOT_DIR"
+ 
+ TASK="xqrobotwl_jump_srl_flat/mujoco"
+ 
+-uv run scripts/training/train_rsl_rl.py \
++$PYTHON scripts/training/train_rsl_rl.py \
+     task="${TASK}" \
+     training.task_name=XqRobotWLJumpSRLFlat \
+     "$@"
+diff --git a/shell/xqrobotwl/train_ppo_rough.sh b/shell/xqrobotwl/train_ppo_rough.sh
+index db6a2bc..586acc3 100755
+--- a/shell/xqrobotwl/train_ppo_rough.sh
++++ b/shell/xqrobotwl/train_ppo_rough.sh
+@@ -5,12 +5,19 @@
+ # ============================================================
+ set -e
+ 
++# Platform detection: use mjpython on macOS, uv run on Linux
++if [[ "$(uname)" == "Darwin" ]]; then
++    PYTHON="uv run mjpython"
++else
++    PYTHON="uv run"
++fi
++
+ ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+ cd "$ROOT_DIR"
+ 
+ TASK="xqrobotwl_walk_rough/mujoco"
+ 
+-uv run scripts/training/train_rsl_rl.py \
++$PYTHON scripts/training/train_rsl_rl.py \
+     task="${TASK}" \
+     training.task_name=XqRobotWLWalkRough \
+     "$@"
+diff --git a/src/unilab/assets/robots/xqrobotwl/xqrobotwl.xml b/src/unilab/assets/robots/xqrobotwl/xqrobotwl.xml
+index b4a8b50..e6c0485 100644
+--- a/src/unilab/assets/robots/xqrobotwl/xqrobotwl.xml
++++ b/src/unilab/assets/robots/xqrobotwl/xqrobotwl.xml
+@@ -90,13 +90,13 @@
+     <mesh name="right_link_wheel_visual" file="right_link_wheel.STL" />
+   </asset>
+   <actuator>
+-    <position name="joint_left_hip_roll" joint="joint_left_hip_roll" kp="30" />
+-    <position name="joint_left_hip_pitch" joint="joint_left_hip_pitch" kp="30" />
+-    <position name="joint_left_knee" joint="joint_left_knee" kp="30" />
++    <position name="joint_left_hip_roll" joint="joint_left_hip_roll" kp="60" />
++    <position name="joint_left_hip_pitch" joint="joint_left_hip_pitch" kp="60" />
++    <position name="joint_left_knee" joint="joint_left_knee" kp="60" />
+     <velocity name="joint_left_wheel" joint="joint_left_wheel" kv="1" />
+-    <position name="joint_right_hip_roll" joint="joint_right_hip_roll" kp="30" />
+-    <position name="joint_right_hip_pitch" joint="joint_right_hip_pitch" kp="30" />
+-    <position name="joint_right_knee" joint="joint_right_knee" kp="30" />
++    <position name="joint_right_hip_roll" joint="joint_right_hip_roll" kp="60" />
++    <position name="joint_right_hip_pitch" joint="joint_right_hip_pitch" kp="60" />
++    <position name="joint_right_knee" joint="joint_right_knee" kp="60" />
+     <velocity name="joint_right_wheel" joint="joint_right_wheel" kv="1" />
+   </actuator>
+   <sensor>
+diff --git a/src/unilab/envs/locomotion/xqrobotwl/joystick.py b/src/unilab/envs/locomotion/xqrobotwl/joystick.py
+index bd8ca75..1bad74b 100644
+--- a/src/unilab/envs/locomotion/xqrobotwl/joystick.py
++++ b/src/unilab/envs/locomotion/xqrobotwl/joystick.py
+@@ -72,8 +72,10 @@ class XqRobotWLCurriculumConfig:
+     enabled: bool = True
+     vel_step: float = 0.001  # 线速度课程步长
+     ang_vel_step: float = 0.002
++    height_step: float = 0.001  # ★ 高度命令课程步长
+     min_vel_range_frac: float = 0.3
+     min_ang_range_frac: float = 0.05
++    min_height_frac: float = 0.5  # ★ 初始高度范围 = 全范围的 50%
+     update_interval: int = 25
+     err_threshold: float = 0.35
+ 
+@@ -104,10 +106,10 @@ def _reward_wheel_action_rate(ctx: RewardContext) -> np.ndarray:
+ 
+ 
+ def _reward_hip_roll(ctx: RewardContext) -> np.ndarray:
+-    # 前进时髋外展产生横向力, 惩罚髋角绝对值偏离 0
+-    moving = np.abs(ctx.info["commands"][:, 0]) + np.abs(ctx.info["commands"][:, 1])
++    # 髋角绝对值越小越好 — 运动时加倍惩罚
+     hip_mag = np.square(ctx.dof_pos[:, 0]) + np.square(ctx.dof_pos[:, 3])
+-    return hip_mag * np.clip(moving / 0.2, 0.0, 1.0) * 0.3
++    moving = np.abs(ctx.info["commands"][:, 0]) + np.abs(ctx.info["commands"][:, 1])
++    return hip_mag * (1.0 + np.clip(moving / 0.2, 0.0, 1.0)) * 0.3
+ 
+ 
+ def _reward_similar_calf(ctx: RewardContext) -> np.ndarray:
+@@ -162,7 +164,7 @@ class XqRobotWLWalkFlatCfg(XqRobotWLBaseCfg):
+             model_file=str(ASSETS_ROOT_PATH / "robots" / "xqrobotwl" / "scene_flat.xml")
+         )
+     )
+-    max_episode_seconds: float = 20.0
++    max_episode_seconds: float = 10.0
+     commands: Commands = field(default_factory=Commands)
+     reward_config: XqRobotWLRewardConfig | None = None
+     domain_rand: XqRobotWLDomainRandConfig = field(default_factory=XqRobotWLDomainRandConfig)
+@@ -557,7 +559,11 @@ class XqRobotWLWalkFlatEnv(XqRobotWLBaseEnv):
+             num_envs=num_obs,
+             default_angles=DEFAULT_ANGLES[:NUM_LEG_ACTIONS].astype(dtype),
+             tracking_sigma=self._reward_cfg.tracking_sigma,
+-            base_height_target=self._reward_cfg.base_height_target,
++            base_height_target=(
++                info["commands"][:num_obs, 4]
++                if info["commands"].shape[1] >= 5
++                else self._reward_cfg.base_height_target
++            ),
+             base_height=self._base_height_values(num_obs),
+             gravity=gravity,
+             joint_range=None,
+@@ -608,6 +614,21 @@ class XqRobotWLWalkFlatEnv(XqRobotWLBaseEnv):
+             high[0] = min(high[0] + cc.vel_step, vx_range)
+             low[2] = max(low[2] - cc.ang_vel_step, -vyaw_range)
+             high[2] = min(high[2] + cc.ang_vel_step, vyaw_range)
++            # ★ 高度课程: 从 base_height_target 附近逐步扩展到全范围
++            if len(low) >= 5 and hasattr(cc, "height_step") and cc.height_step > 0:
++                height_mid = (
++                    self._reward_cfg.base_height_target if hasattr(self, "_reward_cfg") else 0.55
++                )
++                # 首次: 收缩到 mid ± 0.05
++                h_range_full = max(abs(low[4] - height_mid), abs(high[4] - height_mid))
++                if abs(low[4] - height_mid) < 0.02 and abs(high[4] - height_mid) < 0.02:
++                    # 未初始化, 从窄范围开始
++                    narrow = 0.03
++                    low[4] = height_mid - narrow
++                    high[4] = height_mid + narrow
++                else:
++                    low[4] = max(low[4] - cc.height_step, height_mid - h_range_full)
++                    high[4] = min(high[4] + cc.height_step, height_mid + h_range_full)
+         self._cfg.commands.vel_limit[0] = low.tolist()
+         self._cfg.commands.vel_limit[1] = high.tolist()
+ 
+diff --git a/src/unilab/envs/locomotion/xqrobotwl/jump_srl.py b/src/unilab/envs/locomotion/xqrobotwl/jump_srl.py
+index c7f636b..702f696 100644
+--- a/src/unilab/envs/locomotion/xqrobotwl/jump_srl.py
++++ b/src/unilab/envs/locomotion/xqrobotwl/jump_srl.py
+@@ -1,24 +1,12 @@
+-"""xqrobotwl Wheeled-SRL 跳跃环境 -- SLIP模型前馈 + PPO反馈融合
++"""xqrobotwl PPO-SRL 跳跃环境 — PPO骨架 + SLIP前馈参考 + FSM观测
+ 
+-Wheeled-SRL 核心改进 vs 纯PPO:
+-  1. SLIP模型: 六状态FSM生成前馈参考轨迹
+-  2. 前馈-反馈融合: action = feedforward + k_b * policy_output
+-  3. 轮地速度匹配奖励 + 着陆冲击惩罚
+-  4. 扩展观测含 fsm_state + jump_phase
+-
+-跳跃流程:
+-  jump_trigger > 0.5 -> FSM进入跳跃循环
+-  FSM: -1(初始化)->0(地面压缩)->1(跳跃加速)->2(飞行轮速调制)->3(着陆缓冲)->4(恢复)
++核心设计:
++  1. 奖励 = PPO成熟版 (phase-gated, base_height=-60, jump=12, thrust=30)
++  2. 动作 = SLIP前馈(ff) + 策略输出 (gain=1.0, 策略全权)
++  3. 观测 = 297D(原PPO) + 18D(FSM状态+计时器) = 315D
++  4. FSM提供结构化时序引导, PPO决定具体动作
+ 
+ Joint order: [L_hip_roll, L_hip_pitch, L_knee, R_hip_roll, R_hip_pitch, R_knee, L_wheel, R_wheel]
+-Mirror symmetry: L(+) <-> R(-) for hip_roll/hip_pitch, L(+) <-> R(-) for knee (specified in base.py)
+-
+-消融实验: ablation_mode 控制开关
+-  - "full": 完整 Wheeled-SRL
+-  - "no_fsm": FSM固定为state=-1, 不做前馈, action=纯PPO输出
+-  - "no_wheel_match": 移除 wheel_ground_matching 奖励
+-  - "no_flight_mod": 飞行阶段轮速不斜升 (置零)
+-  - "no_vel_track": 移除 tracking_lin_vel 奖励
+ """
+ 
+ from __future__ import annotations
+@@ -35,293 +23,278 @@ from unilab.envs.locomotion.common import rewards
+ from unilab.envs.locomotion.common.commands import Commands
+ from unilab.envs.locomotion.common.rewards import RewardContext
+ from unilab.envs.locomotion.xqrobotwl.base import (
+-    DEFAULT_ANGLES,
+-    DEFAULT_LEG_ANGLES,
+-    NUM_ACTIONS,
+     NUM_LEG_ACTIONS,
+     NUM_WHEEL_ACTIONS,
+ )
+-from unilab.envs.locomotion.xqrobotwl.joystick import (
++
++from .joystick import (
+     XqRobotWLCurriculumConfig,
+     XqRobotWLDRProvider,
+     XqRobotWLWalkFlatCfg,
+     XqRobotWLWalkFlatEnv,
+ )
+ 
+-_NUM_JUMP_CMD_DIM = 5
+-
+-# === Wheeled-SRL 参数 ===
+-WHEEL_R = 0.065  # xqrobotwl 车轮半径 (m)
+-
+-
+-# ========== SLIP前馈计算 ==========
+-
+-
+-def compute_slip_feedforward(
+-    fsm_state: np.ndarray,
+-    fsm_timer: np.ndarray,
+-    dof_pos: np.ndarray,
+-    base_linvel: np.ndarray,
+-    default_angles: np.ndarray,
+-    wheel_r: float,
+-    ablation_mode: str = "full",
+-) -> np.ndarray:
+-    """六状态SLIP前馈: 输出(envs, 8)
+-
+-    消融控制:
+-      - "no_fsm": 全部置零, action=纯PPO
+-      - "no_flight_mod": 飞行阶段轮速置零
+-    """
+-    num_envs = fsm_state.shape[0]
+-    ff = np.zeros((num_envs, NUM_ACTIONS), dtype=np.float64)
+-
+-    if ablation_mode == "no_fsm":
+-        return ff
+-
+-    for s in range(-1, 5):
+-        mask = fsm_state == s
+-        if not mask.any():
++# ── SLIP FSM 前馈 (gain=0.15 — 仅提供方向性建议) ──
++WHEEL_R = 0.065
++SLIP_FF_GAIN = 0.15
++
++_FSM_FEEDFORWARD = {
++    -1: [0.1, 0.15, 0.15, -0.1, -0.15, -0.15, 0.0, 0.0],
++     0: [0.1, 0.10, 0.70, -0.1, -0.10, -0.70, 0.0, 0.0],
++     1: [0.1, 0.10,-0.87, -0.1, -0.10, 0.87, 0.0, 0.0],
++     2: [0.1, 0.10, 0.00, -0.1, -0.10, 0.00, 0.0, 0.0],
++     3: [0.1, 0.15,-0.30, -0.1, -0.15, 0.30, 0.0, 0.0],
++     4: [0.1, 0.15, 0.15, -0.1, -0.15, -0.15, 0.0, 0.0],
++}
++
++
++def _compute_feedforward(fsm_state, default_angles, dof_pos):
++    ff = np.zeros((fsm_state.shape[0], 8), dtype=np.float64)
++    for s, vals in _FSM_FEEDFORWARD.items():
++        m = fsm_state == s
++        if not m.any():
+             continue
+-
+-        if s == -1:  # 站立--保持默认姿态
+-            ff[mask, :NUM_LEG_ACTIONS] = default_angles[:NUM_LEG_ACTIONS]
+-            ff[mask, NUM_LEG_ACTIONS:] = 0.0
+-
+-        elif s == 0:  # 地面接触--浅蹲
+-            ff[mask, 0] = 0.1
+-            ff[mask, 1] = 0.1
+-            ff[mask, 2] = 0.2
+-            ff[mask, 3] = -0.1
+-            ff[mask, 4] = -0.1
+-            ff[mask, 5] = -0.2
+-            ff[mask, 6:8] = 0.0
+-
+-        elif s == 1:  # 跳跃加速--伸直推地
+-            ff[mask, 0] = 0.1
+-            ff[mask, 1] = 0.0
+-            ff[mask, 2] = -0.3
+-            ff[mask, 3] = -0.1
+-            ff[mask, 4] = 0.0
+-            ff[mask, 5] = 0.3
+-            ff[mask, 6:8] = 0.0
+-
+-        elif s == 2:  # 飞行--收腿+轮速匹配
+-            progress = np.clip(fsm_timer[mask] / 0.3, 0.0, 1.0)
+-            grasp = 0.2 * (1 - progress)
+-            ff[mask, 0] = 0.1
+-            ff[mask, 1] = 0.15 - grasp
+-            ff[mask, 2] = grasp
+-            ff[mask, 3] = -0.1
+-            ff[mask, 4] = -0.15 + grasp
+-            ff[mask, 5] = -grasp
+-            if ablation_mode != "no_flight_mod":
+-                ground_vel = np.abs(base_linvel[mask, 0])
+-                target_rps = ground_vel / wheel_r
+-                ff[mask, 6] = target_rps * 0.5
+-                ff[mask, 7] = target_rps * 0.5
+-            else:
+-                ff[mask, 6:8] = 0.0
+-
+-        elif s == 3:  # 着陆--缓冲
+-            lp = np.clip(fsm_timer[mask] / 0.1, 0.0, 1.0)
+-            bend = 0.3 * lp
+-            ff[mask, 0] = 0.1
+-            ff[mask, 1] = 0.15 + bend * 0.5
+-            ff[mask, 2] = bend
+-            ff[mask, 3] = -0.1
+-            ff[mask, 4] = -0.15 - bend * 0.5
+-            ff[mask, 5] = -bend
+-            gv = base_linvel[mask, 0]
+-            sync = gv / wheel_r
+-            ff[mask, 6] = sync * 0.5
+-            ff[mask, 7] = sync * 0.5
+-
+-        elif s == 4:  # 恢复--回到站姿
+-            r = np.clip(fsm_timer[mask] / 0.2, 0.0, 1.0)
+-            cur = dof_pos[mask, :NUM_LEG_ACTIONS]
+-            df = default_angles[:NUM_LEG_ACTIONS]
+-            ff[mask, :NUM_LEG_ACTIONS] = df + (cur - df) * (1 - r[:, None])
+-            ff[mask, NUM_LEG_ACTIONS:] = 0.0
+-
++        if s == 4:
++            r = 0.5
++            cur = dof_pos[m, :6]
++            df = default_angles[:6]
++            ff[m, :6] = df + (cur - df) * (1 - r)
++        else:
++            ff[m] = vals
+     return ff
+ 
+ 
+-def update_fsm(
+-    fsm_state: np.ndarray,
+-    fsm_timer: np.ndarray,
+-    base_height: np.ndarray,
+-    base_linvel: np.ndarray,
+-    dof_pos: np.ndarray,
+-    jump_trigger: np.ndarray,
+-    default_height: float,
+-    dt: float,
+-) -> tuple[np.ndarray, np.ndarray]:
+-    """更新六状态FSM -- xqrobotwl 专用阈值"""
+-    v_z = base_linvel[:, 2]
+-    ground = base_height < default_height + 0.02
++def _update_fsm_state(fsm_state, fsm_timer, base_height, base_linvel, dof_pos, jt, dh, dt):
++    vz = base_linvel[:, 2]
+     fsm_timer += dt
+-
+     for s in range(-1, 5):
+-        mask = fsm_state == s
+-        if not mask.any():
++        m = fsm_state == s
++        if not m.any():
+             continue
+-
+         if s == -1:
+-            trigger = (jump_trigger[mask] > 0.5) & (fsm_timer[mask] > 0.1)
+-            next_mask = np.zeros_like(mask, dtype=bool)
+-            next_mask[mask] = trigger
+-            fsm_state[next_mask] = 0
+-            fsm_timer[next_mask] = 0.0
+-
++            t = (jt[m] > 0.5) & (fsm_timer[m] > 0.1)
++            nxt = np.zeros_like(fsm_state, dtype=bool)
++            nxt[m] = t
++            fsm_state[nxt] = 0
++            fsm_timer[nxt] = 0
+         elif s == 0:
+-            deep = (dof_pos[mask, 2] < 0.0) & (dof_pos[mask, 5] > 0.0)
+-            to = fsm_timer[mask] > 0.1
+-            next_mask = np.zeros_like(mask, dtype=bool)
+-            next_mask[mask] = deep | to
+-            fsm_state[next_mask] = 1
+-            fsm_timer[next_mask] = 0.0
+-
++            t = fsm_timer[m] > 0.25
++            nxt = np.zeros_like(fsm_state, dtype=bool)
++            nxt[m] = t
++            fsm_state[nxt] = 1
++            fsm_timer[nxt] = 0
+         elif s == 1:
+-            if not np.any(fsm_timer[mask] > 0.05):
+-                continue
+-            ext = (dof_pos[mask, 2] > 0.05) & (dof_pos[mask, 5] < -0.05)
+-            to = fsm_timer[mask] > 0.2
+-            next_mask = np.zeros_like(mask, dtype=bool)
+-            next_mask[mask] = ext | to
+-            fsm_state[next_mask] = 2
+-            fsm_timer[next_mask] = 0.0
+-
++            t = fsm_timer[m] > 0.20
++            nxt = np.zeros_like(fsm_state, dtype=bool)
++            nxt[m] = t
++            fsm_state[nxt] = 2
++            fsm_timer[nxt] = 0
+         elif s == 2:
+-            if not np.any(fsm_timer[mask] > 0.1):
+-                continue
+-            descending = v_z[mask] < 0
+-            near = base_height[mask] < default_height + 0.2
+-            to = fsm_timer[mask] > 0.8
+-            next_mask = np.zeros_like(mask, dtype=bool)
+-            next_mask[mask] = descending & (near | to)
+-            fsm_state[next_mask] = 3
+-            fsm_timer[next_mask] = 0.0
+-
++            t = (vz[m] < 0) & (base_height[m] < dh + 0.20)
++            t |= fsm_timer[m] > 0.6
++            nxt = np.zeros_like(fsm_state, dtype=bool)
++            nxt[m] = t
++            fsm_state[nxt] = 3
++            fsm_timer[nxt] = 0
+         elif s == 3:
+-            landed = ground[mask] & (fsm_timer[mask] > 0.05)
+-            next_mask = np.zeros_like(mask, dtype=bool)
+-            next_mask[mask] = landed
+-            fsm_state[next_mask] = 4
+-            fsm_timer[next_mask] = 0.0
+-
++            t = (base_height[m] < dh + 0.04) & (fsm_timer[m] > 0.05)
++            nxt = np.zeros_like(fsm_state, dtype=bool)
++            nxt[m] = t
++            fsm_state[nxt] = 4
++            fsm_timer[nxt] = 0
+         elif s == 4:
+-            ok = fsm_timer[mask] > 0.2
+-            next_mask = np.zeros_like(mask, dtype=bool)
+-            next_mask[mask] = ok
+-            fsm_state[next_mask] = -1
+-            fsm_timer[next_mask] = 0.0
+-
++            t = fsm_timer[m] > 0.15
++            nxt = np.zeros_like(fsm_state, dtype=bool)
++            nxt[m] = t
++            fsm_state[nxt] = -1
++            fsm_timer[nxt] = 0
+     return fsm_state, fsm_timer
+ 
+ 
+-# ========== 奖励函数 ==========
++_NUM_JUMP_CMD_DIM = 5
+ 
+ 
+-def _reward_jump_height(ctx: RewardContext, cfg) -> np.ndarray:
+-    base_z = ctx.base_height
+-    jt = ctx.info["commands"][:, 4]
+-    jumping = jt > 0.5
+-    clamped = np.clip(base_z / cfg.jump_height_target, 0.0, 1.0)
+-    return clamped * jumping.astype(np.float64) * 2.0
++@dataclass
++class XqRobotWLJumpCommands(Commands):
++    vel_limit: list[list[float]] = field(
++        default_factory=lambda: [[-0.3, -0.1, -0.5, -0.1, 0], [0.3, 0.1, 0.5, 0.1, 1]]
++    )
++    resampling_time: float = 4.0
+ 
+ 
+-def _reward_crouch_prep(ctx: RewardContext, cfg) -> np.ndarray:
+-    base_z = ctx.base_height
+-    jt = ctx.info["commands"][:, 4]
+-    crouching = (jt > 0.5) & (base_z < cfg.base_height_target)
+-    target = cfg.crouch_height_target
+-    height_ok = (base_z > cfg.min_base_height) & (base_z < target + 0.1)
+-    return height_ok.astype(np.float64) * crouching.astype(np.float64) * 0.5
++@dataclass
++class XqRobotWLJumpRewardConfig:
++    scales: dict[str, float]
++    tracking_sigma: float = 0.25
++    base_height_target: float = 0.65
++    only_positive_rewards: bool = False
++    max_tilt_deg: float = 60.0
++    min_base_height: float = 0.20
++    jump_height_target: float = 1.0
++    crouch_height_target: float = 0.40
++    # 跳跃课程: [start, end] step 范围, 线性插值 jump_trigger + 跳跃奖励
++    jump_curriculum_start: int = 0
++    jump_curriculum_end: int = 100_000
+ 
+ 
+-def _reward_landing_soft(ctx: RewardContext) -> np.ndarray:
+-    vz = np.abs(ctx.linvel[:, 2])
+-    return np.exp(-vz / 0.5) * 0.3
++@dataclass
++class XqRobotWLJumpCurriculumConfig(XqRobotWLCurriculumConfig):
++    enabled: bool = False
+ 
+ 
+-def _reward_vertical_thrust(ctx: RewardContext, cfg) -> np.ndarray:
+-    jt = ctx.info["commands"][:, 4]
+-    base_z = ctx.base_height
+-    vz = ctx.linvel[:, 2]
+-    active = (jt > 0.5) & (base_z < 0.55) & (vz > 0.0)
+-    return vz * active.astype(np.float64)
++# ── 跳跃奖励 (phase-gated: 蹲→蹬→飞→落) ────────────────────────────
++# jump_phase = consecutive steps with trigger > 0.5
++# Phase  [1, 30]: crouch (下蹲蓄力, 30步后强制停)
++# Phase  anytime: thrust (蹬地, 不锁窗, 蹲够了随时弹)
++# Phase     >=1: flight/height/air (腾空奖励, 全程开)
++# Phase    >=30: landing (落地缓冲)
+ 
+ 
+-def _reward_crouch_depth(ctx: RewardContext, cfg) -> np.ndarray:
++def _reward_crouch_prep(ctx: RewardContext, jump_cfg: XqRobotWLJumpRewardConfig) -> np.ndarray:
+     base_z = ctx.base_height
+-    jt = ctx.info["commands"][:, 4]
+-    crouching = (jt > 0.5) & (base_z < cfg.base_height_target)
+-    depth = np.clip((cfg.base_height_target - base_z) / 0.3, 0.0, 1.0)
+-    return depth * crouching.astype(np.float64) * 0.5
+-
++    phase = ctx.info.get("jump_phase", np.zeros(ctx.num_envs, dtype=np.float64))
++    active = ((phase >= 1.0) & (phase <= 18.0)).astype(np.float64)
++    crouching = base_z < jump_cfg.base_height_target
++    target = jump_cfg.crouch_height_target
++    height_ok = (base_z > jump_cfg.min_base_height) & (base_z < target + 0.15)
++    # Posture: 前倾 + 弯膝 + 髋不外展 (禁止后仰 + 伸腿 + 叉腿)
++    hip_fwd_L = ctx.dof_pos[:, 1]  # +Y axis: positive=forward
++    hip_fwd_R = -ctx.dof_pos[:, 4]  # -Y axis: negative=forward, so -value=forward
++    knee_bend_L = ctx.dof_pos[:, 2]  # -Y axis: positive=bent
++    knee_bend_R = -ctx.dof_pos[:, 5]  # +Y axis: negative=bent, so -value=bent
++    roll_ok = (np.abs(ctx.dof_pos[:, 0] - 0.1) < 0.12) & (np.abs(ctx.dof_pos[:, 3] + 0.1) < 0.12)
++    posture_ok = (
++        (hip_fwd_L >= 0.05)
++        & (hip_fwd_R >= 0.05)
++        & (knee_bend_L >= 0.05)
++        & (knee_bend_R >= 0.05)
++        & roll_ok
++    )
++    weight = ctx.info.get("jump_curriculum", 1.0)
++    return (
++        height_ok.astype(np.float64)
++        * crouching.astype(np.float64)
++        * posture_ok.astype(np.float64)
++        * active
++        * 0.5
++        * weight
++    )
+ 
+-def _reward_wheel_ground_matching(ctx: RewardContext) -> np.ndarray:
+-    """轮地速度匹配 (论文式14)"""
+-    wheel_vel = ctx.info.get("wheel_vel", np.zeros((ctx.num_envs, 2)))
+-    lin_x = ctx.linvel[:, 0:1]
+-    error = np.sum(np.square(wheel_vel * WHEEL_R - lin_x), axis=1)
+-    fsm = ctx.info.get("fsm_state", -np.ones(ctx.num_envs))
+-    timer = ctx.info.get("fsm_timer", np.ones(ctx.num_envs))
+-    landing = (fsm == 3) & (timer < 0.05)
+-    r = -error
+-    r[~landing] = 0.0
+-    return r
+ 
++def _reward_crouch_depth(ctx: RewardContext, jump_cfg: XqRobotWLJumpRewardConfig) -> np.ndarray:
++    base_z = ctx.base_height
++    phase = ctx.info.get("jump_phase", np.zeros(ctx.num_envs, dtype=np.float64))
++    active = ((phase >= 1.0) & (phase <= 14.0)).astype(np.float64)
++    crouching = base_z < jump_cfg.base_height_target
++    depth = np.clip((jump_cfg.base_height_target - base_z) / 0.25, 0.0, 1.0)
++    # Same posture check as crouch_prep: no backward lean + bent knees + no hip spread
++    hip_fwd_L = ctx.dof_pos[:, 1]
++    hip_fwd_R = -ctx.dof_pos[:, 4]
++    knee_bend_L = ctx.dof_pos[:, 2]
++    knee_bend_R = -ctx.dof_pos[:, 5]
++    roll_ok = (np.abs(ctx.dof_pos[:, 0] - 0.1) < 0.12) & (np.abs(ctx.dof_pos[:, 3] + 0.1) < 0.12)
++    posture_ok = (
++        (hip_fwd_L >= 0.05)
++        & (hip_fwd_R >= 0.05)
++        & (knee_bend_L >= 0.05)
++        & (knee_bend_R >= 0.05)
++        & roll_ok
++    )
++    weight = ctx.info.get("jump_curriculum", 1.0)
++    return (
++        depth * crouching.astype(np.float64) * posture_ok.astype(np.float64) * active * 0.5 * weight
++    )
+ 
+-# ========== 配置类 ==========
+ 
++def _reward_lean_forward(ctx: RewardContext) -> np.ndarray:
++    """站立时罚髋后仰, 跳时不罚 — trigger≤0.5 激活"""
++    trigger = ctx.info["commands"][:, 4]
++    active = (trigger <= 0.5).astype(np.float64)
++    if not active.any():
++        return np.zeros(ctx.num_envs, dtype=np.float64)
++    hip_fwd_L = ctx.dof_pos[:, 1]
++    hip_fwd_R = -ctx.dof_pos[:, 4]
++    penalty_L = np.clip(-hip_fwd_L, 0, 1)
++    penalty_R = np.clip(-hip_fwd_R, 0, 1)
++    knee_bend_L = ctx.dof_pos[:, 2]
++    knee_bend_R = -ctx.dof_pos[:, 5]
++    p_knee_L = np.clip(-knee_bend_L, 0, 1) ** 2
++    p_knee_R = np.clip(-knee_bend_R, 0, 1) ** 2
++    roll_dev_L = np.clip(np.abs(ctx.dof_pos[:, 0] - 0.1) - 0.10, 0, 1)
++    roll_dev_R = np.clip(np.abs(ctx.dof_pos[:, 3] + 0.1) - 0.10, 0, 1)
++    return -(penalty_L + penalty_R + p_knee_L + p_knee_R + roll_dev_L + roll_dev_R) * 0.5 * active
++
++
++def _reward_vertical_thrust(ctx: RewardContext, jump_cfg: XqRobotWLJumpRewardConfig) -> np.ndarray:
++    vz = ctx.linvel[:, 2]
++    phase = ctx.info.get("jump_phase", np.zeros(ctx.num_envs, dtype=np.float64))
++    wheel_contact = ctx.info.get("wheel_contact", np.ones((ctx.num_envs, 2)))
++    on_ground = (np.max(wheel_contact, axis=1) > 0.5).astype(np.float64)
++    active = ((phase >= 12.0) & (vz > 0.0) & (on_ground > 0)).astype(np.float64)
++    vz_capped = np.clip(vz, 0, 2.0)
++    weight = ctx.info.get("jump_curriculum", 1.0)
++    return vz_capped * active * weight
+ 
+-@dataclass
+-class XqRobotWLJumpSRLCommands(Commands):
+-    """跳跃命令: [vx, vy, vyaw, tsk, jump_trigger]"""
+ 
+-    vel_limit: list[list[float]] = field(
+-        default_factory=lambda: [[-0.3, 0.0, -0.5, -0.1, 0], [0.3, 0.0, 0.5, 0.1, 1]]
++def _reward_jump_height(ctx: RewardContext, jump_cfg: XqRobotWLJumpRewardConfig) -> np.ndarray:
++    base_z = ctx.base_height
++    phase = ctx.info.get("jump_phase", np.ones(ctx.num_envs, dtype=np.float64) * 1e9)
++    active = (phase >= 1.0).astype(np.float64)
++    target = jump_cfg.jump_height_target
++    clamped = np.clip(base_z / target, 0.0, 1.0)
++    wheel_contact = ctx.info.get("wheel_contact", np.ones((ctx.num_envs, 2)))
++    air_factor = 1.0 - np.mean(wheel_contact, axis=1)
++    # Don't reward height with locked knees
++    knee_ok = ((np.abs(ctx.dof_pos[:, 2]) < 1.2) & (np.abs(ctx.dof_pos[:, 5]) < 1.2)).astype(
++        np.float64
+     )
+-    resampling_time: float = 4.0
++    weight = ctx.info.get("jump_curriculum", 1.0)
++    return clamped * active * air_factor * knee_ok * 2.0 * weight
+ 
+ 
+-@dataclass
+-class XqRobotWLJumpSRLRewardConfig:
+-    """Wheeled-SRL 跳跃奖励配置"""
++def _reward_wheel_air_time(ctx: RewardContext) -> np.ndarray:
++    wheel_contact = ctx.info.get("wheel_contact", np.ones((ctx.num_envs, 2)))
++    air = 1.0 - np.mean(wheel_contact, axis=1)
++    phase = ctx.info.get("jump_phase", np.zeros(ctx.num_envs, dtype=np.float64))
++    active = (phase >= 1.0).astype(np.float64)
++    # Penalize wheel spinning in the air
++    wheel_vel = ctx.info["current_actions"][:, -2:]
++    wheel_spin = np.sum(np.abs(wheel_vel), axis=1) * air
++    weight = ctx.info.get("jump_curriculum", 1.0)
++    return (air * 0.5 - wheel_spin * 0.1) * weight * active
+ 
+-    scales: dict[str, float]
+-    tracking_sigma: float = 0.25
+-    base_height_target: float = 0.65
+-    only_positive_rewards: bool = False
+-    max_tilt_deg: float = 45.0
+-    min_base_height: float = 0.15
+-    jump_height_target: float = 1.0
+-    crouch_height_target: float = 0.40
+-    feedback_gain: float = 0.2
+-    wheel_matching_sigma: float = 0.3
+-    jump_warmup_steps: int = 3000
++
++def _reward_landing_soft(ctx: RewardContext) -> np.ndarray:
++    base_linvel_z = ctx.linvel[:, 2]
++    vz_mag = np.abs(base_linvel_z)
++    soft = np.exp(-vz_mag / 0.5)
++    phase = ctx.info.get("jump_phase", np.zeros(ctx.num_envs, dtype=np.float64))
++    active = (phase >= 35.0).astype(np.float64)
++    weight = ctx.info.get("jump_curriculum", 1.0)
++    return soft * 0.3 * weight * active
+ 
+ 
+-@dataclass
+-class XqRobotWLJumpSRLCurriculumConfig(XqRobotWLCurriculumConfig):
+-    enabled: bool = False
++def _reward_height_progress(ctx: RewardContext) -> np.ndarray:
++    base_z = ctx.base_height
++    max_z = ctx.info.get("episode_max_height", base_z)
++    new_max = np.clip(base_z - max_z, 0, 1.0)
++    phase = ctx.info.get("jump_phase", np.zeros(ctx.num_envs, dtype=np.float64))
++    active = (phase >= 1.0).astype(np.float64)
++    weight = ctx.info.get("jump_curriculum", 1.0)
++    return new_max * active * 5.0 * weight
+ 
+ 
+ @registry.envcfg("XqRobotWLJumpSRLFlat")
+ @dataclass
+ class XqRobotWLJumpSRLFlatCfg(XqRobotWLWalkFlatCfg):
+-    commands: XqRobotWLJumpSRLCommands = field(default_factory=XqRobotWLJumpSRLCommands)
+-    reward_config: XqRobotWLJumpSRLRewardConfig | None = None
+-    curriculum: XqRobotWLJumpSRLCurriculumConfig = field(
+-        default_factory=XqRobotWLJumpSRLCurriculumConfig
+-    )
++    commands: XqRobotWLJumpCommands = field(default_factory=XqRobotWLJumpCommands)
++    reward_config: XqRobotWLJumpRewardConfig | None = None
++    curriculum: XqRobotWLJumpCurriculumConfig = field(default_factory=XqRobotWLJumpCurriculumConfig)
+     max_episode_seconds: float = 10.0
+-    ablation_mode: str = "full"
+ 
+ 
+-class XqRobotWLJumpSRLDRProvider(XqRobotWLDRProvider):
+-    def _sample_commands(self, env, num_reset):
++class XqRobotWLJumpDRProvider(XqRobotWLDRProvider):
++    def _sample_commands(self, env: Any, num_reset: int) -> np.ndarray:
+         low = np.asarray(env._cfg.commands.vel_limit[0], dtype=get_global_dtype())
+         high = np.asarray(env._cfg.commands.vel_limit[1], dtype=get_global_dtype())
+         cmds = np.asarray(
+@@ -329,70 +302,54 @@ class XqRobotWLJumpSRLDRProvider(XqRobotWLDRProvider):
+             dtype=get_global_dtype(),
+         )
+         safe_linv = np.maximum(np.abs(cmds[:, 0]), 1e-4)
+-        cmds[:, 2] = np.clip(cmds[:, 2], -2.0 / safe_linv, 2.0 / safe_linv)
++        angv_limit = 2.0 / safe_linv
++        cmds[:, 2] = np.clip(cmds[:, 2], -angv_limit, angv_limit)
+         return cmds
+ 
+ 
+ @registry.env("XqRobotWLJumpSRLFlat", sim_backend="mujoco")
+ class XqRobotWLJumpSRLFlatEnv(XqRobotWLWalkFlatEnv):
+-    """Wheeled-SRL 跳跃环境 (xqrobotwl)
+-
+-    在父类基础上增加:
+-    - SLIP六状态FSM前馈
+-    - 前馈-反馈融合: action = ff + k_b * policy_output
+-    - 轮地匹配奖励
+-    - 扩展观测含 fsm_state + jump_phase
+-    - 消融实验开关
+-    """
++    """PPO-SRL 融合跳跃 — PPO骨架 + SLIP前馈 + FSM观测"""
+ 
+     _cfg: XqRobotWLJumpSRLFlatCfg
+ 
+-    def __init__(self, cfg, num_envs=1, backend_type="mujoco"):
++    def __init__(self, cfg: XqRobotWLJumpSRLFlatCfg, num_envs=1, backend_type="mujoco"):
+         self._jump_cfg = cfg.reward_config
++        self._total_env_steps = 0
++        self._jump_curriculum_start = getattr(cfg.reward_config, "jump_curriculum_start", 0)
++        self._jump_curriculum_end = getattr(cfg.reward_config, "jump_curriculum_end", 100_000)
++        range_span = self._jump_curriculum_end - self._jump_curriculum_start
++        self._jump_curriculum_step = float(range_span) if range_span > 0 else 1.0
+         super().__init__(cfg, num_envs=num_envs, backend_type=backend_type)
+-        self._init_reward_functions()
+-        self._dr_manager._provider = XqRobotWLJumpSRLDRProvider()
+-
+-        # FSM state
++        self._dr_manager._provider = XqRobotWLJumpDRProvider()
+         self._fsm_state = -np.ones(num_envs, dtype=np.int32)
+         self._fsm_timer = np.zeros(num_envs, dtype=np.float64)
+-        self._jump_phase = np.zeros(num_envs, dtype=np.float64)
+-        self._peak_height = np.zeros(num_envs, dtype=np.float64)
+-        self._feedback_gain = np.full(num_envs, cfg.reward_config.feedback_gain, dtype=np.float64)
+-
+-        # 消融模式
+-        self._ablation_mode = getattr(cfg, "ablation_mode", "full")
+-
+-        # 分阶段训练预热
+-        warmup_iters = cfg.reward_config.jump_warmup_steps
+-        self._warmup_cutoff = 0 if num_envs == 1 else warmup_iters * 24
+-        self._obs_frame_dim = 35
+-        self._critic_frame_dim = 38
++        self._episode_max_height = np.zeros(num_envs, dtype=np.float64)
++        self._obs_frame_dim = 33
++        self._critic_frame_dim = 36
+         self._obs_history = np.zeros(
+             (num_envs, self._hist_len, self._obs_frame_dim), dtype=self._np_dtype
+         )
+         self._critic_history = np.zeros(
+             (num_envs, self._hist_len, self._critic_frame_dim), dtype=self._np_dtype
+         )
+-        self._total_env_steps = 0
++        self._critic_history = np.zeros(
++            (num_envs, self._hist_len, self._critic_frame_dim), dtype=self._np_dtype
++        )
+ 
+     @property
+-    def obs_groups_spec(self):
+-        return {
+-            "obs": self._obs_frame_dim * self._hist_len,
+-            "critic": self._critic_frame_dim * self._hist_len,
+-        }
++    def obs_groups_spec(self) -> dict[str, int]:
++        return {"obs": 315, "critic": 342}  # 297+18=315, 324+18=342
+ 
+-    def _init_reward_functions(self):
+-        """跳跃奖励表: 通用 + Wheeled-SRL专用"""
+-        self._reward_fns = {
++    def _init_reward_functions(self) -> None:
++        self._reward_fns: dict[str, Any] = {
+             "tracking_lin_vel": rewards.tracking_lin_vel,
+             "tracking_ang_vel": rewards.tracking_ang_vel,
+             "lin_vel_z": rewards.lin_vel_z,
+             "ang_vel_xy": rewards.ang_vel_xy,
+             "base_height": rewards.base_height,
+             "orientation": rewards.orientation,
+-            "joint_action_rate": rewards.action_rate,
++            "joint_action_rate": self._reward_joint_action_rate,
+             "wheel_action_rate": self._reward_wheel_action_rate,
+             "leg_mirror": self._reward_leg_mirror,
+             "tsk": self._reward_tsk,
+@@ -400,238 +357,171 @@ class XqRobotWLJumpSRLFlatEnv(XqRobotWLWalkFlatEnv):
+             "jump_height": self._reward_jump_height,
+             "crouch_prep": self._reward_crouch_prep,
+             "landing_soft": self._reward_landing_soft,
+-            "wheel_ground_matching": self._reward_wheel_ground_matching,
++            "wheel_air_time": self._reward_wheel_air_time,
+             "vertical_thrust": self._reward_vertical_thrust,
+             "crouch_depth": self._reward_crouch_depth,
+-            "action_magnitude": self._reward_action_magnitude,
++            "lean_forward": self._reward_lean_forward,
++            "height_progress": self._reward_height_progress,
+         }
+ 
+-    # 奖励委托
+-    def _reward_jump_height(self, ctx):
++    def _reward_jump_height(self, ctx: RewardContext) -> np.ndarray:
+         return _reward_jump_height(ctx, self._jump_cfg)
+ 
+-    def _reward_crouch_prep(self, ctx):
++    def _reward_crouch_prep(self, ctx: RewardContext) -> np.ndarray:
+         return _reward_crouch_prep(ctx, self._jump_cfg)
+ 
+-    def _reward_landing_soft(self, ctx):
++    def _reward_landing_soft(self, ctx: RewardContext) -> np.ndarray:
+         return _reward_landing_soft(ctx)
+ 
+-    def _reward_vertical_thrust(self, ctx):
++    def _reward_wheel_air_time(self, ctx: RewardContext) -> np.ndarray:
++        return _reward_wheel_air_time(ctx)
++
++    def _reward_vertical_thrust(self, ctx: RewardContext) -> np.ndarray:
+         return _reward_vertical_thrust(ctx, self._jump_cfg)
+ 
+-    def _reward_crouch_depth(self, ctx):
++    def _reward_crouch_depth(self, ctx: RewardContext) -> np.ndarray:
+         return _reward_crouch_depth(ctx, self._jump_cfg)
+ 
+-    def _reward_wheel_ground_matching(self, ctx):
+-        if self._ablation_mode == "no_wheel_match":
+-            return np.zeros(ctx.num_envs, dtype=np.float64)
+-        return _reward_wheel_ground_matching(ctx)
++    def _reward_lean_forward(self, ctx: RewardContext) -> np.ndarray:
++        return _reward_lean_forward(ctx)
+ 
+-    def _reward_action_magnitude(self, ctx):
+-        return np.sum(np.square(ctx.info["current_actions"]), axis=1)
++    def _reward_height_progress(self, ctx: RewardContext) -> np.ndarray:
++        return _reward_height_progress(ctx)
+ 
+-    def _reward_wheel_action_rate(self, ctx):
+-        cur = ctx.info["current_actions"][:, NUM_LEG_ACTIONS:]
+-        lst = ctx.info["last_actions"][:, NUM_LEG_ACTIONS:]
+-        return np.sum(np.square(cur - lst), axis=1)
++    def _reward_joint_action_rate(self, ctx: RewardContext) -> np.ndarray:
++        current = ctx.info["current_actions"][:, :NUM_LEG_ACTIONS]
++        last = ctx.info["last_actions"][:, :NUM_LEG_ACTIONS]
++        return np.sum(np.square(current - last), axis=1)
+ 
+-    def _reward_leg_mirror(self, ctx):
+-        return np.square(ctx.dof_pos[:, 0] + ctx.dof_pos[:, 3]) + np.sum(
+-            np.square(ctx.dof_pos[:, 1:3] + ctx.dof_pos[:, 4:6]), axis=1
+-        )
++    def _reward_wheel_action_rate(self, ctx: RewardContext) -> np.ndarray:
++        current = ctx.info["current_actions"][:, NUM_LEG_ACTIONS:]
++        last = ctx.info["last_actions"][:, NUM_LEG_ACTIONS:]
++        return np.sum(np.square(current - last), axis=1)
+ 
+-    def _reward_tsk(self, ctx):
+-        return np.square((ctx.dof_pos[:, 0] + ctx.dof_pos[:, 3]) - ctx.info["commands"][:, 3])
++    def _reward_leg_mirror(self, ctx: RewardContext) -> np.ndarray:
++        hip_error = np.abs(ctx.dof_pos[:, 0] + ctx.dof_pos[:, 3])
++        pitch_error = ctx.dof_pos[:, 1:3] + ctx.dof_pos[:, 4:6]
++        asym = hip_error + np.sum(np.abs(pitch_error), axis=1)
++        return np.clip(asym - 0.15, 0, 2.0)
+ 
+-    # ── 核心: step覆写 ──
++    def _reward_tsk(self, ctx: RewardContext) -> np.ndarray:
++        tsk_cmd = ctx.info["commands"][:, 3]
++        hip_diff = ctx.dof_pos[:, 0] + ctx.dof_pos[:, 3]
++        return np.square(hip_diff - tsk_cmd)
+ 
+     def step(self, actions):
+-        """前馈-反馈融合 step"""
+         dof_pos = self.get_dof_pos()
+-        linvel = self.get_local_linvel()
+-        ff = compute_slip_feedforward(
+-            self._fsm_state,
+-            self._fsm_timer,
+-            dof_pos,
+-            linvel,
+-            self.default_angles,
+-            WHEEL_R,
+-            self._ablation_mode,
+-        )
+-        kb = self._feedback_gain.reshape(-1, 1)
+-        fused = ff + kb * actions
+-        return super().step(fused)
+-
+-    # ── 状态更新 ──
++        ff = _compute_feedforward(self._fsm_state, self.default_angles, dof_pos)
++        return super().step(ff * SLIP_FF_GAIN + actions)
+ 
+     def update_state(self, state: NpEnvState) -> NpEnvState:
+         self._update_commands(state.info)
+-
+-        # 渐进式跳跃预热
++        # Jump curriculum
+         self._total_env_steps += self._num_envs
+-        warmup_end = self._warmup_cutoff
+-        if self._total_env_steps < warmup_end:
+-            state.info["commands"][:, 4] = 0.0
+-        elif self._total_env_steps < warmup_end * 2:
+-            alpha = (self._total_env_steps - warmup_end) / warmup_end
+-            state.info["commands"][:, 4] *= alpha
+-
++        progress = np.clip(
++            (self._total_env_steps - self._jump_curriculum_start) / self._jump_curriculum_step,
++            0.0,
++            1.0,
++        )
++        state.info["commands"][:, 4] *= np.float64(progress)
++        state.info["jump_curriculum"] = np.float64(progress)
++        # Reset episode_max_height for freshly reset envs
++        fresh = state.info["steps"] <= 1
++        self._episode_max_height[fresh] = 0.0
++        # Jump phase
++        trigger_active = state.info["commands"][:, 4] > 0.5
++        prev_phase = state.info.get("jump_phase", np.zeros(self._num_envs, dtype=np.float64))
++        new_phase = np.where(trigger_active, prev_phase + 1, np.float64(0))
++        state.info["jump_phase"] = new_phase
+         linvel = self.get_local_linvel()
+         gyro = self.get_gyro()
+         gravity = self._backend.get_sensor_data(self._cfg.sensor.upvector)
+         dof_pos = self.get_dof_pos()
+         dof_vel = self.get_dof_vel()
+-        self._update_wheel_contact(state.info)
+-
+-        base_height = self._base_height_values(linvel.shape[0])
++        # ★ SLIP FSM
++        base_z = np.asarray(self._backend.get_base_pos(), dtype=get_global_dtype())[:, 2]
+         jt = state.info["commands"][:, 4]
+-        self._fsm_state, self._fsm_timer = update_fsm(
++        self._fsm_state, self._fsm_timer = _update_fsm_state(
+             self._fsm_state,
+             self._fsm_timer,
+-            base_height,
++            base_z,
+             linvel,
+             dof_pos,
+             jt,
+-            self._cfg.reward_config.base_height_target,
++            self._jump_cfg.base_height_target,
+             self._cfg.ctrl_dt,
+         )
+-        self._jump_phase = np.clip(self._fsm_timer / 0.8, 0.0, 1.0)
+-        flying = self._fsm_state == 2
+-        self._peak_height[flying] = np.maximum(self._peak_height[flying], base_height[flying])
+-
+-        state.info["fsm_state"] = self._fsm_state
+-        state.info["fsm_timer"] = self._fsm_timer
+-        state.info["jump_phase"] = self._jump_phase
+-        state.info["wheel_vel"] = dof_vel[:, NUM_LEG_ACTIONS:]
+-
++        # Track episode max height for progress reward
++        self._episode_max_height = np.maximum(self._episode_max_height, base_z)
++        state.info["episode_max_height"] = self._episode_max_height.copy()
++        self._update_wheel_contact(state.info)
+         terminated = self._compute_terminated(gravity, dof_pos)
+         reward = self._compute_reward(state.info, linvel, gyro, gravity, dof_pos, dof_vel)
+         obs = self._compute_obs(state.info, linvel, gyro, gravity, dof_pos, dof_vel)
+         return state.replace(obs=obs, reward=reward, terminated=terminated)
+ 
+-    def _update_wheel_contact(self, info):
++    def _update_wheel_contact(self, info: dict) -> None:
+         try:
+             left = self._backend.get_sensor_data("left_wheel_force")
+             right = self._backend.get_sensor_data("right_wheel_force")
+-            lf = np.asarray(left, dtype=get_global_dtype()).reshape(-1, 3)[: self._num_envs]
+-            rf = np.asarray(right, dtype=get_global_dtype()).reshape(-1, 3)[: self._num_envs]
+-            info["wheel_contact"] = np.stack(
+-                [
+-                    (np.linalg.norm(lf, axis=1) > 10.0).astype(np.float64),
+-                    (np.linalg.norm(rf, axis=1) > 10.0).astype(np.float64),
+-                ],
+-                axis=1,
+-            )
++            left_f = np.asarray(left, dtype=get_global_dtype())
++            right_f = np.asarray(right, dtype=get_global_dtype())
++            if left_f.ndim == 1:
++                left_f = left_f.reshape(-1, 3)
++            if right_f.ndim == 1:
++                right_f = right_f.reshape(-1, 3)
++            left_contact = (np.linalg.norm(left_f, axis=1) > 10.0).astype(np.float64)[
++                : self._num_envs
++            ]
++            right_contact = (np.linalg.norm(right_f, axis=1) > 10.0).astype(np.float64)[
++                : self._num_envs
++            ]
++            info["wheel_contact"] = np.stack([left_contact, right_contact], axis=1)
+         except (KeyError, AttributeError):
+             info["wheel_contact"] = np.zeros((self._num_envs, 2), dtype=np.float64)
+ 
+-    def _compute_terminated(self, gravity, dof_pos):
++    def _compute_obs(self, info, linvel, gyro, gravity, dof_pos, dof_vel):
++        base = super()._compute_obs(info, linvel, gyro, gravity, dof_pos, dof_vel)
++        batch = linvel.shape[0]
++        fsm_feat = self._fsm_state.astype(np.float64).reshape(-1, 1)[:batch] / 5.0
++        timer_feat = np.clip(self._fsm_timer.reshape(-1, 1)[:batch] / 0.8, 0, 1)
++        extra = np.tile(
++            np.concatenate([fsm_feat, timer_feat], axis=1, dtype=get_global_dtype())[:, None, :],
++            (1, 9, 1),
++        ).reshape(batch, -1)
++        base["obs"] = np.concatenate([base["obs"], extra], axis=1)
++        base["critic"] = np.concatenate([base["critic"], extra], axis=1)
++        return base
++
++    def _compute_terminated(self, gravity: np.ndarray, dof_pos: np.ndarray) -> np.ndarray:
+         tilt = np.arccos(np.clip(gravity[:, 2], -1, 1))
+-        terminated = tilt > np.deg2rad(self._jump_cfg.max_tilt_deg)
+-        terminated |= (
+-            np.asarray(self._backend.get_base_pos(), dtype=get_global_dtype())[:, 2]
+-            < self._jump_cfg.min_base_height
+-        )
+-        terminated |= (dof_pos[:, 1] < -0.3) | (dof_pos[:, 4] > 0.3)
+-        terminated |= (np.abs(dof_pos[:, 2]) > 1.5) | (np.abs(dof_pos[:, 5]) > 1.5)
+-        # 轮滑移终止
+-        linvel = self.get_local_linvel()
+-        wv = self.get_dof_vel()[:, NUM_LEG_ACTIONS:]
+-        slip = np.any(np.abs(wv * WHEEL_R - linvel[:, 0:1]) > 1.5, axis=1)
+-        is_ground = (
+-            np.asarray(self._backend.get_base_pos(), dtype=get_global_dtype())[:, 2]
+-            < self._jump_cfg.base_height_target + 0.05
+-        )
+-        terminated |= slip & is_ground
++        max_tilt = np.deg2rad(self._jump_cfg.max_tilt_deg)
++        terminated = tilt > max_tilt
++        thigh_collapsed = (dof_pos[:, 1] < -1.0) | (dof_pos[:, 4] > 1.0)
++        calf_extreme = (np.abs(dof_pos[:, 2]) > 1.8) | (np.abs(dof_pos[:, 5]) > 1.8)
++        terminated |= thigh_collapsed
++        terminated |= calf_extreme
+         return terminated
+ 
+-    def _compute_obs(self, info, linvel, gyro, gravity, dof_pos, dof_vel):
+-        noise_cfg = self._cfg.noise_config
+-        leg_diff = dof_pos[:, :NUM_LEG_ACTIONS] - DEFAULT_LEG_ANGLES[:NUM_LEG_ACTIONS]
+-        leg_vel = dof_vel[:, :NUM_LEG_ACTIONS]
+-        wheel_vel = dof_vel[:, NUM_LEG_ACTIONS:]
+-        last_actions = info.get("current_actions", np.zeros((linvel.shape[0], NUM_ACTIONS)))
+-
+-        fsm_feat = (
+-            self._fsm_state.astype(np.float64).reshape(-1, 1)[: linvel.shape[0]] / 5.0
+-        )
+-        phase_feat = self._jump_phase.reshape(-1, 1)[: linvel.shape[0]]
+-
+-        obs_frame = np.concatenate(
+-            [
+-                self._obs_noise(gyro, noise_cfg.scale_gyro),
+-                -self._obs_noise(gravity, noise_cfg.scale_gravity),
+-                self._obs_noise(leg_diff, noise_cfg.scale_joint_angle),
+-                self._obs_noise(leg_vel, noise_cfg.scale_joint_vel),
+-                self._obs_noise(wheel_vel, noise_cfg.scale_wheel_vel),
+-                last_actions,
+-                info["commands"],
+-                fsm_feat,
+-                phase_feat,
+-            ],
+-            axis=1,
+-            dtype=get_global_dtype(),
+-        )
+-
+-        critic_frame = np.concatenate(
+-            [
+-                gyro,
+-                -gravity,
+-                leg_diff,
+-                leg_vel,
+-                wheel_vel,
+-                last_actions,
+-                info["commands"],
+-                fsm_feat,
+-                phase_feat,
+-                linvel,
+-            ],
+-            axis=1,
+-            dtype=get_global_dtype(),
+-        )
+-
+-        batch_size = obs_frame.shape[0]
+-        steps_val = int(info.get("steps", np.zeros(1, dtype=np.uint32))[0])
+-
+-        if steps_val <= 1:
+-            for i in range(self._hist_len):
+-                self._obs_history[:batch_size, i, :] = obs_frame
+-                self._critic_history[:batch_size, i, :] = critic_frame
+-        else:
+-            self._obs_history[:batch_size, :-1, :] = self._obs_history[:batch_size, 1:, :]
+-            self._obs_history[:batch_size, -1, :] = obs_frame
+-            self._critic_history[:batch_size, :-1, :] = self._critic_history[:batch_size, 1:, :]
+-            self._critic_history[:batch_size, -1, :] = critic_frame
+-
+-        obs = self._obs_history[:batch_size].reshape(batch_size, -1)
+-        critic = self._critic_history[:batch_size].reshape(batch_size, -1)
+-        return {"obs": obs, "critic": critic}
+-
+-    def _compute_reward(self, info, linvel, gyro, gravity, dof_pos, dof_vel):
++    def _compute_reward(self, info: dict, linvel, gyro, gravity, dof_pos, dof_vel) -> np.ndarray:
+         dtype = get_global_dtype()
++        num_obs = linvel.shape[0]
+         ctx = RewardContext(
+             info=info,
+             linvel=linvel,
+             gyro=gyro,
+             dof_pos=dof_pos[:, :NUM_LEG_ACTIONS],
+             dof_vel=dof_vel[:, :NUM_LEG_ACTIONS],
+-            num_envs=linvel.shape[0],
++            num_envs=num_obs,
+             default_angles=self.default_angles[:NUM_LEG_ACTIONS].astype(dtype),
+             tracking_sigma=self._jump_cfg.tracking_sigma,
+             base_height_target=self._jump_cfg.base_height_target,
+-            base_height=self._base_height_values(linvel.shape[0]),
++            base_height=self._base_height_values(num_obs),
+             gravity=gravity,
+             joint_range=None,
+         )
+-        # 消融: 移除速度跟踪
+-        if self._ablation_mode == "no_vel_track":
+-            scales = {
+-                k: (0.0 if k == "tracking_lin_vel" else v) for k, v in self._jump_cfg.scales.items()
+-            }
+-        else:
+-            scales = self._jump_cfg.scales
+         return rewards.run_reward_dispatch(
+-            scales=scales,
++            scales=self._jump_cfg.scales,
+             fns=self._reward_fns,
+             ctx=ctx,
+             info=info,
+@@ -640,6 +530,8 @@ class XqRobotWLJumpSRLFlatEnv(XqRobotWLWalkFlatEnv):
+             only_positive=self._jump_cfg.only_positive_rewards,
+         )
+ 
+-    def _base_height_values(self, num_obs):
+-        pos = np.asarray(self._backend.get_base_pos(), dtype=get_global_dtype())
+-        return pos[:, 2] if pos.shape[0] == num_obs else np.zeros(num_obs, dtype=get_global_dtype())
++    def _base_height_values(self, num_obs: int) -> np.ndarray:
++        base_pos = np.asarray(self._backend.get_base_pos(), dtype=get_global_dtype())
++        if base_pos.shape[0] != num_obs:
++            return np.zeros((num_obs,), dtype=get_global_dtype())
++        return np.asarray(base_pos[:, 2], dtype=get_global_dtype())
+diff --git a/src/unilab/envs/locomotion/xqrobotwl/rough.py b/src/unilab/envs/locomotion/xqrobotwl/rough.py
+index 39d9661..a078ed3 100644
+--- a/src/unilab/envs/locomotion/xqrobotwl/rough.py
++++ b/src/unilab/envs/locomotion/xqrobotwl/rough.py
+@@ -50,7 +50,7 @@ _HISTORY_LEN = 9
+ @dataclass
+ class XqRobotWLRoughCommands(Commands):
+     vel_limit: list[list[float]] = field(
+-        default_factory=lambda: [[-1.0, -0.5, -1.5, -0.1, 0.40], [1.0, 0.5, 1.5, 0.1, 0.90]]
++        default_factory=lambda: [[-1.0, -0.5, -1.5, -0.1], [1.0, 0.5, 1.5, 0.1]]
+     )
+     resampling_time: float = 10.0
+ 
+@@ -71,28 +71,28 @@ class XqRobotWLRoughTerrainCfg(TerrainGeneratorCfg):
+ 
+     sub_terrains: dict[str, SubTerrainCfg] = field(
+         default_factory=lambda: {
+-            "flat": flat(proportion=0.2),
++            "flat": flat(proportion=0.05),
+             "random_rough": random_rough(
+-                proportion=0.35,
+-                noise_range=(0.005, 0.04),
+-                noise_step=0.01,
++                proportion=0.30,
++                noise_range=(0.02, 0.08),
++                noise_step=0.02,
+                 border_width=0.2,
+             ),
+             "wave_terrain": wave_terrain(
+-                proportion=0.35,
+-                amplitude_range=(0.0, 0.12),
++                proportion=0.25,
++                amplitude_range=(0.03, 0.18),
+                 num_waves=4,
+                 border_width=0.2,
+             ),
+             "hf_pyramid_slope": hf_pyramid_slope(
+-                proportion=0.05,
+-                slope_range=(0.1, 0.35),
++                proportion=0.20,
++                slope_range=(0.15, 0.50),
+                 platform_width=2.0,
+                 border_width=0.2,
+             ),
+             "hf_pyramid_slope_inv": hf_pyramid_slope_inv(
+-                proportion=0.05,
+-                slope_range=(0.1, 0.35),
++                proportion=0.20,
++                slope_range=(0.15, 0.50),
+                 platform_width=2.0,
+                 border_width=0.2,
+             ),
+@@ -153,6 +153,15 @@ class XqRobotWLWalkRoughEnv(XqRobotWLWalkFlatEnv):
+ 
+     def __init__(self, cfg: XqRobotWLWalkRoughCfg, num_envs=1, backend_type="mujoco"):
+         super().__init__(cfg, num_envs=num_envs, backend_type=backend_type)
++        # 4D commands [vx,vy,vyaw,tsk] → obs 比 flat(5D) 少 1 维
++        self._obs_frame_dim = 32
++        self._critic_frame_dim = 35
++        self._obs_history = np.zeros(
++            (num_envs, self._hist_len, self._obs_frame_dim), dtype=self._np_dtype
++        )
++        self._critic_history = np.zeros(
++            (num_envs, self._hist_len, self._critic_frame_dim), dtype=self._np_dtype
++        )
+         terrain_origins = getattr(self._backend, "terrain_origins", None)
+         terrain_generator = cfg.scene.terrain.generator if cfg.scene.terrain is not None else None
+         if terrain_origins is not None and terrain_generator is not None:
+diff --git a/src/unilab/envs/locomotion/xqrobotwl/toe_walk.py b/src/unilab/envs/locomotion/xqrobotwl/toe_walk.py
+index 8113e79..679fef6 100644
+--- a/src/unilab/envs/locomotion/xqrobotwl/toe_walk.py
++++ b/src/unilab/envs/locomotion/xqrobotwl/toe_walk.py
+@@ -53,8 +53,10 @@ class XqRobotToeWalkRewardConfig:
+     only_positive_rewards: bool = False
+     max_tilt_deg: float = 45.0
+     min_base_height: float = 0.15
+-    cycle_time: float = 0.5
+-    ref_scale: float = 0.15
++    cycle_time: float = 0.7
++    ref_scale: float = 0.18
++    use_reference: bool = True  # False = 相位门控奖励, 不跟踪参考轨迹
++    curriculum_steps: int = 4000  # 前 N iter 缓升, 防止过早罚崩溃
+ 
+ 
+ def _reward_ref_tracking(ctx: RewardContext) -> np.ndarray:
+@@ -74,23 +76,111 @@ def _reward_swing_lift(ctx: RewardContext) -> np.ndarray:
+     wheel_contact = ctx.info.get("wheel_contact", np.zeros((ctx.num_envs, 2)))
+     if np.max(swing_mask) < 0.5:
+         return np.zeros((ctx.num_envs,), dtype=np.float64)
+-    # 轮子在空中 = 1 - contact, 乘 swing_mask 只在摆动时计分
+     air_time = 1.0 - np.mean(wheel_contact, axis=1)
+     return air_time * swing_mask
+ 
+ 
++# ★ 移植 tron1 的关键技巧 ──────────────────────────────────────────
++
++
++def _reward_swing_contact_penalty(ctx: RewardContext) -> np.ndarray:
++    """摆动相轮子着地就罚 — 只罚摆动侧 (tron1 风格, 修正为左右分离)"""
++    wheel_contact = ctx.info.get("wheel_contact", np.zeros((ctx.num_envs, 2)))
++    phase = ctx.info.get("phase", np.zeros((ctx.num_envs, 1)))
++    sin_p = np.sin(2 * np.pi * phase)[:, 0] if phase.ndim == 2 else np.zeros(ctx.num_envs)
++    left_swing = (sin_p > 0.2).astype(np.float64)
++    right_swing = (sin_p < -0.2).astype(np.float64)
++    l_penalty = wheel_contact[:, 0] * left_swing
++    r_penalty = wheel_contact[:, 1] * right_swing
++    return -(l_penalty + r_penalty)
++
++
++def _reward_feet_regulation(ctx: RewardContext) -> np.ndarray:
++    """支撑相罚轮子滑移 (tron1) — 只罚支撑侧"""
++    wheel_vel = ctx.dof_vel[:, -NUM_WHEEL_ACTIONS:]
++    phase = ctx.info.get("phase", np.zeros((ctx.num_envs, 1)))
++    sin_p = np.sin(2 * np.pi * phase)[:, 0] if phase.ndim == 2 else np.zeros(ctx.num_envs)
++    height = ctx.base_height
++    h_factor = np.exp(-np.clip(height, 0, 2) / 0.3)
++    # 支撑侧: sin<0→左支撑, sin>0→右支撑, |sin|<0.2→双支撑跳过
++    left_stance = (sin_p < -0.2).astype(np.float64)
++    right_stance = (sin_p > 0.2).astype(np.float64)
++    l_penalty = np.abs(wheel_vel[:, 0]) * h_factor * 0.3 * left_stance
++    r_penalty = np.abs(wheel_vel[:, -1]) * h_factor * 0.3 * right_stance
++    return -(l_penalty + r_penalty)
++
++
++def _reward_soft_landing(ctx: RewardContext) -> np.ndarray:
++    """即将触地时罚垂直速度 — 软着陆 (tron1 foot_landing_vel)
++    即将着陆 = 高度较低 + 未着地 + 向下运动
++    """
++    wheel_contact = ctx.info.get("wheel_contact", np.zeros((ctx.num_envs, 2)))
++    in_air = 1.0 - np.mean(wheel_contact, axis=1)  # 1=全离地
++    height = ctx.base_height
++    vz = ctx.linvel[:, 2]  # 垂直速度
++    about_to_land = (height < 0.40) & (in_air > 0.5) & (vz < 0)
++    return -np.abs(vz) * about_to_land.astype(np.float64) * 0.3
++
++
+ def _reward_wheel_balance(ctx: RewardContext) -> np.ndarray:
+     """轮子用于维持平衡, 不用于前进。奖: 轮速小 + 机身直立"""
+     wheel_vel = ctx.dof_vel[:, -NUM_WHEEL_ACTIONS:]
+     speed = np.sqrt(np.sum(np.square(wheel_vel), axis=1))
+-    # 轮子稍转可(平衡), 转太快扣分
+     wheel_ok = 1.0 / (1.0 + speed * 3.0)
+-    # 机身越直越好
+     gravity_xy = np.sum(np.square(ctx.gravity[:, :2]), axis=1)
+     upright = 1.0 / (1.0 + gravity_xy * 10.0)
+     return wheel_ok * upright
+ 
+ 
++# ---------- 相位门控奖励 (无参考轨迹模式) ----------
++
++
++def _reward_phase_swing_lift(ctx: RewardContext) -> np.ndarray:
++    """摆动相: 对应侧轮子必须离地"""
++    wheel_contact = ctx.info.get("wheel_contact", np.zeros((ctx.num_envs, 2)))
++    phase = ctx.info.get("phase", np.zeros((ctx.num_envs, 1)))
++    sin_p = np.sin(2 * np.pi * phase)[:, 0]
++    left_swing = (sin_p > 0.2).astype(np.float64)
++    right_swing = (sin_p < -0.2).astype(np.float64)
++    left_air = (1.0 - wheel_contact[:, 0]) * left_swing
++    right_air = (1.0 - wheel_contact[:, 1]) * right_swing
++    return left_air + right_air
++
++
++def _reward_phase_knee_lift(ctx: RewardContext) -> np.ndarray:
++    """摆动相: 奖弯腿 (不要求离地, 先让策略敢做动作)"""
++    phase = ctx.info.get("phase", np.zeros((ctx.num_envs, 1)))
++    sin_p = np.sin(2 * np.pi * phase)[:, 0]
++    left_swing = (sin_p > 0.2).astype(np.float64)
++    right_swing = (sin_p < -0.2).astype(np.float64)
++    l_bend = np.clip(ctx.dof_pos[:, 2] - 0.15, 0, 1.5) * left_swing
++    r_bend = np.clip(-ctx.dof_pos[:, 5] - 0.15, 0, 1.5) * right_swing
++    return l_bend + r_bend
++
++
++def _reward_phase_knee_stance(ctx: RewardContext) -> np.ndarray:
++    """支撑相: 罚弯腿 (防止双侧蹲, 确保支撑腿硬直)"""
++    phase = ctx.info.get("phase", np.zeros((ctx.num_envs, 1)))
++    sin_p = np.sin(2 * np.pi * phase)[:, 0]
++    left_stance = (sin_p < -0.2).astype(np.float64)
++    right_stance = (sin_p > 0.2).astype(np.float64)
++    l_penalty = np.clip(ctx.dof_pos[:, 2] - 0.15, 0, 1.0) * left_stance
++    r_penalty = np.clip(-ctx.dof_pos[:, 5] - 0.15, 0, 1.0) * right_stance
++    return -(l_penalty + r_penalty)
++
++
++def _reward_phase_stance_penalty(ctx: RewardContext) -> np.ndarray:
++    """支撑相: 对应侧轮子没着地就重罚 (负值)"""
++    wheel_contact = ctx.info.get("wheel_contact", np.zeros((ctx.num_envs, 2)))
++    phase = ctx.info.get("phase", np.zeros((ctx.num_envs, 1)))
++    sin_p = np.sin(2 * np.pi * phase)[:, 0]
++    left_stance = (sin_p < -0.2).astype(np.float64)
++    right_stance = (sin_p > 0.2).astype(np.float64)
++    l_miss = (1.0 - wheel_contact[:, 0]) * left_stance  # 该着地但没着
++    r_miss = (1.0 - wheel_contact[:, 1]) * right_stance
++    return -(l_miss + r_miss)
++
++
+ @registry.envcfg("XqRobotWLToeWalkFlat")
+ @dataclass
+ class XqRobotWLToeWalkFlatCfg(XqRobotWLWalkFlatCfg):
+@@ -136,27 +226,58 @@ class XqRobotWLToeWalkFlatEnv(XqRobotWLWalkFlatEnv):
+         self._critic_history = np.zeros(
+             (num_envs, self._hist_len, self._critic_frame_dim), dtype=self._np_dtype
+         )
++        self._total_env_steps = 0  # ★ 课程训练计数器
+ 
+     def _init_reward_functions(self) -> None:
+-        self._reward_fns: dict[str, Any] = {
+-            "tracking_lin_vel": rewards.tracking_lin_vel,
+-            "tracking_ang_vel": rewards.tracking_ang_vel,
+-            "lin_vel_z": rewards.lin_vel_z,
+-            "ang_vel_xy": rewards.ang_vel_xy,
+-            "base_height": rewards.base_height,
+-            "orientation": rewards.orientation,
+-            "joint_action_rate": self._reward_joint_action_rate,
+-            "wheel_action_rate": self._reward_wheel_action_rate,
+-            "leg_mirror": self._reward_leg_mirror,
+-            "tsk": self._reward_tsk,
+-            "alive": rewards.alive,
+-            "ref_tracking": _reward_ref_tracking,
+-            "wheel_balance": _reward_wheel_balance,
+-            "swing_lift": _reward_swing_lift,
+-            "feet_distance": _reward_feet_distance,
+-            "wheel_symmetry": _reward_wheel_symmetry,
+-            "hip_roll": _reward_hip_roll,
+-        }
++        if self._toe_cfg.use_reference:
++            self._reward_fns: dict[str, Any] = {
++                "tracking_lin_vel": rewards.tracking_lin_vel,
++                "tracking_ang_vel": rewards.tracking_ang_vel,
++                "lin_vel_z": rewards.lin_vel_z,
++                "ang_vel_xy": rewards.ang_vel_xy,
++                "base_height": rewards.base_height,
++                "orientation": rewards.orientation,
++                "joint_action_rate": self._reward_joint_action_rate,
++                "wheel_action_rate": self._reward_wheel_action_rate,
++                "leg_mirror": self._reward_leg_mirror,
++                "tsk": self._reward_tsk,
++                "alive": rewards.alive,
++                "ref_tracking": _reward_ref_tracking,
++                "wheel_balance": _reward_wheel_balance,
++                "swing_lift": _reward_swing_lift,
++                "swing_contact_penalty": _reward_swing_contact_penalty,
++                "feet_regulation": _reward_feet_regulation,
++                "soft_landing": _reward_soft_landing,
++                "feet_distance": _reward_feet_distance,
++                "wheel_symmetry": _reward_wheel_symmetry,
++                "hip_roll": _reward_hip_roll,
++            }
++        else:
++            # ★ 相位门控模式: 不跟踪参考, 用相位定义行为目标
++            self._reward_fns: dict[str, Any] = {
++                "tracking_lin_vel": rewards.tracking_lin_vel,
++                "tracking_ang_vel": rewards.tracking_ang_vel,
++                "lin_vel_z": rewards.lin_vel_z,
++                "ang_vel_xy": rewards.ang_vel_xy,
++                "base_height": rewards.base_height,
++                "orientation": rewards.orientation,
++                "joint_action_rate": self._reward_joint_action_rate,
++                "wheel_action_rate": self._reward_wheel_action_rate,
++                "leg_mirror": self._reward_leg_mirror,
++                "tsk": self._reward_tsk,
++                "alive": rewards.alive,
++                "wheel_balance": _reward_wheel_balance,
++                "phase_swing_lift": _reward_phase_swing_lift,
++                "phase_knee_lift": _reward_phase_knee_lift,
++                "phase_knee_stance": _reward_phase_knee_stance,
++                "phase_stance_penalty": _reward_phase_stance_penalty,
++                "swing_contact_penalty": _reward_swing_contact_penalty,
++                "feet_regulation": _reward_feet_regulation,
++                "soft_landing": _reward_soft_landing,
++                "feet_distance": _reward_feet_distance,
++                "wheel_symmetry": _reward_wheel_symmetry,
++                "hip_roll": _reward_hip_roll,
++            }
+ 
+     def _reward_joint_action_rate(self, ctx: RewardContext) -> np.ndarray:
+         current = ctx.info["current_actions"][:, :NUM_LEG_ACTIONS]
+@@ -170,8 +291,8 @@ class XqRobotWLToeWalkFlatEnv(XqRobotWLWalkFlatEnv):
+ 
+     def _reward_leg_mirror(self, ctx: RewardContext) -> np.ndarray:
+         hip = ctx.dof_pos[:, 0] + ctx.dof_pos[:, 3]
+-        thigh = ctx.dof_pos[:, 1] - ctx.dof_pos[:, 4]
+-        calf = ctx.dof_pos[:, 2] - ctx.dof_pos[:, 5]
++        thigh = ctx.dof_pos[:, 1] + ctx.dof_pos[:, 4]
++        calf = ctx.dof_pos[:, 2] + ctx.dof_pos[:, 5]
+         return np.square(hip) + np.square(thigh) + np.square(calf)
+ 
+     def _reward_tsk(self, ctx: RewardContext) -> np.ndarray:
+@@ -183,8 +304,11 @@ class XqRobotWLToeWalkFlatEnv(XqRobotWLWalkFlatEnv):
+         clipped = np.clip(
+             actions, -self._cfg.control_config.clip_actions, self._cfg.control_config.clip_actions
+         )
+-        state.info["last_actions"] = state.info.get("current_actions", np.zeros_like(clipped))
+-        state.info["current_actions"] = clipped
++        # ★ 动作平滑: 低通滤波防 jitter (TitaRL 风格)
++        prev = state.info.get("current_actions", np.zeros_like(clipped))
++        smoothed = 0.7 * clipped + 0.3 * prev
++        state.info["last_actions"] = prev
++        state.info["current_actions"] = smoothed
+         exec_actions = (
+             state.info["last_actions"]
+             if self._cfg.control_config.simulate_action_latency
+@@ -214,6 +338,14 @@ class XqRobotWLToeWalkFlatEnv(XqRobotWLWalkFlatEnv):
+         steps = info.get("steps", np.zeros((self._num_envs,), dtype=np.float64))
+         dt = self._cfg.ctrl_dt
+         phase = (steps * dt / cycle_time) + self._phase_offset / (2 * np.pi)
++        info["phase"] = phase.reshape(-1, 1)  # ★ always store phase for rewards
++
++        if not self._toe_cfg.use_reference:
++            # 相位门控模式: 策略自由探索, swing_contact_penalty 用 phase 左右分离
++            self._ref_dof_pos = np.tile(DEFAULT_LEG_ANGLES, (self._num_envs, 1))
++            self._swing_mask = np.zeros((self._num_envs,))
++            return
++
+         sin_pos = np.sin(2 * np.pi * phase)[:, None]
+         cos_pos = np.cos(2 * np.pi * phase)[:, None]
+         scale = self._toe_cfg.ref_scale
+@@ -238,13 +370,13 @@ class XqRobotWLToeWalkFlatEnv(XqRobotWLWalkFlatEnv):
+         ref[:, 0] = DEFAULT_LEG_ANGLES[0] - lean_L[:, 0] * scale + lean_R[:, 0] * scale
+         ref[:, 3] = DEFAULT_LEG_ANGLES[3] + lean_L[:, 0] * scale - lean_R[:, 0] * scale
+ 
+-        # Thigh: quick forward swing
+-        ref[:, 1] = DEFAULT_LEG_ANGLES[1] + left_swing[:, 0] * scale * 0.5
+-        ref[:, 4] = DEFAULT_LEG_ANGLES[4] + right_swing[:, 0] * scale * 0.5
++        # Thigh: forward swing — L(+)=forward, R(-)=forward
++        ref[:, 1] = DEFAULT_LEG_ANGLES[1] + left_swing[:, 0] * scale * 0.8
++        ref[:, 4] = DEFAULT_LEG_ANGLES[4] - right_swing[:, 0] * scale * 0.8
+ 
+-        # Calf: quick knee bend (lift)
+-        ref[:, 2] = DEFAULT_LEG_ANGLES[2] - left_lift[:, 0] * scale * 5
+-        ref[:, 5] = DEFAULT_LEG_ANGLES[5] - right_lift[:, 0] * scale * 5
++        # Calf: knee bend (lift wheel) — L(+)=bend, R(-)=bend (×4 stays within ±0.87)
++        ref[:, 2] = DEFAULT_LEG_ANGLES[2] + left_lift[:, 0] * scale * 4
++        ref[:, 5] = DEFAULT_LEG_ANGLES[5] - right_lift[:, 0] * scale * 4
+ 
+         self._ref_dof_pos = ref
+         self._swing_mask = np.clip(left_swing[:, 0] + right_swing[:, 0], 0.0, 1.0)
+@@ -258,12 +390,12 @@ class XqRobotWLToeWalkFlatEnv(XqRobotWLWalkFlatEnv):
+ 
+     def _update_wheel_contact(self, info: dict) -> None:
+         try:
+-            lf = self._backend.get_sensor_data("left_wheel_site")
+-            rf = self._backend.get_sensor_data("right_wheel_site")
++            lf = self._backend.get_sensor_data("left_wheel_force")
++            rf = self._backend.get_sensor_data("right_wheel_force")
+             lf_arr = np.asarray(lf, dtype=np.float64).reshape(self._num_envs, -1)
+             rf_arr = np.asarray(rf, dtype=np.float64).reshape(self._num_envs, -1)
+-            l_contact = (np.linalg.norm(lf_arr, axis=1) > 1.5).astype(np.float64)
+-            r_contact = (np.linalg.norm(rf_arr, axis=1) > 1.5).astype(np.float64)
++            l_contact = (np.linalg.norm(lf_arr, axis=1) > 5.0).astype(np.float64)
++            r_contact = (np.linalg.norm(rf_arr, axis=1) > 5.0).astype(np.float64)
+             info["wheel_contact"] = np.stack([l_contact, r_contact], axis=1)
+         except Exception:
+             info["wheel_contact"] = np.zeros((self._num_envs, 2), dtype=np.float64)
+@@ -352,8 +484,8 @@ class XqRobotWLToeWalkFlatEnv(XqRobotWLWalkFlatEnv):
+         terminated = tilt > max_tilt
+         base_height = np.asarray(self._backend.get_base_pos(), dtype=get_global_dtype())[:, 2]
+         terminated |= base_height < self._toe_cfg.min_base_height
+-        thigh_collapsed = (dof_pos[:, 1] < 0.02) | (dof_pos[:, 4] > -0.02)
+-        calf_extreme = (np.abs(dof_pos[:, 2]) > 0.85) | (np.abs(dof_pos[:, 5]) > 0.85)
++        thigh_collapsed = (dof_pos[:, 1] < -0.5) | (dof_pos[:, 4] > 0.5)
++        calf_extreme = (np.abs(dof_pos[:, 2]) > 2.0) | (np.abs(dof_pos[:, 5]) > 2.0)
+         terminated |= thigh_collapsed
+         terminated |= calf_extreme
+         # 腿碰地终止: 摆动腿蹭地皮 → 直接死
+@@ -362,7 +494,7 @@ class XqRobotWLToeWalkFlatEnv(XqRobotWLWalkFlatEnv):
+                 cf = self._backend.get_sensor_data(name)
+                 if cf is not None:
+                     c = np.asarray(cf, dtype=np.float64).reshape(self._num_envs, -1)
+-                    contact = np.any(np.abs(c) > 0.1, axis=1)
++                    contact = np.any(np.abs(c) > 5.0, axis=1)
+                     terminated |= contact
+             except (KeyError, AttributeError):
+                 pass
+@@ -371,6 +503,30 @@ class XqRobotWLToeWalkFlatEnv(XqRobotWLWalkFlatEnv):
+     def _compute_reward(self, info: dict, linvel, gyro, gravity, dof_pos, dof_vel) -> np.ndarray:
+         dtype = get_global_dtype()
+         num_obs = linvel.shape[0]
++
++        # ★ 课程训练: 前 N iter 只练抬腿, 之后逐步加入行走
++        if not self._toe_cfg.use_reference and self._toe_cfg.curriculum_steps > 0:
++            self._total_env_steps += self._num_envs
++            warmup_cutoff = (
++                0 if self._num_envs <= 1 else self._toe_cfg.curriculum_steps * 24 * self._num_envs
++            )
++            scales = dict(self._toe_cfg.scales)
++            spc = self._toe_cfg.scales.get("swing_contact_penalty", 25.0)
++            if self._total_env_steps < warmup_cutoff:
++                # Stage 1: 站立 + 抬腿, 不追速, 接触惩罚弱
++                scales["tracking_lin_vel"] = 0.0
++                scales["tracking_ang_vel"] = 0.0
++                scales["swing_contact_penalty"] = spc * 0.1
++            elif self._total_env_steps < warmup_cutoff * 2:
++                # Stage 2: 线性斜坡加入行走 + 接触惩罚
++                alpha = (self._total_env_steps - warmup_cutoff) / warmup_cutoff
++                scales["tracking_lin_vel"] = self._toe_cfg.scales.get("tracking_lin_vel", 0) * alpha
++                scales["tracking_ang_vel"] = self._toe_cfg.scales.get("tracking_ang_vel", 0) * alpha
++                scales["swing_contact_penalty"] = spc * (0.1 + 0.9 * alpha)
++            # Stage 3: 全开 (scales unchanged)
++        else:
++            scales = self._toe_cfg.scales
++
+         ctx = RewardContext(
+             info=info,
+             linvel=linvel,
+@@ -386,7 +542,7 @@ class XqRobotWLToeWalkFlatEnv(XqRobotWLWalkFlatEnv):
+             joint_range=None,
+         )
+         return rewards.run_reward_dispatch(
+-            scales=self._toe_cfg.scales,
++            scales=scales,
+             fns=self._reward_fns,
+             ctx=ctx,
+             info=info,
+diff --git a/tools/mujoco/show_terrain.py b/tools/mujoco/show_terrain.py
+index e9e1417..65016b2 100644
+--- a/tools/mujoco/show_terrain.py
++++ b/tools/mujoco/show_terrain.py
+@@ -1,6 +1,6 @@
+-"""Show XqRobotV2 rough terrain in MuJoCo viewer.
++"""Show xqrobotwl rough terrain in MuJoCo viewer.
+ 
+-Uses exact same terrain config as XqRobotV2WalkRough training.
++Uses exact same terrain config as XqRobotWLWalkRough training.
+ 
+ Usage:
+     uv run tools/mujoco/show_terrain.py
+@@ -20,10 +20,10 @@ sys.path.insert(0, SRC)
+ import mujoco
+ import mujoco.viewer
+ 
+-from unilab.envs.locomotion.xqrobotV2.rough import XqRobotRoughTerrainCfg
++from unilab.envs.locomotion.xqrobotwl.rough import XqRobotWLRoughTerrainCfg
+ from unilab.terrains import TerrainGenerator
+ 
+-cfg = XqRobotRoughTerrainCfg()
++cfg = XqRobotWLRoughTerrainCfg()
+ gen = TerrainGenerator(cfg)
+ result = gen.generate()
+ hf = result.heights_yx
+@@ -37,7 +37,7 @@ for name, st in cfg.sub_terrains.items():
+     if st.proportion > 0:
+         detail = ""
+         if hasattr(st, "step_height_range"):
+-            detail = f" step={st.step_height_range} w={st.step_width}m"
++            detail = f" step_h={st.step_height_range} w={st.step_width}m"
+         elif hasattr(st, "noise_range"):
+             detail = f" noise={st.noise_range}"
+         elif hasattr(st, "slope_range"):
+@@ -50,11 +50,11 @@ tmpdir = tempfile.mkdtemp(prefix="xq_terrain_")
+ png_path = os.path.join(tmpdir, "hfield.png")
+ result.write_png(Path(png_path))
+ 
+-robot_dir = os.path.expanduser("~/xiaoq/wheel_legged_RL_unilab/src/unilab/assets/robots/xqrobotV2")
++robot_dir = os.path.expanduser("~/xiaoq/wheel_legged_RL_unilab/src/unilab/assets/robots/xqrobotwl")
+ hsize = result.hfield_size
+ gpos = result.geom_pos
+ 
+-scene_xml = f"""<mujoco model="xqrobotV2 rough terrain">
++scene_xml = f"""<mujoco model="xqrobotwl rough terrain">
+   <compiler angle="radian" meshdir="assets" autolimits="true"/>
+ 
+   <asset>
+@@ -78,18 +78,19 @@ scene_xml = f"""<mujoco model="xqrobotV2 rough terrain">
+       pos="{gpos[0]} {gpos[1]} {gpos[2]}" material="groundplane"/>
+   </worldbody>
+ 
+-  <include file="xqrobotV2.xml"/>
++  <include file="xqrobotwl.xml"/>
+ 
+   <keyframe>
+     <key name="home" qpos="
+-        0 0 0.80  1 0 0 0
+-        -0.1 0.1 -0.1 0
+-        0.1 0.1 -0.1 0"
++        0 0 0.65  1 0 0 0
++        0.1 0.15 0.15 0
++        -0.1 -0.15 -0.15 0"
+       ctrl="0 0 0 0 0 0 0 0"/>
+   </keyframe>
+ </mujoco>"""
+ 
+ scene_path = os.path.join(robot_dir, "_terrain_preview.xml")
++os.makedirs(robot_dir, exist_ok=True)
+ with open(scene_path, "w") as f:
+     f.write(scene_xml)
+ 
+@@ -105,7 +106,9 @@ data.qpos[0] = float(ts[0, 0, 0])
+ data.qpos[1] = float(ts[0, 0, 1])
+ mujoco.mj_forward(model, data)
+ 
+-print(f"Robot at: x={data.qpos[0]:.1f} y={data.qpos[1]:.1f} z={data.body('base_link').xpos[2]:.2f}")
++print(
++    f"\nRobot at: x={data.qpos[0]:.1f} y={data.qpos[1]:.1f} z={data.body('base_link').xpos[2]:.2f}"
++)
+ print("W/A/S/D: move camera | Space: pause | Close window to exit.\n")
+ 
+ with mujoco.viewer.launch_passive(model, data) as viewer:

@@ -1,4 +1,5 @@
 """跳跃评估专用指标计算."""
+
 from __future__ import annotations
 
 import json
@@ -11,6 +12,7 @@ import numpy as np
 @dataclass
 class SummaryMetrics:
     """汇总指标."""
+
     model_name: str
     num_episodes: int
     success_rate: float = 0.0

@@ -1,6 +1,30 @@
 # xqrobotwl/jump/ppo 开发索引
 
-XqRobotWL 跳跃训练 — PPO 算法 + phase-gated 奖励。
+XqRobotWL 跳跃训练 — PPO 算法 + phase-gated 奖励 / Wheeled-SRL。
+
+## 2026-07-25
+
+| 序号 | 标题 | 文件 |
+|------|------|------|
+| 13 | lean_forward trigger-gating + 站姿修复 + 最终收敛 | [→](2026-07-25/13_lean_forward_final.md) |
+
+## 2026-07-24
+
+| 序号 | 标题 | 文件 |
+|------|------|------|
+| 12 | 符号 bug + entropy + FSM 时序全面修复 | [→](2026-07-24/12_sign_bugs_entropy_fsm_fixes.md) |
+
+## 2026-07-22
+
+| 序号 | 标题 | 文件 |
+|------|------|------|
+| 08 | Wheeled-SRL 框架构建 & 训练诊断修复 | [→](2026-07-22/08_wheeled_srl_framework_diag.md) |
+| 09 | FSM 参数修复 + 预热逻辑 + 自适应增益 | [→](2026-07-22/09_fsm_warmup_adaptive_gain.md) |
+| 10 | 站姿参数修复 + 高度目标修正 | [→](2026-07-22/10_stand_height_platform_fix.md) |
+| 11 | SRL 跳跃训练成功收敛 | [→](2026-07-22/11_srl_convergence.md) |
+| 15 | jump gain 修复 (0.05→0.2) | [→](2026-07-22/15_jump_gain_fix.md) |
+
+## 2026-07-18
 
 | 06 | 跳跃姿态优化 + 站姿根因 | [→](2026-07-18/06_posture_knee_wheel.md) |
 

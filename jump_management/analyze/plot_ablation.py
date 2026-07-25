@@ -4,6 +4,7 @@
 横轴: full / no_fsm / no_wheel_match / no_flight_mod / no_vel_track
 纵轴: 跳跃成功率 / 平均跳距 / 着陆轮滑
 """
+
 from __future__ import annotations
 
 import json
@@ -49,8 +50,13 @@ def plot_ablation(
     axes[0].set_xticks(x)
     axes[0].set_xticklabels(labels, rotation=15)
     for bar, v in zip(bars, sr):
-        axes[0].text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.01,
-                    f"{v:.2f}", ha="center", fontsize=8)
+        axes[0].text(
+            bar.get_x() + bar.get_width() / 2,
+            bar.get_height() + 0.01,
+            f"{v:.2f}",
+            ha="center",
+            fontsize=8,
+        )
 
     # (b) Avg Jump Distance
     jd = [metrics_data.get(l, {}).get("avg_jump_distance", 0) for l in labels]
@@ -60,8 +66,13 @@ def plot_ablation(
     axes[1].set_xticks(x)
     axes[1].set_xticklabels(labels, rotation=15)
     for bar, v in zip(bars, jd):
-        axes[1].text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.005,
-                    f"{v:.3f}", ha="center", fontsize=8)
+        axes[1].text(
+            bar.get_x() + bar.get_width() / 2,
+            bar.get_height() + 0.005,
+            f"{v:.3f}",
+            ha="center",
+            fontsize=8,
+        )
 
     # (c) Wheel Slip
     ws = [min(metrics_data.get(l, {}).get("avg_wheel_slip", 1.0), 1.0) for l in labels]
@@ -71,8 +82,13 @@ def plot_ablation(
     axes[2].set_xticks(x)
     axes[2].set_xticklabels(labels, rotation=15)
     for bar, v in zip(bars, ws):
-        axes[2].text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.01,
-                    f"{v:.3f}", ha="center", fontsize=8)
+        axes[2].text(
+            bar.get_x() + bar.get_width() / 2,
+            bar.get_height() + 0.01,
+            f"{v:.3f}",
+            ha="center",
+            fontsize=8,
+        )
 
     fig.suptitle("Ablation Study", fontsize=13, fontweight="bold")
     fig.tight_layout()
@@ -83,5 +99,6 @@ def plot_ablation(
 
 if __name__ == "__main__":
     import sys
+
     base = sys.argv[1] if len(sys.argv) > 1 else "results"
     plot_ablation(base)

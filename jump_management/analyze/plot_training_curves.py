@@ -5,6 +5,7 @@
   (a) mean_reward  (b) episode_length
   (c) jump_height reward  (d) action_std
 """
+
 from __future__ import annotations
 
 import matplotlib.pyplot as plt
@@ -29,6 +30,7 @@ def load_tb_metrics(logdir: str, tags: list[str]) -> dict[str, np.ndarray]:
 
 def find_latest_run(base_dir: str) -> str | None:
     import glob
+
     runs = glob.glob(f"{base_dir}/2*/")
     if not runs:
         return None
@@ -64,15 +66,22 @@ def plot_training_curves(
     ]:
         if not run:
             continue
-        metrics = load_tb_metrics(run, [
-            "reward/mean", "episode_length/mean",
-            "reward/jump_height", "std/mean",
-        ])
+        metrics = load_tb_metrics(
+            run,
+            [
+                "reward/mean",
+                "episode_length/mean",
+                "reward/jump_height",
+                "std/mean",
+            ],
+        )
 
-        for i, (tag, label) in enumerate(zip(
-            ["reward/mean", "episode_length/mean", "reward/jump_height", "std/mean"],
-            labels,
-        )):
+        for i, (tag, label) in enumerate(
+            zip(
+                ["reward/mean", "episode_length/mean", "reward/jump_height", "std/mean"],
+                labels,
+            )
+        ):
             if tag in metrics:
                 axes[i].plot(
                     metrics[tag]["steps"],
@@ -96,6 +105,7 @@ def plot_training_curves(
 
 if __name__ == "__main__":
     import sys
+
     ppo_dir = sys.argv[1] if len(sys.argv) > 1 else "logs/rsl_rl_ppo/XqRobotWLJumpFlat"
     srl_dir = sys.argv[2] if len(sys.argv) > 2 else "logs/rsl_rl_ppo/XqRobotWLJumpSRLFlat"
     plot_training_curves(ppo_dir, srl_dir)

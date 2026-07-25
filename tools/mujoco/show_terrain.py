@@ -1,6 +1,6 @@
-"""Show XqRobotV2 rough terrain in MuJoCo viewer.
+"""Show xqrobotwl rough terrain in MuJoCo viewer.
 
-Uses exact same terrain config as XqRobotV2WalkRough training.
+Uses exact same terrain config as XqRobotWLWalkRough training.
 
 Usage:
     uv run tools/mujoco/show_terrain.py
@@ -20,10 +20,10 @@ sys.path.insert(0, SRC)
 import mujoco
 import mujoco.viewer
 
-from unilab.envs.locomotion.xqrobotV2.rough import XqRobotRoughTerrainCfg
+from unilab.envs.locomotion.xqrobotwl.rough import XqRobotWLRoughTerrainCfg
 from unilab.terrains import TerrainGenerator
 
-cfg = XqRobotRoughTerrainCfg()
+cfg = XqRobotWLRoughTerrainCfg()
 gen = TerrainGenerator(cfg)
 result = gen.generate()
 hf = result.heights_yx
@@ -37,7 +37,7 @@ for name, st in cfg.sub_terrains.items():
     if st.proportion > 0:
         detail = ""
         if hasattr(st, "step_height_range"):
-            detail = f" step={st.step_height_range} w={st.step_width}m"
+            detail = f" step_h={st.step_height_range} w={st.step_width}m"
         elif hasattr(st, "noise_range"):
             detail = f" noise={st.noise_range}"
         elif hasattr(st, "slope_range"):
@@ -50,11 +50,11 @@ tmpdir = tempfile.mkdtemp(prefix="xq_terrain_")
 png_path = os.path.join(tmpdir, "hfield.png")
 result.write_png(Path(png_path))
 
-robot_dir = os.path.expanduser("~/xiaoq/wheel_legged_RL_unilab/src/unilab/assets/robots/xqrobotV2")
+robot_dir = os.path.expanduser("~/xiaoq/wheel_legged_RL_unilab/src/unilab/assets/robots/xqrobotwl")
 hsize = result.hfield_size
 gpos = result.geom_pos
 
-scene_xml = f"""<mujoco model="xqrobotV2 rough terrain">
+scene_xml = f"""<mujoco model="xqrobotwl rough terrain">
   <compiler angle="radian" meshdir="assets" autolimits="true"/>
 
   <asset>
@@ -78,18 +78,19 @@ scene_xml = f"""<mujoco model="xqrobotV2 rough terrain">
       pos="{gpos[0]} {gpos[1]} {gpos[2]}" material="groundplane"/>
   </worldbody>
 
-  <include file="xqrobotV2.xml"/>
+  <include file="xqrobotwl.xml"/>
 
   <keyframe>
     <key name="home" qpos="
-        0 0 0.80  1 0 0 0
-        -0.1 0.1 -0.1 0
-        0.1 0.1 -0.1 0"
+        0 0 0.65  1 0 0 0
+        0.1 0.15 0.15 0
+        -0.1 -0.15 -0.15 0"
       ctrl="0 0 0 0 0 0 0 0"/>
   </keyframe>
 </mujoco>"""
 
 scene_path = os.path.join(robot_dir, "_terrain_preview.xml")
+os.makedirs(robot_dir, exist_ok=True)
 with open(scene_path, "w") as f:
     f.write(scene_xml)
 
@@ -105,7 +106,9 @@ data.qpos[0] = float(ts[0, 0, 0])
 data.qpos[1] = float(ts[0, 0, 1])
 mujoco.mj_forward(model, data)
 
-print(f"Robot at: x={data.qpos[0]:.1f} y={data.qpos[1]:.1f} z={data.body('base_link').xpos[2]:.2f}")
+print(
+    f"\nRobot at: x={data.qpos[0]:.1f} y={data.qpos[1]:.1f} z={data.body('base_link').xpos[2]:.2f}"
+)
 print("W/A/S/D: move camera | Space: pause | Close window to exit.\n")
 
 with mujoco.viewer.launch_passive(model, data) as viewer:

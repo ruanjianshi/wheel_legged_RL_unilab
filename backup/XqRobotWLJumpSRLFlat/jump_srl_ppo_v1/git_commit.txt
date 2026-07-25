@@ -1,0 +1,5 @@
+cd64948 feat: add Wheeled-SRL jump + ablation framework + jump_management package
+67e674a fix: jump posture - knee lock, wheel spin, standing height
+bbeac74 fix: jump training - crouch-first, standing posture, keyboard H key
+7659d93 feat: phase-gated jump rewards + posture constraints + keyboard fixes
+b853ba0 feat: add xqrobotwl robot and NP3O jump training

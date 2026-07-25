@@ -5,6 +5,7 @@
   - random: vx~U[0, 1.0]
   - platform: 跳上 0.15m 平台
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -14,13 +15,13 @@ import numpy as np
 
 # 触发周期: 每2秒触发一次跳跃 (0.01s控制周期)
 JUMP_PERIOD = 200  # 2s
-JUMP_DUTY = 100    # 1s 触发
+JUMP_DUTY = 100  # 1s 触发
 
 # 固定距离场景: vx 映射到目标跳距
 FIXED_DIST_SCENARIOS = {
-    "fix_01m": {"vx": 0.3,  "target_distance": 0.10},   # 实际跳距还需训练验证
-    "fix_02m": {"vx": 0.6,  "target_distance": 0.20},
-    "fix_03m": {"vx": 1.0,  "target_distance": 0.30},
+    "fix_01m": {"vx": 0.3, "target_distance": 0.10},  # 实际跳距还需训练验证
+    "fix_02m": {"vx": 0.6, "target_distance": 0.20},
+    "fix_03m": {"vx": 1.0, "target_distance": 0.30},
 }
 
 RANDOM_SCENARIO = {
@@ -68,6 +69,7 @@ def generate_jump_commands(
 @dataclass
 class JumpCycleRecord:
     """单次跳跃周期记录."""
+
     takeoff_x: float = 0.0
     landing_x: float = 0.0
     max_height: float = 0.0
@@ -78,6 +80,7 @@ class JumpCycleRecord:
 @dataclass
 class EvalResult:
     """单回合评估结果."""
+
     scenario: str
     survived: bool
     jump_cycles: list[JumpCycleRecord] = field(default_factory=list)

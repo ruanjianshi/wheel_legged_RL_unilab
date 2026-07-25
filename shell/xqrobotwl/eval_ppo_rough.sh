@@ -9,6 +9,13 @@ ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT_DIR"
 set -e
 
+# Platform detection: use mjpython on macOS, uv run on Linux
+if [[ "$(uname)" == "Darwin" ]]; then
+    PYTHON="uv run mjpython"
+else
+    PYTHON="uv run"
+fi
+
 ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT_DIR"
 
@@ -42,7 +49,7 @@ for arg in "$@"; do
     esac
 done
 
-CMD="uv run scripts/play/play_interactive.py"
+CMD="$PYTHON scripts/play/play_interactive.py"
 CMD="$CMD --algo ppo --task xqrobotwl_walk_rough --sim mujoco"
 CMD="$CMD interactive.action_mode=${ACTION_MODE}"
 if [ -n "$KEYBOARD" ]; then

@@ -3,6 +3,7 @@
 
 生成 LaTeX 格式的表格.
 """
+
 from __future__ import annotations
 
 import json
