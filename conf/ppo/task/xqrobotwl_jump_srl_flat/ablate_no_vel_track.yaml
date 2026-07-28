@@ -1,14 +1,11 @@
 # @package _global_
-# 消融实验: no_vel_track — 移除 tracking_lin_vel 奖励
-# 继承自 xqrobotwl_jump_srl_flat/mujoco.yaml 的所有默认值
+# 消融实验: no_vel_track — 移除所有速度跟踪奖励
 
 training:
   task_name: XqRobotWLJumpSRLFlat
   run_suffix: no_vel_track
 
-env:
-  ablation_mode: no_vel_track
-
 reward:
   scales:
     tracking_lin_vel: 0.0
+    tracking_ang_vel: 0.0

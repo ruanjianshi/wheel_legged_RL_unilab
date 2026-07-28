@@ -135,6 +135,9 @@ class XqRobotWLJumpRewardConfig:
     # 跳跃课程: [start, end] step 范围, 线性插值 jump_trigger + 跳跃奖励
     jump_curriculum_start: int = 0
     jump_curriculum_end: int = 100_000
+    # 消融实验
+    feedback_gain: float = 0.15  # SLIP FSM 前馈混合比 (no_fsm=0.0)
+    ablation_mode: str = "full"
 
 
 @dataclass
@@ -412,7 +415,8 @@ class XqRobotWLJumpSRLFlatEnv(XqRobotWLWalkFlatEnv):
     def step(self, actions):
         dof_pos = self.get_dof_pos()
         ff = _compute_feedforward(self._fsm_state, self.default_angles, dof_pos)
-        return super().step(ff * SLIP_FF_GAIN + actions)
+        gain = getattr(self._jump_cfg, "feedback_gain", SLIP_FF_GAIN)
+        return super().step(ff * gain + actions)
 
     def update_state(self, state: NpEnvState) -> NpEnvState:
         self._update_commands(state.info)

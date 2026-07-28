@@ -1,0 +1,32 @@
+# @package _global_
+# =====================================================================
+# 消融: no_wheel_match — 移除轮地速度匹配奖励
+# =====================================================================
+training:
+  run_suffix: no_wheel_match
+
+env:
+  ablation_mode: no_wheel_match
+
+reward:
+  scales:
+    tracking_lin_vel: 2.0
+    tracking_ang_vel: 1.0
+    lin_vel_z: -0.2
+    ang_vel_xy: -0.05
+    base_height: -60.0
+    orientation: -5.0
+    joint_action_rate: -0.1
+    wheel_action_rate: -0.015
+    leg_mirror: -12.0
+    tsk: -2.0
+    alive: 1.0
+    jump_height: 15.0
+    crouch_prep: 8.0
+    landing_soft: 4.0
+    wheel_ground_matching: 0.0  # ← 消融: 轮地匹配奖励 = 0
+    vertical_thrust: 30.0
+    crouch_depth: 6.0
+    action_magnitude: -0.1
+    height_progress: 10.0
+    lean_forward: 3.0

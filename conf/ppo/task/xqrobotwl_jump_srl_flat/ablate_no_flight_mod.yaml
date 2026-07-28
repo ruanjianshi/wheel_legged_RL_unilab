@@ -1,13 +1,9 @@
 # @package _global_
-# 消融实验: no_flight_mod — 飞行阶段轮速不斜升 (置零)
-# 继承自 xqrobotwl_jump_srl_flat/mujoco.yaml 的所有默认值
+# 消融实验: no_flight_mod — 飞行阶段轮速不斜升
 
 training:
   task_name: XqRobotWLJumpSRLFlat
   run_suffix: no_flight_mod
-
-env:
-  ablation_mode: no_flight_mod
 
 reward:
   scales:

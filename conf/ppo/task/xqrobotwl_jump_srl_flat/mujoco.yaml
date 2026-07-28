@@ -99,6 +99,8 @@ reward:
   crouch_height_target: 0.40
   max_tilt_deg: 45.0
   min_base_height: 0.15
-  # 跳跃课程: [start, end] 环境步数, 线性 ramp jump_trigger + 跳跃奖励权重
   jump_curriculum_start: 0
   jump_curriculum_end: 0  # 无预热，直接全开跳跃
+  # 消融实验
+  feedback_gain: 0.15  # SLIP FSM 前馈混合比 (no_fsm消融=0.0)
+  ablation_mode: full

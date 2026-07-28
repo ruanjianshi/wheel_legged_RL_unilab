@@ -123,19 +123,23 @@ def _reward_stand_posture(ctx: RewardContext) -> np.ndarray:
 
 
 def _reward_lean_forward(ctx: RewardContext) -> np.ndarray:
-    # 全局惩罚后仰: 时刻保持髋关节前倾
-    hip_fwd_L = ctx.dof_pos[:, 1]
-    hip_fwd_R = -ctx.dof_pos[:, 4]
-    penalty_L = np.clip(-hip_fwd_L, 0, 1)
-    penalty_R = np.clip(-hip_fwd_R, 0, 1)
+    # 站立时罚髋偏离默认角, 跳时不罚 — trigger≤0.5 激活
+    trigger = ctx.info["commands"][:, 4]
+    active = (trigger <= 0.5).astype(np.float64)
+    if not active.any():
+        return np.zeros(ctx.num_envs, dtype=np.float64)
+    hip_fwd_L = ctx.dof_pos[:, 1]   # default=+0.15
+    hip_fwd_R = -ctx.dof_pos[:, 4]  # default=+0.15 (after flip)
+    # Bidirectional: penalize deviation from default ± tolerance
+    dev_L = np.clip(np.abs(hip_fwd_L - 0.15) - 0.05, 0, 1)
+    dev_R = np.clip(np.abs(hip_fwd_R - 0.15) - 0.05, 0, 1)
     knee_bend_L = ctx.dof_pos[:, 2]
     knee_bend_R = -ctx.dof_pos[:, 5]
     p_knee_L = np.clip(-knee_bend_L, 0, 1) ** 2
     p_knee_R = np.clip(-knee_bend_R, 0, 1) ** 2
-    # Penalize hip_roll abduction beyond ±0.2 from default (±0.1)
     roll_dev_L = np.clip(np.abs(ctx.dof_pos[:, 0] - 0.1) - 0.10, 0, 1)
     roll_dev_R = np.clip(np.abs(ctx.dof_pos[:, 3] + 0.1) - 0.10, 0, 1)
-    return -(penalty_L + penalty_R + p_knee_L + p_knee_R + roll_dev_L + roll_dev_R) * 0.5
+    return -(dev_L + dev_R + p_knee_L + p_knee_R + roll_dev_L + roll_dev_R) * 1.5 * active
 
 
 def _reward_vertical_thrust(ctx: RewardContext, jump_cfg: XqRobotWLJumpRewardConfig) -> np.ndarray:
@@ -184,7 +188,7 @@ def _reward_landing_soft(ctx: RewardContext) -> np.ndarray:
     phase = ctx.info.get("jump_phase", np.zeros(ctx.num_envs, dtype=np.float64))
     active = (phase >= 30.0).astype(np.float64)
     weight = ctx.info.get("jump_curriculum", 1.0)
-    return soft * 0.3 * weight * active
+    return soft * 1.0 * weight * active
 
 
 def _reward_anti_loiter(ctx: RewardContext) -> np.ndarray:
@@ -270,7 +274,6 @@ class XqRobotWLJumpFlatEnv(XqRobotWLWalkFlatEnv):
             "vertical_thrust": self._reward_vertical_thrust,
             "crouch_depth": self._reward_crouch_depth,
             "anti_loiter": self._reward_anti_loiter,
-            "lean_forward": self._reward_lean_forward,
             "lean_forward": self._reward_lean_forward,
         }
 

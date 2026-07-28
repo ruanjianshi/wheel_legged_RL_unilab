@@ -79,11 +79,11 @@ reward:
     alive: 1.0
     jump_height: 12.0
     crouch_prep: 4.0
-    landing_soft: 4.0
+    landing_soft: 15.0  # 增强着陆奖励 (exp(-vz) × 4.5/步)
     wheel_air_time: 20.0
     vertical_thrust: 30.0
     crouch_depth: 4.0
-    anti_loiter: 5.0
+    anti_loiter: 12.0  # 增强: 跳完后逼机器人站起来
     lean_forward: 5.0
   tracking_sigma: 0.3
   base_height_target: 0.55
@@ -94,4 +94,4 @@ reward:
   # 跳跃课程: [start, end] 环境步数, 线性 ramp jump_trigger + 跳跃奖励权重
   # 24_576 步/iter (1024 envs × 24 steps)
   jump_curriculum_start: 0
-  jump_curriculum_end: 73728000  # ~3000 iters
+  jump_curriculum_end: 73728000  # ~3000 iters 热身学站立
