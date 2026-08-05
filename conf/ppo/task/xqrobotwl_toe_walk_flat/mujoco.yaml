@@ -41,7 +41,7 @@ algo:
 
 env:
   control_config:
-    action_scale: 0.25
+    action_scale: 0.18  # 缩小步长, 平缓动作
     wheel_action_scale: 10.0
     clip_actions: 100.0
   max_episode_seconds: 10.0
@@ -73,9 +73,9 @@ reward:
     tracking_ang_vel: 2.0
     lin_vel_z: -0.2
     ang_vel_xy: -0.3
-    base_height: -60.0
+    base_height: -100.0  # 强惩罚但不致死 (0.50m=-0.25, 0.35m=-4.0)
     orientation: -30.0
-    joint_action_rate: -0.03
+    joint_action_rate: -0.08  # 加倍惩罚关节急变
     wheel_action_rate: -0.001
     leg_mirror: -0.2
     tsk: -2.0
