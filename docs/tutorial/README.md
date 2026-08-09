@@ -54,4 +54,4 @@ wheel_legged_RL_unilab/
 ---
 
 > 本教程基于 XqRobotV2 轮腿双足机器人作为主要示例。
-> 项目架构详见仓库主 [README.md](../../README.md)，AI 开发规范见 [AGENTS.md](../../AGENTS.md)。
+> 项目架构详见仓库主 [README.md](../../README.md)，AI 开发规范见 [CLAUDE.md](../../CLAUDE.md)。

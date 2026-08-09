@@ -22,7 +22,7 @@
 - 训练辅助工具：`src/unilab/training/run.py`
 - Config schema：`src/unilab/structured_configs.py`
 - Developer 标准：{doc}`1-architecture/1-overview`
-- 高风险区域：见仓库顶层 `AGENTS.md`。
+- 高风险区域：见仓库顶层 `CLAUDE.md`。
 
 命令示例请使用 `uv run train`、`uv run eval` 或 `uv run demo`。
 通过 `--algo`、`--task` 与 `--sim` 选择算法、任务与后端；

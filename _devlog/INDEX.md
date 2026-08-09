@@ -21,6 +21,7 @@ _devlog/<robot>/<task>/<algo>/<date>/<序号>_<slug>.md
 |--------|------|------|------|
 | xqrobotwl | jump | ppo | [仓库瘦身: 移除除 xqrobotwl/xqrobotV2 外所有机器人](xqrobotwl/jump/ppo/2026-08-10/31_strip_repo_to_two_robots.md) |
 | xqrobotwl | jump | ppo | [shell 目录按任务细分重组](xqrobotwl/jump/ppo/2026-08-10/32_shell_reorganize_by_task.md) |
+| xqrobotwl | jump | ppo | [根目录清理: 删 AGENTS.md 只留 CLAUDE.md + 散落文件](xqrobotwl/jump/ppo/2026-08-10/33_cleanup_root_agents_to_claude.md) |
 
 ### 2026-08-09
 

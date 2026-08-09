@@ -23,7 +23,7 @@ repo facts.
 - Training helpers: `src/unilab/training/run.py`
 - Config schema: `src/unilab/structured_configs.py`
 - Developer standard: {doc}`1-architecture/1-overview`
-- High-risk areas: see the repo-root `AGENTS.md`.
+- High-risk areas: see the repo-root `CLAUDE.md`.
 
 Use `uv run train`, `uv run eval`, or `uv run demo` for command examples.
 Choose algorithm, task, and backend through `--algo`, `--task`, and `--sim`;

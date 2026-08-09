@@ -89,7 +89,7 @@ wheel_legged_RL_unilab/
 ├── tests/                        # 测试
 ├── backup/                       # 模型备份
 ├── notebook/                     # Jupyter 笔记本
-├── AGENTS.md                     # AI 智能体开发规范
+├── CLAUDE.md                     # AI 智能体开发规范
 ├── pyproject.toml                # 项目配置 (uv 包管理)
 └── go.sh                         # 一键启动键盘控制评估
 ```
@@ -644,7 +644,7 @@ make test-all     # format + type + test
 
 - 架构标准: `docs/sphinx/source/zh_CN/4-developer_guide/0-index.md`
 - 协作流程: `docs/sphinx/source/zh_CN/4-developer_guide/5-contributing_workflow.md`
-- 智能体规范: `AGENTS.md`
+- 智能体规范: `CLAUDE.md`
 - 贡献指南: `CONTRIBUTING.md`
 - 评估框架: `assess/README.md`
 - 开发日志: `_devlog/README.md`
