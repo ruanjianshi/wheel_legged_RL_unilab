@@ -7,4 +7,4 @@ cd "$(dirname "$0")/.."
 
 PROJ=".."
 cd "$PROJ"
-bash shell/xqrobotwl/train_ppo_jump_srl.sh
+bash shell/xqrobotwl/jump/train_ppo_jump_srl.sh

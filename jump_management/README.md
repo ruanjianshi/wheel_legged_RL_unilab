@@ -22,7 +22,7 @@ paper/          论文出图脚本
 
 ```bash
 # 1. 纯PPO (GPU 0)
-CUDA_VISIBLE_DEVICES=0 bash ../wheel_legged_RL_unilab/shell/xqrobotwl/train_ppo_jump_flat.sh
+CUDA_VISIBLE_DEVICES=0 bash ../wheel_legged_RL_unilab/shell/xqrobotwl/jump/train_ppo_jump_flat.sh
 
 # 2. Wheeled-SRL 完整版 (GPU 1)
 CUDA_VISIBLE_DEVICES=1 bash training/train_srl_full.sh

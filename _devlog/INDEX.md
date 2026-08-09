@@ -20,6 +20,7 @@ _devlog/<robot>/<task>/<algo>/<date>/<序号>_<slug>.md
 | 机器人 | 任务 | 算法 | 标题 |
 |--------|------|------|------|
 | xqrobotwl | jump | ppo | [仓库瘦身: 移除除 xqrobotwl/xqrobotV2 外所有机器人](xqrobotwl/jump/ppo/2026-08-10/31_strip_repo_to_two_robots.md) |
+| xqrobotwl | jump | ppo | [shell 目录按任务细分重组](xqrobotwl/jump/ppo/2026-08-10/32_shell_reorganize_by_task.md) |
 
 ### 2026-08-09
 

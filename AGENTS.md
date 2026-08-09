@@ -75,7 +75,7 @@ setsid bash -c 'CUDA_VISIBLE_DEVICES=0 uv run train --algo ppo --task xqrobotV2_
   &>/tmp/flat_train.log & disown
 
 # 或使用便利脚本
-CUDA_VISIBLE_DEVICES=0 bash shell/train_ppo_flat.sh
+CUDA_VISIBLE_DEVICES=0 bash shell/xqrobotV2/flat/train_ppo_flat.sh
 
 # 查看训练日志
 tail -f /tmp/flat_train.log
@@ -93,7 +93,7 @@ AI 应**主动**每隔指定 iter 检查训练状态，不等待用户指示。
 
 ```bash
 # TensorBoard 启动 (后台)
-bash shell/tensorboard.sh flat 8080  # → http://localhost:8080
+bash shell/xqrobotV2/tools/tensorboard.sh flat 8080  # → http://localhost:8080
 
 # 查看最新训练日志摘要
 tail -100 /tmp/flat_train.log | grep -E "iter|mean_reward|mean_episode_length|action_std|tracking"
@@ -365,12 +365,12 @@ Iter 5000:  评估 → Vx RMSE=0.04, Vy 串扰<0.06, 存活 95% ✅
 
 | 脚本 | 功能 | 用法 |
 |------|------|------|
-| `shell/train_ppo_flat.sh` | Flat Walk 训练 | `CUDA_VISIBLE_DEVICES=0 bash shell/train_ppo_flat.sh` |
-| `shell/train_ppo_rough.sh` | Rough Walk 训练 | `CUDA_VISIBLE_DEVICES=1 bash shell/train_ppo_rough.sh` |
-| `shell/train_ppo_jump_flat.sh` | Jump 训练 | `CUDA_VISIBLE_DEVICES=1 bash shell/train_ppo_jump_flat.sh` |
-| `shell/train_ppo_toe_walk_flat.sh` | Toe Walk 训练 | `CUDA_VISIBLE_DEVICES=1 bash shell/train_ppo_toe_walk_flat.sh` |
-| `shell/eval_ppo_flat.sh` | 键盘控制评估 | `bash shell/eval_ppo_flat.sh --keyboard` |
-| `shell/tensorboard.sh` | TensorBoard | `bash shell/tensorboard.sh flat 8080` |
+| `shell/xqrobotV2/flat/train_ppo_flat.sh` | Flat Walk 训练 | `CUDA_VISIBLE_DEVICES=0 bash shell/xqrobotV2/flat/train_ppo_flat.sh` |
+| `shell/xqrobotV2/rough/train_ppo_rough.sh` | Rough Walk 训练 | `CUDA_VISIBLE_DEVICES=1 bash shell/xqrobotV2/rough/train_ppo_rough.sh` |
+| `shell/xqrobotV2/jump/train_ppo_jump_flat.sh` | Jump 训练 | `CUDA_VISIBLE_DEVICES=1 bash shell/xqrobotV2/jump/train_ppo_jump_flat.sh` |
+| `shell/xqrobotV2/toe_walk/train_ppo_toe_walk_flat.sh` | Toe Walk 训练 | `CUDA_VISIBLE_DEVICES=1 bash shell/xqrobotV2/toe_walk/train_ppo_toe_walk_flat.sh` |
+| `shell/xqrobotV2/flat/eval_ppo_flat.sh` | 键盘控制评估 | `bash shell/xqrobotV2/flat/eval_ppo_flat.sh --keyboard` |
+| `shell/xqrobotV2/tools/tensorboard.sh` | TensorBoard | `bash shell/xqrobotV2/tools/tensorboard.sh flat 8080` |
 
 ---
 

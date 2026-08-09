@@ -42,6 +42,7 @@ XqRobotWL 跳跃训练 — PPO 算法 + phase-gated 奖励 / Wheeled-SRL。
 | 序号 | 标题 | 文件 |
 |------|------|------|
 | 31 | 仓库瘦身: 移除除 xqrobotwl/xqrobotV2 外所有机器人 | [→](2026-08-10/31_strip_repo_to_two_robots.md) |
+| 32 | shell 目录按任务细分重组 | [→](2026-08-10/32_shell_reorganize_by_task.md) |
 
 ## 2026-07-25
 

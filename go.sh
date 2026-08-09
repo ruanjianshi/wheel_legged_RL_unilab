@@ -14,4 +14,4 @@ conda activate unilab
 echo "环境: $(conda info --envs | grep '*' | awk '{print $1}')"
 echo ""
 
-bash shell/xqrobotV2/eval_ppo_flat.sh --keyboard
+bash shell/xqrobotV2/flat/eval_ppo_flat.sh --keyboard

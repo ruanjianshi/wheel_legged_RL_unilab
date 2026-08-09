@@ -16,10 +16,10 @@ echo ""
 # GPU 0
 CUDA_VISIBLE_DEVICES=0 setsid bash -c "
   cd '$PROJ' && \
-  bash shell/xqrobotwl/train_ppo_jump_flat.sh && \
-  bash shell/xqrobotwl/train_ppo_jump_srl.sh \
+  bash shell/xqrobotwl/jump/train_ppo_jump_flat.sh && \
+  bash shell/xqrobotwl/jump/train_ppo_jump_srl.sh \
     training.run_suffix=no_fsm reward.feedback_gain=0.0 && \
-  bash shell/xqrobotwl/train_ppo_jump_srl.sh \
+  bash shell/xqrobotwl/jump/train_ppo_jump_srl.sh \
     training.run_suffix=no_wheel_match reward.scales.wheel_ground_matching=0.0
 " &>/tmp/jump_gpu0.log &
 
@@ -28,10 +28,10 @@ sleep 2
 # GPU 1
 CUDA_VISIBLE_DEVICES=1 setsid bash -c "
   cd '$PROJ' && \
-  bash shell/xqrobotwl/train_ppo_jump_srl.sh && \
-  bash shell/xqrobotwl/train_ppo_jump_srl.sh \
+  bash shell/xqrobotwl/jump/train_ppo_jump_srl.sh && \
+  bash shell/xqrobotwl/jump/train_ppo_jump_srl.sh \
     training.run_suffix=no_flight_mod && \
-  bash shell/xqrobotwl/train_ppo_jump_srl.sh \
+  bash shell/xqrobotwl/jump/train_ppo_jump_srl.sh \
     training.run_suffix=no_vel_track \
     reward.scales.tracking_lin_vel=0.0 reward.scales.tracking_ang_vel=0.0
 " &>/tmp/jump_gpu1.log &

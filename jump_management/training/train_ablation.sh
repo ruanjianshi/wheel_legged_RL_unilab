@@ -19,21 +19,21 @@ cd "$PROJ"
 # The training.run_suffix appends to the log directory name for separation.
 case "$MODE" in
   no_fsm)
-    bash shell/xqrobotwl/train_ppo_jump_srl.sh \
+    bash shell/xqrobotwl/jump/train_ppo_jump_srl.sh \
       training.run_suffix=no_fsm \
       reward.feedback_gain=0.0
     ;;
   no_wheel_match)
-    bash shell/xqrobotwl/train_ppo_jump_srl.sh \
+    bash shell/xqrobotwl/jump/train_ppo_jump_srl.sh \
       training.run_suffix=no_wheel_match \
       reward.scales.wheel_ground_matching=0.0
     ;;
   no_flight_mod)
-    bash shell/xqrobotwl/train_ppo_jump_srl.sh \
+    bash shell/xqrobotwl/jump/train_ppo_jump_srl.sh \
       training.run_suffix=no_flight_mod
     ;;
   no_vel_track)
-    bash shell/xqrobotwl/train_ppo_jump_srl.sh \
+    bash shell/xqrobotwl/jump/train_ppo_jump_srl.sh \
       training.run_suffix=no_vel_track \
       reward.scales.tracking_lin_vel=0.0 \
       reward.scales.tracking_ang_vel=0.0
