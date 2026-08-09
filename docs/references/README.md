@@ -8,6 +8,7 @@
 | [HumanoidSW2](humanoid_sw2.md) | 2026-06-28 | 12DOF 双足, 正弦轨迹跟踪步态, 手臂平台 |
 | [PAI 12DOF](pai_12dof.md) | 2026-06-29 | 12DOF 纯下肢双足, 内置蹲姿, 保守超参 |
 | [WTW-NEW / Go1](wtw_new.md) | 2026-06-29 | 12DOF 四足, AER能量正则, RMA适应, 步态条件化 |
+| [Wheel-Legged-Lab](wheel_legged_lab.md) | 2026-08-06 | 轮腿双足, Isaac Lab, VMC虚拟腿+六状态跳跃FSM, 阶段参考/策略残差, 10阶段流水线 |
 
 ## 规范
 

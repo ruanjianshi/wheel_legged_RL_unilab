@@ -97,3 +97,9 @@ src/unilab/assets/checkpoints/**/*.onnx
 # Backend temp XML emitted next to robot.xml (motrix/mujoco scene materialization)
 src/unilab/assets/robots/**/tmp*.xml
 backup/*/flat*/2026*/
+
+# Paper artifacts: archived 2026-07 results (reinstatable from code, not tracked)
+jump_management/results/legacy/
+
+# Nature skills tooling (pinned by skills-lock.json; reinstallable, 38MB)
+.claude/skills/

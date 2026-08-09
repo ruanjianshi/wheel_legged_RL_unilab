@@ -2,6 +2,41 @@
 
 XqRobotWL 跳跃训练 — PPO 算法 + phase-gated 奖励 / Wheeled-SRL。
 
+## 2026-08-06
+
+| 序号 | 标题 | 文件 |
+|------|------|------|
+| 16 | 新增 PPO+VMC 与 SRL+VMC 两种跳跃算法 (论文 2×2 对比) | [→](2026-08-06/16_ppo_vmc_srl_vmc_algorithms.md) |
+| 17 | 修复 VMC 版本无法起跳: feedforward 不足 + L0 动作范围过小 | [→](2026-08-06/17_vmc_jump_param_fix.md) |
+| 18 | 修复 SRL+VMC: FSM 参考主导 + 策略残差 | [→](2026-08-06/18_srl_vmc_fsm_reference_dominant.md) |
+| 19 | 四算法跳跃训练完成 + 对比评估 | [→](2026-08-06/19_four_algo_training_compare.md) |
+| 20 | 方案A: PPO+VMC 加 SLIP-FSM 参考(全动作) + 纯PPO 落地存活修复 | [→](2026-08-06/20_vmc_slip_refactor_ppo_landing.md) |
+
+## 2026-08-07
+
+| 序号 | 标题 | 文件 |
+|------|------|------|
+| 21 | 四算法最终对比 + 论文图 (优化完成) | [→](2026-08-07/21_final_compare_paper_figs.md) |
+| 22 | 纯PPO v5 重训 (landing_recovery 4.0) + VMC 变体重训 | [→](2026-08-07/22_vmc_v3_pure_ppo_v5_retrain.md) |
+| 23 | 修复 verify_jump 配置漂移 bug: 验证 env 与训练配置不一致 | [→](2026-08-07/23_verify_jump_config_drift.md) |
+
+## 2026-08-08
+
+| 序号 | 标题 | 文件 |
+|------|------|------|
+| 24 | 最终四算法对比 + 论文图 (10000 轮, 修复后配置) | [→](2026-08-08/24_final_four_algo_compare_figs.md) |
+| 25 | 诊断三个算法跳跃弱点 + 针对性改进 (±50 力矩 / 长 FSM 时序 / 破局奖励) | [→](2026-08-08/25_jump_weakness_diag_fix.md) |
+| 26 | VMC 变体改进完成 + 最终四算法对比 + 论文图 | [→](2026-08-08/26_final_compare_improved_vmc.md) |
+| 27 | 定位并修复纯PPO landing_soft 白嫖 exploit (落地奖励门控 + 二次蹬伸) | [→](2026-08-08/27_landing_soft_exploit_fix.md) |
+
+## 2026-08-09
+
+| 序号 | 标题 | 文件 |
+|------|------|------|
+| 28 | 纯PPO 奖励对抗三连 (v10-v12): 从白嫖到真实跳跃 (0.203m / air 11%) | [→](2026-08-09/28_pure_ppo_reward_hacking_v10_v12.md) |
+| 29 | 论文图重出: 训练曲线 0.8 EMA 平滑 + 参考风格高度曲线 (2x2 + FSM 相位) | [→](2026-08-09/29_paper_figs_smooth_single_view.md) |
+| 30 | 论文图 nature/dataviz 规范重出: 新增图4.1 训练指标 (2x3) + 全图统一风格 | [→](2026-08-09/30_paper_figs_nature_style.md) |
+
 ## 2026-07-25
 
 | 序号 | 标题 | 文件 |

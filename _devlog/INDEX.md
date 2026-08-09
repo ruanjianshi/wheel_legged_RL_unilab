@@ -15,6 +15,18 @@ _devlog/<robot>/<task>/<algo>/<date>/<序号>_<slug>.md
 
 ## 时间线 (最新在前)
 
+### 2026-08-09
+
+| 机器人 | 任务 | 算法 | 标题 |
+|--------|------|------|------|
+| xqrobotwl | jump | ppo | [论文图 nature/dataviz 规范重出: 图4.1 训练指标 (2x3) + 全图统一风格](xqrobotwl/jump/ppo/2026-08-09/30_paper_figs_nature_style.md) |
+
+### 2026-08-06
+
+| 机器人 | 任务 | 算法 | 标题 |
+|--------|------|------|------|
+| xqrobotwl | jump | ppo | [新增 PPO+VMC 与 SRL+VMC 两种跳跃算法](xqrobotwl/jump/ppo/2026-08-06/16_ppo_vmc_srl_vmc_algorithms.md) |
+
 ### 2026-07-18
 
 | 机器人 | 任务 | 算法 | 标题 |

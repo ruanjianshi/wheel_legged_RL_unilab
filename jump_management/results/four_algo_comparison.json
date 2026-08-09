@@ -1,0 +1,21 @@
+{
+  "date": "2026-08-09",
+  "training_config": {
+    "num_envs": 1024,
+    "total_iterations": 10000,
+    "jump_curriculum_end": 0,
+    "eval": "4 algorithms x 4 speeds (0,0.3,0.6,1.0 m/s) x 5 episodes (compare_jump.py)",
+    "verify_fix": "trained-env-config snapshot from run_config.json; standing_z = median grounded z with trigger off",
+    "reward_v12": "landing_soft gated to real air->landing; launch_rise = base_z - window_min_z (replaces vz^2 thrust); base_height=0 in jump window; thrust/rise gated on prior crouch (window_crouched)",
+    "improvements": {
+      "pure_ppo": "v12 learned a REAL jump (was air 0% across v5-v9). Best checkpoint model_1000: 0.278m / air 8.5% / survival 50%. Later checkpoints destabilize (uncontrolled high jumps -> pathological vertical-balancing), demonstrating instability WITHOUT a reference.",
+      "ppo_vmc_v12": "100% survival + air 17.4% (vs v4 80% survival / air 4.6%). VMC control layer provides landing stability."
+    }
+  },
+  "results": {
+    "XqRobotWLJumpSRLFlat": {"jump_height_m": 0.540, "air_frac": 0.217, "survival": 1.00, "jump_success": 1.00, "checkpoint": "2026-08-06_01-16-20/model_9999"},
+    "XqRobotWLJumpFlat":    {"jump_height_m": 0.278, "air_frac": 0.085, "survival": 0.50, "jump_success": 1.00, "checkpoint": "2026-08-09_01-21-11/model_1000"},
+    "XqRobotWLJumpVMC":     {"jump_height_m": 0.179, "air_frac": 0.174, "survival": 1.00, "jump_success": 1.00, "checkpoint": "2026-08-09_01-21-12/model_9999"},
+    "XqRobotWLJumpSRLVMC":  {"jump_height_m": 0.354, "air_frac": 0.091, "survival": 0.90, "jump_success": 1.00, "checkpoint": "2026-08-08_01-05-51/model_9999"}
+  }
+}

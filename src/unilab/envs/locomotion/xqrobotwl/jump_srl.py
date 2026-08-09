@@ -64,7 +64,18 @@ def _compute_feedforward(fsm_state, default_angles, dof_pos):
     return ff
 
 
-def _update_fsm_state(fsm_state, fsm_timer, base_height, base_linvel, dof_pos, jt, dh, dt):
+def _update_fsm_state(
+    fsm_state,
+    fsm_timer,
+    base_height,
+    base_linvel,
+    dof_pos,
+    jt,
+    dh,
+    dt,
+    crouch_time: float = 0.25,
+    thrust_time: float = 0.20,
+):
     vz = base_linvel[:, 2]
     fsm_timer += dt
     for s in range(-1, 5):
@@ -78,13 +89,13 @@ def _update_fsm_state(fsm_state, fsm_timer, base_height, base_linvel, dof_pos, j
             fsm_state[nxt] = 0
             fsm_timer[nxt] = 0
         elif s == 0:
-            t = fsm_timer[m] > 0.25
+            t = fsm_timer[m] > crouch_time
             nxt = np.zeros_like(fsm_state, dtype=bool)
             nxt[m] = t
             fsm_state[nxt] = 1
             fsm_timer[nxt] = 0
         elif s == 1:
-            t = fsm_timer[m] > 0.20
+            t = fsm_timer[m] > thrust_time
             nxt = np.zeros_like(fsm_state, dtype=bool)
             nxt[m] = t
             fsm_state[nxt] = 2

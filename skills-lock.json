@@ -1,0 +1,119 @@
+{
+  "version": 1,
+  "skills": {
+    "nature-academic-search": {
+      "source": "yuan1z0825/nature-skills",
+      "sourceType": "github",
+      "skillPath": "skills/nature-academic-search/SKILL.md",
+      "computedHash": "8f300bb17e9c21341b3dc6f0997b737209c3fe167d5f712b61a227cb03cbca09"
+    },
+    "nature-citation": {
+      "source": "yuan1z0825/nature-skills",
+      "sourceType": "github",
+      "skillPath": "skills/nature-citation/SKILL.md",
+      "computedHash": "9d1fd1e1542c1466c34affb732b682acd9e982be1dcf4415c4f390637ecb5765"
+    },
+    "nature-data": {
+      "source": "yuan1z0825/nature-skills",
+      "sourceType": "github",
+      "skillPath": "skills/nature-data/SKILL.md",
+      "computedHash": "f50fdc596e7662510037284efdfdf78669e69f1ec02314d19cb62766bb883681"
+    },
+    "nature-downloader": {
+      "source": "yuan1z0825/nature-skills",
+      "sourceType": "github",
+      "skillPath": "skills/nature-downloader/SKILL.md",
+      "computedHash": "bbf03fc234607ecc59e45b0a76fa007dffe202440d3bd725468a34c51b655863"
+    },
+    "nature-experiment-log": {
+      "source": "yuan1z0825/nature-skills",
+      "sourceType": "github",
+      "skillPath": "skills/nature-experiment-log/SKILL.md",
+      "computedHash": "e288a6620fadb3571422bd5e269710f194911f951fa07dfef94cd9a00662cad1"
+    },
+    "nature-figure": {
+      "source": "yuan1z0825/nature-skills",
+      "sourceType": "github",
+      "skillPath": "skills/nature-figure/SKILL.md",
+      "computedHash": "4acc4a45610438a9b6c3c822533ae757d9144b3d0c9a0c972edafff612f8775b"
+    },
+    "nature-literature-pipeline": {
+      "source": "yuan1z0825/nature-skills",
+      "sourceType": "github",
+      "skillPath": "skills/nature-literature-pipeline/SKILL.md",
+      "computedHash": "0af90af3aca17a48cb8e67c1ef76660114a1351f5fa933b6022539f7349bd857"
+    },
+    "nature-paper-card": {
+      "source": "yuan1z0825/nature-skills",
+      "sourceType": "github",
+      "skillPath": "skills/nature-paper-card/SKILL.md",
+      "computedHash": "d5dd597c4dd406b87d625154d7c8224714ed13c247175b7c0bc7d2c3e06c8da4"
+    },
+    "nature-paper-to-patent": {
+      "source": "yuan1z0825/nature-skills",
+      "sourceType": "github",
+      "skillPath": "skills/nature-paper-to-patent/SKILL.md",
+      "computedHash": "6dde0900a0aa0e7932e68fc7b0a5c60a61804d2a326cf422a4e88e1a69d3ebd3"
+    },
+    "nature-paper2ppt": {
+      "source": "yuan1z0825/nature-skills",
+      "sourceType": "github",
+      "skillPath": "skills/nature-paper2ppt/SKILL.md",
+      "computedHash": "6bb0fcf6132b1ee30cc23f6f29c245a92db267029c4ff60d1e7824d3ed79de65"
+    },
+    "nature-polishing": {
+      "source": "yuan1z0825/nature-skills",
+      "sourceType": "github",
+      "skillPath": "skills/nature-polishing/SKILL.md",
+      "computedHash": "076012260ed1ba7e426ad3091d74d761ff5bf60c381a789e7fe4bb610cad382c"
+    },
+    "nature-reader": {
+      "source": "yuan1z0825/nature-skills",
+      "sourceType": "github",
+      "skillPath": "skills/nature-reader/SKILL.md",
+      "computedHash": "4e80c3f646f1376efda28634351850041acfe922d1dd54b6da08c10aabd7a853"
+    },
+    "nature-ref-verifier": {
+      "source": "yuan1z0825/nature-skills",
+      "sourceType": "github",
+      "skillPath": "skills/nature-ref-verifier/SKILL.md",
+      "computedHash": "53c11d38dfdc74cf669ecab48afc847fe116f5d63b172eb2dd7fc29ae7268406"
+    },
+    "nature-response": {
+      "source": "yuan1z0825/nature-skills",
+      "sourceType": "github",
+      "skillPath": "skills/nature-response/SKILL.md",
+      "computedHash": "482c892aee5f4a8d4ade9081cc9ed6bb6170e022b271aedb42cbf05c5a1c390b"
+    },
+    "nature-reviewer": {
+      "source": "yuan1z0825/nature-skills",
+      "sourceType": "github",
+      "skillPath": "skills/nature-reviewer/SKILL.md",
+      "computedHash": "3e781c0dc4fbf11d838add1fafd8aae46bfd2e86b7d01c5c5c0d315edfce5cd0"
+    },
+    "nature-shared": {
+      "source": "yuan1z0825/nature-skills",
+      "sourceType": "github",
+      "skillPath": "skills/nature-shared/SKILL.md",
+      "computedHash": "744e5351ecb3d5ea62298b36a9dfe2bdf9da3179e634ab335ea108cab0ae830b"
+    },
+    "nature-statistics": {
+      "source": "yuan1z0825/nature-skills",
+      "sourceType": "github",
+      "skillPath": "skills/nature-statistics/SKILL.md",
+      "computedHash": "bd491c70fa941dafb900ba38ad9dae915f91064c99606df3e29919bb3ee8806c"
+    },
+    "nature-writing": {
+      "source": "yuan1z0825/nature-skills",
+      "sourceType": "github",
+      "skillPath": "skills/nature-writing/SKILL.md",
+      "computedHash": "652709f91a176e04c602037b50cab26a83b392f9d77b36d71832746a760bf968"
+    },
+    "researchwrite": {
+      "source": "yuan1z0825/nature-skills",
+      "sourceType": "github",
+      "skillPath": "skills/nature-proposal-writer/SKILL.md",
+      "computedHash": "8f9f8001f44947fb93cf9b59c3cdab30d3cfa968000952875c591bb344278443"
+    }
+  }
+}

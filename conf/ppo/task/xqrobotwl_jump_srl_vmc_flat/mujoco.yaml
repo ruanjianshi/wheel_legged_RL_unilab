@@ -1,0 +1,153 @@
+# @package _global_
+# =============================================================================
+# XqRobotWL SRL+VMC 跳跃训练配置 (MuJoCo 后端)
+# SLIP-FSM 六状态前馈提供每阶段虚拟腿长参考, VMC 转关节力矩, PPO 输出残差。
+# 与 SRL 版本相同奖励/命令/预算, 仅控制层不同。
+# =============================================================================
+training:
+  task_name: XqRobotWLJumpSRLVMC
+  run_suffix: ""
+  sim_backend: mujoco
+  play_steps: 300
+  play_env_num: 1
+  render_spacing: 0.0
+
+interactive:
+  action_mode: policy
+  policy_obs_mode: auto
+  camera_follow_body: true
+  camera_distance: 4.0
+  camera_elevation: -15.0
+
+algo:
+  num_envs: 1024
+  num_steps_per_env: 24
+  max_iterations: 10000
+  empirical_normalization: false
+  obs_groups:
+    actor:
+      - actor
+    critic:
+      - critic
+    default:
+      - policy
+  policy:
+    activation: elu
+    actor_hidden_dims: [512, 512, 256, 128]
+    critic_hidden_dims: [512, 512, 256, 128]
+    init_noise_std: 0.3
+  algorithm:
+    learning_rate: 1.0e-4
+    entropy_coef: 0.005
+    clip_param: 0.2
+    gamma: 0.99
+    lam: 0.95
+    desired_kl: 0.01
+    max_grad_norm: 1.0
+
+env:
+  control_config:
+    action_scale: 0.6
+    wheel_action_scale: 10.0
+    clip_actions: 1.0
+  commands:
+    vel_limit:
+      - [-0.3, 0.0, -0.5, -0.1, 0]
+      - [0.3, 0.0, 0.5, 0.1, 1]
+    resampling_time: 4.0
+  curriculum:
+    enabled: false
+  domain_rand:
+    randomize_base_mass: false
+    randomize_ground_friction: false
+    randomize_kp: false
+    randomize_kd: false
+    random_com: false
+    randomize_leg_length: false
+  vmc:
+    # 虚拟腿运动学 (标定自 scripts/calibrate_xqrobotwl_vmc.py)
+    l1: 0.30053
+    l2: 0.30070
+    offset: -0.00003
+    theta0_offset: 0.0747
+    l0_offset: 0.3669
+    l0_min: 0.2047
+    l0_max: 0.5231
+    singularity_epsilon: 0.05
+    hip_sign: [1.0, -1.0]
+    knee_sign: [-1.0, 1.0]
+    c1: 2.4103
+    c2: -1.6790
+    # VMC 增益
+    kp_theta: 60.0
+    kd_theta: 3.0
+    kp_l0: 800.0
+    kd_l0: 5.0  # 低阻尼爆发蹬伸 (原20)
+    feedforward_force: 110.0  # 支撑前馈: 需 > 体重/腿(~91N), 否则无法起跳
+    kp_roll: 40.0
+    kd_roll: 2.0
+    kp_wheel: 2.0
+    kp_wheel_integral: 1.0
+    wheel_integral_limit_ratio: 0.5
+    wheel_ctrlrange: 10.0
+    # 动作缩放
+    action_scale_theta: 0.5
+    action_scale_l0: 0.12  # 覆盖下蹲0.28~蹬伸0.50范围
+    action_scale_vel: 10.0
+    action_scale_roll: 0.3
+    roll_default: [0.1, -0.1]
+    wheel_sign: [1.0, -1.0]
+    clip_actions: 1.0
+    # SLIP-FSM 阶段腿长参考 (L0, m)
+    crouch_length: 0.28
+    thrust_length: 0.50
+    flight_retract_length: 0.26
+    prelanding_length: 0.42
+    landing_absorption_length: 0.30
+    prelanding_start_vz: 0.0
+    prelanding_full_vz: -0.6
+    landing_compression_time: 0.18
+    # FSM 阶段时长 (s): VMC 力控制比关节位置控制慢, 需更长下蹲/蹬伸窗口
+    fsm_crouch_time: 0.35
+    fsm_thrust_time: 0.30
+    # 阶段相关 VMC 增益 (优化: 更强蹬伸 + 低阻尼)
+    thrust_kp_scale: 3.0
+    thrust_ff_scale: 3.0
+    thrust_kd_scale: 0.25
+    flight_ff_scale: 0.40
+    landing_kd_scale: 2.5
+    landing_ff_scale: 1.20
+
+reward:
+  only_positive_rewards: false
+  scales:
+    tracking_lin_vel: 2.0
+    tracking_ang_vel: 1.0
+    lin_vel_z: -0.2
+    ang_vel_xy: -0.05
+    base_height: -60.0
+    orientation: -5.0
+    joint_action_rate: -0.1
+    wheel_action_rate: -0.015
+    leg_mirror: -12.0
+    tsk: -2.0
+    alive: 1.0
+    jump_height: 15.0
+    crouch_prep: 8.0
+    landing_soft: 4.0
+    wheel_ground_matching: 20.0
+    vertical_thrust: 30.0
+    crouch_depth: 6.0
+    action_magnitude: -0.1
+    height_progress: 10.0
+    lean_forward: 3.0
+  tracking_sigma: 0.3
+  base_height_target: 0.55
+  jump_height_target: 1.0
+  crouch_height_target: 0.40
+  max_tilt_deg: 45.0
+  min_base_height: 0.15
+  jump_curriculum_start: 0
+  jump_curriculum_end: 0  # 无预热, 直接全开跳跃
+  feedback_gain: 0.5  # FSM 残差比例: 提高策略权限以跳更高 (原 0.15)
+  ablation_mode: full

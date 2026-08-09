@@ -1,12 +1,12 @@
 # @package _global_
 # =============================================================================
-# XqRobotWL 双轮腿机器人 PPO 跳跃训练配置 (MuJoCo 后端)
+# XqRobotWL PPO+VMC 跳跃训练配置 (MuJoCo 后端)
+# 与纯 PPO jump 相同的奖励/命令/预算, 但策略输出虚拟腿变量, 由 VMC 转关节力矩。
 # 5D 命令: [vx, vy, vyaw, tsk, jump_trigger]
-#   jump_trigger > 0.5 时触发跳跃: 下蹲 → 爆发伸展 → 腾空 → 着陆
-# =============================================================================
+# 8D 动作: [roll_L, theta_L, L0_L, roll_R, theta_R, L0_R, wheel_L, wheel_R]
 # =============================================================================
 training:
-  task_name: XqRobotWLJumpFlat
+  task_name: XqRobotWLJumpVMC
   sim_backend: mujoco
   play_steps: 300
   play_env_num: 1
@@ -36,7 +36,7 @@ algo:
     init_noise_std: 0.3
   algorithm:
     learning_rate: 1.0e-4
-    entropy_coef: 0.003  # 中度探索: 0.005过度探索落地乱, 0.002太保守不学跳
+    entropy_coef: 0.005
     clip_param: 0.2
     gamma: 0.99
     lam: 0.95
@@ -47,7 +47,7 @@ env:
   control_config:
     action_scale: 0.6
     wheel_action_scale: 10.0
-    clip_actions: 100.0
+    clip_actions: 1.0
   commands:
     vel_limit:
       - [-0.3, 0.0, -0.5, -0.1, 0]
@@ -62,6 +62,40 @@ env:
     randomize_kd: false
     random_com: false
     randomize_leg_length: false
+  vmc:
+    # 虚拟腿运动学 (标定自 scripts/calibrate_xqrobotwl_vmc.py)
+    l1: 0.30053
+    l2: 0.30070
+    offset: -0.00003
+    theta0_offset: 0.0747
+    l0_offset: 0.3669
+    l0_min: 0.2047
+    l0_max: 0.5231
+    singularity_epsilon: 0.05
+    hip_sign: [1.0, -1.0]
+    knee_sign: [-1.0, 1.0]
+    c1: 2.4103
+    c2: -1.6790
+    # VMC 增益
+    kp_theta: 60.0
+    kd_theta: 3.0
+    kp_l0: 800.0
+    kd_l0: 5.0  # 低阻尼爆发蹬伸 (原20)
+    feedforward_force: 110.0  # 支撑前馈: 需 > 体重/腿(~91N), 否则无法起跳
+    kp_roll: 40.0
+    kd_roll: 2.0
+    kp_wheel: 2.0
+    kp_wheel_integral: 1.0
+    wheel_integral_limit_ratio: 0.5
+    wheel_ctrlrange: 10.0
+    # 动作缩放
+    action_scale_theta: 0.5
+    action_scale_l0: 0.12  # 覆盖下蹲0.28~蹬伸0.50范围
+    action_scale_vel: 10.0
+    action_scale_roll: 0.3
+    roll_default: [0.1, -0.1]
+    wheel_sign: [1.0, -1.0]
+    clip_actions: 1.0
 
 reward:
   only_positive_rewards: false
@@ -77,24 +111,19 @@ reward:
     leg_mirror: -12.0
     tsk: -2.0
     alive: 1.0
-    jump_height: 15.0  # 强化跳跃激励 (原12): 克服"站住不跳"
+    jump_height: 12.0
     crouch_prep: 4.0
-    landing_soft: 20.0  # 门控后只在真实腾空落地后 ~10 步激活 (原40白嫖: 站着不动也拿)
-    landing_recovery: 4.0  # 强化落地恢复 (原2): 高速落地后恢复直立
+    landing_soft: 15.0
     wheel_air_time: 20.0
-    launch_rise: 40.0  # 实际升高奖励 (替换 vz²thrust: 推而不起=0, 真正升高才给奖)
-    crouch_depth: 8.0  # 深蹲回报 (原4): 逼出"先蹲后蹬" (窗口内 base_height 已归零不罚款)
-    anti_loiter: 12.0  # 增强: 跳完后逼机器人站起来
+    launch_rise: 40.0  # 实际升高奖励 (替换 vz²thrust: 推而不起=0)
+    crouch_depth: 8.0  # 深蹲回报 (原4): 逼出"先蹲后蹬"
+    anti_loiter: 12.0
     lean_forward: 5.0
-    anti_lazy: 60.0  # 反惰性: 触发窗口内膝盖幅值<0.5rad 重罚, 逼真实蹲-蹬 (破"缓慢站起"局部最优)
   tracking_sigma: 0.3
   base_height_target: 0.55
   jump_height_target: 1.0
   crouch_height_target: 0.40
   max_tilt_deg: 45.0
   min_base_height: 0.15
-  # 跳跃课程: [start, end] 环境步数, 线性 ramp jump_trigger + 跳跃奖励权重
-  # 24_576 步/iter (1024 envs × 24 steps)
   jump_curriculum_start: 0
   jump_curriculum_end: 0  # 对比公平: 四版本统一无热身, 立即全开跳跃
-  landing_window: 10  # 真实腾空落地后 landing_soft 奖励步数 (白嫖防护)
