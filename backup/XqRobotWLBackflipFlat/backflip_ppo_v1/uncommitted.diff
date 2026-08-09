@@ -1,0 +1,252 @@
+diff --git a/_devlog/INDEX.md b/_devlog/INDEX.md
+index 084776e..62c4af9 100644
+--- a/_devlog/INDEX.md
++++ b/_devlog/INDEX.md
+@@ -15,6 +15,24 @@ _devlog/<robot>/<task>/<algo>/<date>/<序号>_<slug>.md
+ 
+ ## 时间线 (最新在前)
+ 
++### 2026-08-05
++
++| 机器人 | 任务 | 算法 | 标题 |
++|--------|------|------|------|
++| xqrobotwl | backflip | ppo | [确定性翻转: 翻转期策略屏蔽, 纯 ff 驱动 (用户决定)](xqrobotwl/backflip/ppo/2026-08-05/08_deterministic_flip.md) |
++| xqrobotwl | backflip | ppo | ["一翻就倒"根因: 控制率 100Hz 太粗, 改 200Hz (ctrl_dt=0.005)](xqrobotwl/backflip/ppo/2026-08-05/07_control_rate_200hz_fix.md) |
++| xqrobotwl | backflip | ppo | [V2 续训发散 (动作爆炸) — 模型选择教训](xqrobotwl/backflip/ppo/2026-08-05/06_overfit_action_explosion_v2.md) |
++| xqrobotwl | backflip | ppo | [奖励重平衡: ff_tracking 10 / flip_progress 30 (防刷旋转)](xqrobotwl/backflip/ppo/2026-08-05/05_rebalance_ff_tracking_vs_flip_progress.md) |
++| xqrobotwl | backflip | ppo | [flip_complete 判据改物理事件锁存 (根因: 旋转积分阈值不可达)](xqrobotwl/backflip/ppo/2026-08-05/04_flip_complete_event_latch.md) |
++
++### 2026-08-04
++
++| 机器人 | 任务 | 算法 | 标题 |
++|--------|------|------|------|
++| xqrobotwl | backflip | ppo | [修复预热斜坡累乘 bug + 站立态 flip_progress 重置](xqrobotwl/backflip/ppo/2026-08-04/03_warmup_trigger_bugfix.md) |
++| xqrobotwl | backflip | ppo | [环境开发: backflip.py + FSM前馈 + 相位门控奖励 + 训练管线](xqrobotwl/backflip/ppo/2026-08-04/02_env_development.md) |
++| xqrobotwl | backflip | ppo | [开环脚本物理可行性验证 (360° 后空翻 + 落地 3.8°)](xqrobotwl/backflip/ppo/2026-08-04/01_physics_feasibility.md) |
++
+ ### 2026-07-18
+ 
+ | 机器人 | 任务 | 算法 | 标题 |
+diff --git a/_devlog/assess/plotter.py b/_devlog/assess/plotter.py
+index 8d3069d..d90c1ee 100644
+--- a/_devlog/assess/plotter.py
++++ b/_devlog/assess/plotter.py
+@@ -171,7 +171,7 @@ def plot_metric_bars(
+             if v is not None:
+                 values.append(v)
+                 labels.append(s[:15])
+-        bars = ax.bar(range(len(values)), values, color=COLORS["blue"], alpha=0.7, width=0.6)
++        ax.bar(range(len(values)), values, color=COLORS["blue"], alpha=0.7, width=0.6)
+         ax.set_xticks(range(len(values)))
+         ax.set_xticklabels(labels, rotation=45, ha="right", fontsize=7)
+         ax.set_title(metric, fontsize=9)
+diff --git a/_devlog/assess/runner.py b/_devlog/assess/runner.py
+index b6381aa..8bceda2 100644
+--- a/_devlog/assess/runner.py
++++ b/_devlog/assess/runner.py
+@@ -352,7 +352,6 @@ def load_policy(ckpt_path: str, obs_dim: int, hidden_dims: list[int] | None = No
+ 
+ def _infer_dims_from_state(state: dict, in_dim: int, out_dim: int) -> list[int]:
+     dims = []
+-    prev = in_dim
+     for i in range(0, 20, 2):
+         w_key = f"{i}.weight"
+         if w_key not in state:
+@@ -422,7 +421,7 @@ def run_scenario(
+         with torch.inference_mode():
+             raw_act = policy(torch.from_numpy(env._state.obs["obs"])).numpy()
+ 
+-        state = env.step(raw_act)
++        env.step(raw_act)
+         env._state.info["commands"] = cmd_arr
+ 
+         if s >= skip_steps:
+@@ -431,7 +430,6 @@ def run_scenario(
+             bp = env._backend.get_base_pos()
+ 
+             gravity = env._backend.get_sensor_data("upvector")
+-            gz = np.clip(gravity[0, 2], -1, 1)
+             roll = np.arctan2(gravity[0, 1], gravity[0, 2])
+             pitch = np.arcsin(np.clip(-gravity[0, 0], -1, 1))
+ 
+diff --git a/_devlog/xqrobotwl/INDEX.md b/_devlog/xqrobotwl/INDEX.md
+index 773b466..e0c5beb 100644
+--- a/_devlog/xqrobotwl/INDEX.md
++++ b/_devlog/xqrobotwl/INDEX.md
+@@ -17,5 +17,6 @@
+ | walk_rough | PPO | [→](walk_rough/ppo/INDEX.md) |
+ | stairs | NP3O | [→](stairs/np3o/INDEX.md) |
+ | jump | PPO | [→](jump/ppo/INDEX.md) |
++| backflip | PPO | [→](backflip/ppo/INDEX.md) |
+ | toe_walk | PPO | [→](toe_walk/ppo/INDEX.md) |
+ 
+diff --git a/jump_management/analyze/plot_training_curves.py b/jump_management/analyze/plot_training_curves.py
+index f33dd39..6e93c57 100644
+--- a/jump_management/analyze/plot_training_curves.py
++++ b/jump_management/analyze/plot_training_curves.py
+@@ -43,13 +43,6 @@ def plot_training_curves(
+     out_path: str = "results/training_curves.png",
+ ):
+     """绘制训练曲线对比图."""
+-    tags = [
+-        "reward/mean",
+-        "episode_length/mean",
+-        "reward/jump_height",
+-        "reward/jump_height",  # placeholder for action_std
+-        "std/mean",
+-    ]
+ 
+     ppo_run = find_latest_run(ppo_dir)
+     srl_run = find_latest_run(srl_dir)
+diff --git a/jump_management/evaluate/runner.py b/jump_management/evaluate/runner.py
+index 16f4139..16c5bc5 100644
+--- a/jump_management/evaluate/runner.py
++++ b/jump_management/evaluate/runner.py
+@@ -90,7 +90,6 @@ def eval_one_scenario(
+         model.eval()
+     else:
+         model = None
+-        actor_state_dict = checkpoint["model_state_dict"]
+ 
+     results = []
+ 
+@@ -99,7 +98,6 @@ def eval_one_scenario(
+         survived = True
+         jump_cycles: list[JumpCycleRecord] = []
+         current_jump: JumpCycleRecord | None = None
+-        last_fsm = -1
+         ep_height_history: list[float] = []
+         ep_x_history: list[float] = []
+ 
+@@ -160,7 +158,6 @@ def eval_one_scenario(
+                 )
+                 jump_cycles.append(current_jump)
+                 current_jump = None
+-            last_fsm = fsm
+ 
+             if bool(terminated) or bool(truncated):
+                 survived = not bool(terminated)
+diff --git a/pyproject.toml b/pyproject.toml
+index 3f96ec7..c8e9da3 100644
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -77,7 +77,7 @@ required-environments = [
+ line-length = 100
+ target-version = "py310"
+ src = ["src"]
+-extend-exclude = [".history"]
++extend-exclude = [".history", "Sim2real", "backup"]
+ 
+ [tool.ruff.lint]
+ select = ["E", "F", "I", "N", "W"]
+diff --git a/scripts/play/play_interactive.py b/scripts/play/play_interactive.py
+index afe4d29..45bff73 100644
+--- a/scripts/play/play_interactive.py
++++ b/scripts/play/play_interactive.py
+@@ -888,6 +888,10 @@ def _build_keyboard_commander(env: Any, args) -> KeyboardCommander | None:
+     # Bypass jump curriculum in play mode so jump_trigger isn't zeroed
+     if hasattr(env, "_jump_curriculum_end") and hasattr(env, "_total_env_steps"):
+         env._total_env_steps = env._jump_curriculum_end + 1
++    # Bypass backflip warmup in play mode so flip_trigger isn't zeroed
++    # (backflip warmup 在 [warmup, 2*warmup] 区间斜坡, 需跳到 2*warmup)
++    if hasattr(env, "_flip_warmup_env_steps") and hasattr(env, "_total_env_steps"):
++        env._total_env_steps = 2 * env._flip_warmup_env_steps + 1
+     if limit.shape[1] >= 5:
+         commander.height_min = float(limit[0, 4])
+         commander.height_max = float(limit[1, 4])
+diff --git a/scripts/play/play_smallHumanoid.py b/scripts/play/play_smallHumanoid.py
+index 03053b0..88230c3 100644
+--- a/scripts/play/play_smallHumanoid.py
++++ b/scripts/play/play_smallHumanoid.py
+@@ -1,4 +1,5 @@
+ #!/usr/bin/env python3
++# noqa: N999  (脚本名含大写, 作为 CLI 脚本非模块)
+ """Interactive keyboard-controlled policy playback using GLFW rendering.
+ 
+ W/S: fwd/back  |  A/D: strafe  |  Q/E: turn  |  R: stop  |  ESC: quit
+diff --git a/src/unilab/assets/robots/xqrobotwl/xqrobotwl.xml b/src/unilab/assets/robots/xqrobotwl/xqrobotwl.xml
+index e6c0485..1d25579 100644
+--- a/src/unilab/assets/robots/xqrobotwl/xqrobotwl.xml
++++ b/src/unilab/assets/robots/xqrobotwl/xqrobotwl.xml
+@@ -103,6 +103,8 @@
+     <framelinvel name="local_linvel" objtype="body" objname="base_link" />
+     <gyro name="gyro" site="imu_in_base" />
+     <framezaxis name="upvector" objtype="body" objname="base_link" />
++    <framexaxis name="basexvector" objtype="body" objname="base_link" />
++    <framepos name="left_wheel_world_pos" objtype="body" objname="left_link_wheel" />
+     <jointpos name="left_hip_roll_pos" joint="joint_left_hip_roll" />
+     <jointvel name="left_hip_roll_vel" joint="joint_left_hip_roll" />
+     <jointpos name="left_hip_pitch_pos" joint="joint_left_hip_pitch" />
+diff --git a/src/unilab/envs/locomotion/xqrobotwl/__init__.py b/src/unilab/envs/locomotion/xqrobotwl/__init__.py
+index c709e63..18ccb84 100644
+--- a/src/unilab/envs/locomotion/xqrobotwl/__init__.py
++++ b/src/unilab/envs/locomotion/xqrobotwl/__init__.py
+@@ -1,8 +1,15 @@
+ """xqrobotV2 wheel-legged bipedal robot env package."""
+ 
++from .backflip import XqRobotWLBackflipFlatCfg, XqRobotWLBackflipFlatEnv
+ from .joystick import XqRobotWLWalkFlatCfg, XqRobotWLWalkFlatEnv
+ from .jump import XqRobotWLJumpFlatCfg, XqRobotWLJumpFlatEnv
+ from .jump_srl import XqRobotWLJumpSRLFlatCfg, XqRobotWLJumpSRLFlatEnv
+ from .rough import XqRobotWLWalkRoughCfg, XqRobotWLWalkRoughEnv
++from .single_leg import XqRobotWLSingleLegFlatCfg, XqRobotWLSingleLegFlatEnv
++from .single_leg_move import XqRobotWLSingleLegMoveCfg, XqRobotWLSingleLegMoveEnv
++from .single_leg_unicycle import (
++    XqRobotWLSingleLegUnicycleCfg,
++    XqRobotWLSingleLegUnicycleEnv,
++)
+ from .stairs import XqRobotWLStairsCfg, XqRobotWLStairsEnv
+ from .toe_walk import XqRobotWLToeWalkFlatCfg, XqRobotWLToeWalkFlatEnv
+diff --git a/src/unilab/envs/locomotion/xqrobotwl/jump.py b/src/unilab/envs/locomotion/xqrobotwl/jump.py
+index 73ce425..3001c84 100644
+--- a/src/unilab/envs/locomotion/xqrobotwl/jump.py
++++ b/src/unilab/envs/locomotion/xqrobotwl/jump.py
+@@ -271,7 +271,6 @@ class XqRobotWLJumpFlatEnv(XqRobotWLWalkFlatEnv):
+             "crouch_depth": self._reward_crouch_depth,
+             "anti_loiter": self._reward_anti_loiter,
+             "lean_forward": self._reward_lean_forward,
+-            "lean_forward": self._reward_lean_forward,
+         }
+ 
+     def _reward_jump_height(self, ctx: RewardContext) -> np.ndarray:
+diff --git a/src/unilab/envs/locomotion/xqrobotwl/jump_srl.py b/src/unilab/envs/locomotion/xqrobotwl/jump_srl.py
+index 702f696..4f5d2e3 100644
+--- a/src/unilab/envs/locomotion/xqrobotwl/jump_srl.py
++++ b/src/unilab/envs/locomotion/xqrobotwl/jump_srl.py
+@@ -40,11 +40,11 @@ SLIP_FF_GAIN = 0.15
+ 
+ _FSM_FEEDFORWARD = {
+     -1: [0.1, 0.15, 0.15, -0.1, -0.15, -0.15, 0.0, 0.0],
+-     0: [0.1, 0.10, 0.70, -0.1, -0.10, -0.70, 0.0, 0.0],
+-     1: [0.1, 0.10,-0.87, -0.1, -0.10, 0.87, 0.0, 0.0],
+-     2: [0.1, 0.10, 0.00, -0.1, -0.10, 0.00, 0.0, 0.0],
+-     3: [0.1, 0.15,-0.30, -0.1, -0.15, 0.30, 0.0, 0.0],
+-     4: [0.1, 0.15, 0.15, -0.1, -0.15, -0.15, 0.0, 0.0],
++    0: [0.1, 0.10, 0.70, -0.1, -0.10, -0.70, 0.0, 0.0],
++    1: [0.1, 0.10, -0.87, -0.1, -0.10, 0.87, 0.0, 0.0],
++    2: [0.1, 0.10, 0.00, -0.1, -0.10, 0.00, 0.0, 0.0],
++    3: [0.1, 0.15, -0.30, -0.1, -0.15, 0.30, 0.0, 0.0],
++    4: [0.1, 0.15, 0.15, -0.1, -0.15, -0.15, 0.0, 0.0],
+ }
+ 
+ 
+diff --git a/tools/pinocchio_traj/visualize_toe_walk.py b/tools/pinocchio_traj/visualize_toe_walk.py
+index b1ddb8e..985c2c5 100644
+--- a/tools/pinocchio_traj/visualize_toe_walk.py
++++ b/tools/pinocchio_traj/visualize_toe_walk.py
+@@ -76,7 +76,6 @@ def fk_right_leg(angles: np.ndarray, base_pos: np.ndarray = np.zeros(3)):
+     right_hip_offset = HIP_BASE_OFFSET * np.array([1, -1, 1])
+     right_thigh_offset = THIGH_OFFSET * np.array([1, -1, 1])
+     right_calf_offset = CALF_OFFSET * np.array([1, -1, 1])
+-    right_wheel_offset = WHEEL_OFFSET * np.array([1, -1, 1])
+ 
+     hip_pos = base_pos + right_hip_offset
+ 
+@@ -147,7 +146,6 @@ def main():
+ 
+     # Time steps over one full cycle
+     num_steps = 80
+-    dt = 0.01  # 100Hz
+     t = np.linspace(0, 0.5, num_steps)
+ 
+     # Store wheel positions

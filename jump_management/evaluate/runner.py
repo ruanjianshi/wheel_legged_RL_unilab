@@ -90,7 +90,6 @@ def eval_one_scenario(
         model.eval()
     else:
         model = None
-        actor_state_dict = checkpoint["model_state_dict"]
 
     results = []
 
@@ -99,7 +98,6 @@ def eval_one_scenario(
         survived = True
         jump_cycles: list[JumpCycleRecord] = []
         current_jump: JumpCycleRecord | None = None
-        last_fsm = -1
         ep_height_history: list[float] = []
         ep_x_history: list[float] = []
 
@@ -160,7 +158,6 @@ def eval_one_scenario(
                 )
                 jump_cycles.append(current_jump)
                 current_jump = None
-            last_fsm = fsm
 
             if bool(terminated) or bool(truncated):
                 survived = not bool(terminated)

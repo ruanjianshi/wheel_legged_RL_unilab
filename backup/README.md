@@ -43,6 +43,8 @@ backup/
 | XqRobotV2WalkFlat | [flat_walk_ppo_v2](XqRobotV2WalkFlat/flat_walk_ppo_v2/README.md) | PPO | 2026-06-27 | **速度控制，100Hz，轮子对称** |
 | XqRobotWLJumpSRLFlat | [jump_srl_ppo_v1](XqRobotWLJumpSRLFlat/jump_srl_ppo_v1/README.md) | PPO+SLIP | 2026-07-25 | SLIP FSM观测, jump_height=1.45, lean=-0.25 |
 | XqRobotWLToeWalkFlat | [toe_walk_ppo_v1](XqRobotWLToeWalkFlat/toe_walk_ppo_v1/README.md) | PPO | 2026-07-25 | 相位门控, swing_lift=14.34, std=0.15 |
+| XqRobotWLBackflipFlat | [backflip_ppo_v1](XqRobotWLBackflipFlat/backflip_ppo_v1/README.md) | PPO | 2026-08-05 | **后空翻交付 model_1000** (model_1999 已发散) |
+| XqRobotWLSingleLegUnicycle | [unicycle_ppo_v1](XqRobotWLSingleLegUnicycle/unicycle_ppo_v1/README.md) | PPO | 2026-08-06 | **单轮平衡 8s** (model_4000, PD 的 9.3 倍), 改进结构+扭矩轮 |
 
 ## 使用指南
 

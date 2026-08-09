@@ -43,13 +43,6 @@ def plot_training_curves(
     out_path: str = "results/training_curves.png",
 ):
     """绘制训练曲线对比图."""
-    tags = [
-        "reward/mean",
-        "episode_length/mean",
-        "reward/jump_height",
-        "reward/jump_height",  # placeholder for action_std
-        "std/mean",
-    ]
 
     ppo_run = find_latest_run(ppo_dir)
     srl_run = find_latest_run(srl_dir)
