@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+import numpy as np
+
 from unilab.assets import ASSETS_ROOT_PATH
 from unilab.base import registry
 from unilab.base.scene import SceneCfg, TerrainSceneCfg
@@ -76,3 +78,16 @@ class XqRobotWLStairsCfg(XqRobotWLWalkFlatCfg):
 @registry.env("XqRobotWLStairs", sim_backend="mujoco")
 class XqRobotWLStairsEnv(XqRobotWLWalkRoughEnv):
     _cfg: XqRobotWLStairsCfg
+
+    def __init__(self, cfg: XqRobotWLStairsCfg, num_envs=1, backend_type="mujoco"):
+        super().__init__(cfg, num_envs=num_envs, backend_type=backend_type)
+        # Stairs uses 5D commands [vx, vy, vyaw, tsk, height] (see task YAML), so
+        # obs/critic frames match flat (5D) rather than rough (4D).
+        self._obs_frame_dim = 33  # 5D cmd: gyro(3)+grav(3)+diff(6)+vel(6)+wheel(2)+act(8)+cmd(5)
+        self._critic_frame_dim = 36  # 5D cmd + linvel(3)
+        self._obs_history = np.zeros(
+            (num_envs, self._hist_len, self._obs_frame_dim), dtype=self._np_dtype
+        )
+        self._critic_history = np.zeros(
+            (num_envs, self._hist_len, self._critic_frame_dim), dtype=self._np_dtype
+        )

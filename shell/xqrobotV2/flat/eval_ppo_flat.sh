@@ -5,11 +5,11 @@
 #   bash shell/xqrobotV2/flat/eval_ppo_flat.sh                          # 最新模型, 策略回放
 #   bash shell/xqrobotV2/flat/eval_ppo_flat.sh --keyboard                # 最新模型, 键盘遥控
 #   bash shell/xqrobotV2/flat/eval_ppo_flat.sh <run_id>                  # 指定 run, 策略回放
-ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
 cd "$ROOT_DIR"
 set -e
 
-ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
 cd "$ROOT_DIR"
 
 LOAD_RUN=""

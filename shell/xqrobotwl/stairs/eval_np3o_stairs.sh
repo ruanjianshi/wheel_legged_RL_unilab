@@ -5,7 +5,7 @@
 #   bash shell/xqrobotwl/stairs/eval_np3o_stairs.sh                          # 最新模型, 策略回放
 #   bash shell/xqrobotwl/stairs/eval_np3o_stairs.sh --keyboard                # 最新模型, 键盘遥控
 #   bash shell/xqrobotwl/stairs/eval_np3o_stairs.sh <run_id>                  # 指定 run, 策略回放
-ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
 cd "$ROOT_DIR"
 set -e
 
@@ -16,7 +16,7 @@ else
     PYTHON="uv run"
 fi
 
-ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
 cd "$ROOT_DIR"
 
 LOAD_RUN=""

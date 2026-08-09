@@ -5,11 +5,11 @@
 #   bash shell/xqrobotV2/tools/tensorboard.sh                  # 查看所有已配置的日志
 #   bash shell/xqrobotV2/tools/tensorboard.sh flat             # 只查看平坦地形
 #   bash shell/xqrobotV2/tools/tensorboard.sh rough            # 只查看粗糙地形
-ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
 cd "$ROOT_DIR"
 set -e
 
-ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
 cd "$ROOT_DIR"
 
 # ============================================================

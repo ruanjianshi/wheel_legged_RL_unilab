@@ -5,10 +5,10 @@
 #   bash shell/xqrobotwl/jump/eval_ppo_jump_flat.sh                          # 最新模型
 #   bash shell/xqrobotwl/jump/eval_ppo_jump_flat.sh --keyboard                # 键盘: J=跳跃
 #   bash shell/xqrobotwl/jump/eval_ppo_jump_flat.sh <run_id> --keyboard
-ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
 cd "$ROOT_DIR"
 
-ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
 cd "$ROOT_DIR"
 
 # Platform detection: use mjpython on macOS, uv run on Linux

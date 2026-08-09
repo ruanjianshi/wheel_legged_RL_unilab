@@ -12,7 +12,7 @@ else
     PYTHON="uv run"
 fi
 
-ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
 cd "$ROOT_DIR"
 
 TASK="xqrobotwl_toe_walk_flat/mujoco"

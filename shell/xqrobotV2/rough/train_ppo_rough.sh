@@ -5,7 +5,7 @@
 # ============================================================
 set -e
 
-ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
 cd "$ROOT_DIR"
 
 TASK="xqrobotV2_walk_rough/mujoco"
