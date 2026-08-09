@@ -103,6 +103,8 @@
     <framelinvel name="local_linvel" objtype="body" objname="base_link" />
     <gyro name="gyro" site="imu_in_base" />
     <framezaxis name="upvector" objtype="body" objname="base_link" />
+    <framexaxis name="basexvector" objtype="body" objname="base_link" />
+    <framepos name="left_wheel_world_pos" objtype="body" objname="left_link_wheel" />
     <jointpos name="left_hip_roll_pos" joint="joint_left_hip_roll" />
     <jointvel name="left_hip_roll_vel" joint="joint_left_hip_roll" />
     <jointpos name="left_hip_pitch_pos" joint="joint_left_hip_pitch" />

@@ -336,6 +336,25 @@ class SimBackend(abc.ABC):
             f"{self.__class__.__name__} does not support interval body force perturbation"
         )
 
+    def apply_body_wrench(
+        self,
+        body_ids: np.ndarray,
+        wrench: np.ndarray,
+    ) -> None:
+        """Apply a world-frame force+torque wrench to bodies for the upcoming step.
+
+        Args:
+            body_ids: Body ids whose external wrenches should be perturbed.
+            wrench: Wrench values with shape ``(num_envs, len(body_ids), 6)``
+                ordered ``[fx, fy, fz, tx, ty, tz]``.
+
+        Returns:
+            None. Backends that support this mutate their pending simulation state.
+        """
+        raise NotImplementedError(
+            f"{self.__class__.__name__} does not support body wrench perturbation"
+        )
+
     def get_play_capabilities(self) -> BackendPlayCapabilities:
         """Return backend-native play/render capabilities."""
         return BackendPlayCapabilities()

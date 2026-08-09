@@ -195,6 +195,9 @@ class RslRlVecEnvWrapper:
 
         if "log" in state.info:
             infos["log"] = state.info["log"]
+        # CPO: 转发 env 施加的约束代价 (辅助力/力矩幅值) 给算法
+        if "constraint_costs" in state.info:
+            infos["constraint_costs"] = to_torch(state.info["constraint_costs"], self.device)
 
         return (
             self._obs_to_tensordict(state.obs, getattr(state, "info", None)),

@@ -966,6 +966,28 @@ class MuJoCoBackend(SimBackend):
                 force_np[:, body_offset, :]
             )
 
+    def apply_body_wrench(
+        self,
+        body_ids: np.ndarray,
+        wrench: np.ndarray,
+    ) -> None:
+        """Accumulate one external world-frame force+torque wrench per body.
+
+        xfrc_applied layout is ``(num_envs, 6 * nbody)`` with per-body
+        ``[fx, fy, fz, tx, ty, tz]``.
+        """
+        body_ids_np = np.asarray(body_ids, dtype=np.int32).reshape(-1)
+        wrench_np = np.asarray(wrench, dtype=np.float64)
+        expected_shape = (self._num_envs, body_ids_np.size, 6)
+        if wrench_np.shape != expected_shape:
+            raise ValueError(f"body wrench must have shape {expected_shape}, got {wrench_np.shape}")
+        for body_offset, body_id in enumerate(body_ids_np):
+            body_id_i = int(body_id)
+            if body_id_i < 0:
+                continue
+            sl = slice(6 * body_id_i, 6 * body_id_i + 6)
+            self._pending_xfrc_applied[:, sl] += wrench_np[:, body_offset, :]
+
     def get_play_capabilities(self) -> BackendPlayCapabilities:
         return BackendPlayCapabilities(supports_physics_state_playback=True)
 

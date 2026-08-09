@@ -171,7 +171,7 @@ def plot_metric_bars(
             if v is not None:
                 values.append(v)
                 labels.append(s[:15])
-        bars = ax.bar(range(len(values)), values, color=COLORS["blue"], alpha=0.7, width=0.6)
+        ax.bar(range(len(values)), values, color=COLORS["blue"], alpha=0.7, width=0.6)
         ax.set_xticks(range(len(values)))
         ax.set_xticklabels(labels, rotation=45, ha="right", fontsize=7)
         ax.set_title(metric, fontsize=9)

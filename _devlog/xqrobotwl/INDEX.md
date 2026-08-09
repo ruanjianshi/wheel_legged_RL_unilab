@@ -17,5 +17,7 @@
 | walk_rough | PPO | [→](walk_rough/ppo/INDEX.md) |
 | stairs | NP3O | [→](stairs/np3o/INDEX.md) |
 | jump | PPO | [→](jump/ppo/INDEX.md) |
+| backflip | PPO | [→](backflip/ppo/INDEX.md) |
+| fall_recovery | PPO | [→](fall_recovery/ppo/INDEX.md) |
 | toe_walk | PPO | [→](toe_walk/ppo/INDEX.md) |
 

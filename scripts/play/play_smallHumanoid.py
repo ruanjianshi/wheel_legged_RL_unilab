@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# noqa: N999  (脚本名含大写, 作为 CLI 脚本非模块)
 """Interactive keyboard-controlled policy playback using GLFW rendering.
 
 W/S: fwd/back  |  A/D: strafe  |  Q/E: turn  |  R: stop  |  ESC: quit

@@ -888,6 +888,10 @@ def _build_keyboard_commander(env: Any, args) -> KeyboardCommander | None:
     # Bypass jump curriculum in play mode so jump_trigger isn't zeroed
     if hasattr(env, "_jump_curriculum_end") and hasattr(env, "_total_env_steps"):
         env._total_env_steps = env._jump_curriculum_end + 1
+    # Bypass backflip warmup in play mode so flip_trigger isn't zeroed
+    # (backflip warmup 在 [warmup, 2*warmup] 区间斜坡, 需跳到 2*warmup)
+    if hasattr(env, "_flip_warmup_env_steps") and hasattr(env, "_total_env_steps"):
+        env._total_env_steps = 2 * env._flip_warmup_env_steps + 1
     if limit.shape[1] >= 5:
         commander.height_min = float(limit[0, 4])
         commander.height_max = float(limit[1, 4])

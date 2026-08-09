@@ -271,7 +271,6 @@ class XqRobotWLJumpFlatEnv(XqRobotWLWalkFlatEnv):
             "crouch_depth": self._reward_crouch_depth,
             "anti_loiter": self._reward_anti_loiter,
             "lean_forward": self._reward_lean_forward,
-            "lean_forward": self._reward_lean_forward,
         }
 
     def _reward_jump_height(self, ctx: RewardContext) -> np.ndarray:
