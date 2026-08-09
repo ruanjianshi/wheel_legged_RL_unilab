@@ -23,6 +23,7 @@ _devlog/<robot>/<task>/<algo>/<date>/<序号>_<slug>.md
 | xqrobotwl | jump | ppo | [shell 目录按任务细分重组](xqrobotwl/jump/ppo/2026-08-10/32_shell_reorganize_by_task.md) |
 | xqrobotwl | jump | ppo | [根目录清理: 删 AGENTS.md 只留 CLAUDE.md + 散落文件](xqrobotwl/jump/ppo/2026-08-10/33_cleanup_root_agents_to_claude.md) |
 | xqrobotwl | jump | ppo | [补全 xqrobotwl/jump 缺失的 VMC 验证脚本](xqrobotwl/jump/ppo/2026-08-10/34_add_jump_vmc_eval_scripts.md) |
+| xqrobotwl | jump | ppo | [启动 8 个 xqrobotwl 训练 + 修复 shell 路径与 stairs obs 维度 bug](xqrobotwl/jump/ppo/2026-08-10/35_launch_8_trainings_and_fix_path_obs_bugs.md) |
 
 ### 2026-08-09
 
