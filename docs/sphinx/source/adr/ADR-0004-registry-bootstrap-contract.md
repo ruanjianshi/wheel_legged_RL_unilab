@@ -48,7 +48,7 @@ UniLab 的 env 注册依赖 `@registry.envcfg(...)` 与 `@registry.env(...)` dec
 
 - Registry 入口: `src/unilab/base/registry.py`
 - Bootstrap helper: `src/unilab/base/registry.py`
-- Env package 入口: `src/unilab/envs/locomotion/__init__.py`, `src/unilab/envs/motion_tracking/__init__.py`, `src/unilab/envs/manipulation/__init__.py`
+- Env package 入口: `src/unilab/envs/locomotion/__init__.py`
 - Bootstrap tests: `tests/utils/test_algo_utils.py`, `tests/base/test_registry.py`
 
 ## Related Documents

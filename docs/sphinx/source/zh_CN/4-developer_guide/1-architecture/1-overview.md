@@ -69,10 +69,10 @@ PPO 与 MLX PPO 是同步的单进程路径。APPO 与 off-policy 算法则使�
 
 ## 关键文件
 
-- `scripts/train_rsl_rl.py`
-- `scripts/train_mlx_ppo.py`
-- `scripts/train_appo.py`
-- `scripts/train_offpolicy.py`
+- `scripts/training/train_rsl_rl.py`
+- `scripts/training/train_mlx_ppo.py`
+- `scripts/training/train_appo.py`
+- `scripts/training/train_offpolicy.py`
 - `src/unilab/base/np_env.py`
 - `src/unilab/base/backend/base.py`
 - `src/unilab/base/registry.py`

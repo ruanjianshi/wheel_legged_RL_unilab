@@ -298,9 +298,7 @@ uv run train --algo ppo --task sharpa_inhand --sim mujoco 'env.domain_rand.scale
 
 ## 相关任务
 
-- {doc}`G1 Motion Tracking <../4-tasks/2-motion_tracking>`：开启 DR 前先确认 motion 资产和 replay。
-- {doc}`Sharpa Inhand <../8-manipulation/1-dexterous_inhand>`：scale / grasp cache / DR 边界更敏感。
-- {doc}`Go2 Rough Terrain <../4-tasks/1-locomotion>`：常见的是 mass、COM、friction、push。
+- {doc}`XqRobotWL Rough Terrain <../4-tasks/1-locomotion>`：常见的是 mass、COM、friction、push。
 
 有关配置示例，请参阅 {doc}`1-configuration`。有关开发者
 provider 接口和后端能力边界，请参阅

@@ -15,15 +15,15 @@
 
 | 任务 | owner YAML | 后端 | 入口算法 | 代码 |
 | --- | --- | --- | --- | --- |
-| `Go2JoystickRough` | `mujoco.yaml`、`motrix.yaml` | MuJoCo / Motrix | PPO (`train_rsl_rl.py`) | `go2/rough.py` |
+| `XqRobotWLWalkRough` | `mujoco.yaml`、`motrix.yaml` | MuJoCo / Motrix | PPO (`train_rsl_rl.py`) | `xqrobotwl/rough.py` |
 
 在 env 构建过程中：
 
-1. `Go2JoystickRoughCfg` 声明了一个 `SceneCfg`，其 `model_file` 指向 `go2.xml`，`fragment_files` 从 `locomotion_task.xml` 引入 task 级别的接触传感器和 `home` keyframe，`scene.terrain` 声明了一个名为 `terrain_hfield` 的待生成 hfield。
+1. `XqRobotWLWalkRoughCfg` 声明了一个 `SceneCfg`，其 `model_file` 指向 `xqrobotwl.xml`，`fragment_files` 从 `locomotion_task.xml` 引入 task 级别的接触传感器和 `home` keyframe，`scene.terrain` 声明了一个名为 `terrain_hfield` 的待生成 hfield。
 2. 后端场景实例化器调用 `TerrainGenerator(...)` 生成一个与后端无关的合并高度矩阵以及 `terrain_origins`；地形生成器本身不依赖 MuJoCo 或 Motrix。
 3. MuJoCo 实例化器使用 `MjSpec.add_hfield(...)` / `worldbody.add_geom(...)` 创建地形，然后用 `MjSpec.attach(...)` 把机器人 spec 附加到场景中，最后通过 `compile()` 生成 `MjModel`。
 4. Motrix 实例化器使用 `motrixsim.msd.World` 创建地形世界，用 `World.attach(...)` 拼接机器人世界和 task fragment，最后通过 `msd.build(...)` 生成 `SceneModel`。
-5. `go2.xml` 是机器人模型；`locomotion_task.xml` 是用于崎岖地形的 task fragment，包含与地形 `floor` 关联的接触传感器以及 task 级别的 `home` keyframe。
+5. `xqrobotwl.xml` 是机器人模型；`locomotion_task.xml` 是用于崎岖地形的 task fragment，包含与地形 `floor` 关联的接触传感器以及 task 级别的 `home` keyframe。
 6. 后端实例持有冷路径场景产物，直到 env `close()`；`terrain_origins` 通过一个后端场景属性回传给 env，用于 spawn / curriculum。
 
 `step()` / `reset()` / DR provider 永远不会读取 XML 或访问 asset 文件；所有与地形相关的事情都发生在冷路径上。
@@ -43,7 +43,7 @@ uv run train --algo ppo --task go2_joystick_rough --sim motrix
 
 ## 2. 通过 Hydra 命令行覆盖地形参数
 
-`Go2JoystickRough` 在 `conf/ppo/task/go2_joystick_rough/{mujoco,motrix}.yaml` 中显式列出了一组可覆盖字段；这些字段允许 Hydra struct 模式接受命令行覆盖。
+`XqRobotWLWalkRough` 在 `conf/ppo/task/go2_joystick_rough/{mujoco,motrix}.yaml` 中显式列出了一组可覆盖字段；这些字段允许 Hydra struct 模式接受命令行覆盖。
 
 | 字段 | 用途 | YAML 默认值 |
 | --- | --- | --- |
@@ -75,7 +75,7 @@ uv run train --algo ppo --task go2_joystick_rough --sim mujoco \
 
 ## 3. 修改子地形
 
-子地形在 `unilab.terrains.config` 的 `ALL_TERRAIN_PRESETS` 中注册。`Go2JoystickRough` 默认混合的 7 种子地形：
+子地形在 `unilab.terrains.config` 的 `ALL_TERRAIN_PRESETS` 中注册。`XqRobotWLWalkRough` 默认混合的 7 种子地形：
 
 | 名称 | 实现 | 描述 |
 | --- | --- | --- |
@@ -89,7 +89,7 @@ uv run train --algo ppo --task go2_joystick_rough --sim mujoco \
 
 每种都有自己的难度参数（`step_height_range`、`slope_range`、`noise_range` 等）；完整的字段定义在 `heightfield_terrains.py` 中。所有子地形（包括 `flat` 和台阶）现在都通过 hfield 实现，分辨率统一由 `TerrainGeneratorCfg.horizontal_scale` / `vertical_scale` 控制。
 
-内置组合定义在 `unilab.terrains.config` 中，`Go2JoystickRoughCfg` 在 `go2/rough.py` 中定义了自己的 owner 默认值：
+内置组合定义在 `unilab.terrains.config` 中，`Go2JoystickRoughCfg` 在 `xqrobotwl/rough.py` 中定义了自己的 owner 默认值：
 
 - `Go2RoughTerrainCfg`：1 × 1，默认只采样 `random_rough`（proportion `0.2`，其余子地形作为可配置 profile 保留，但默认 proportion 为 `0.0`），随机模式。每个 env 实例获得自己独立的 cfg 对象。
 - `ROUGH_TERRAINS_CFG`：10 × 20，按 proportion 混合 7 种子地形，随机模式。目前作为可复用 profile 保留；不是 `Go2JoystickRoughCfg` 的默认训练 profile。
@@ -177,7 +177,7 @@ uv run train --algo ppo --task go2_joystick_rough --sim motrix \
 
 - **MuJoCo 和 Motrix 实例化器都有自动化冒烟覆盖**：MuJoCo 路径返回 `MjModel`，Motrix 路径返回 `SceneModel`。生产训练性能与收敛质量仍需由独立的 benchmark 记录；冒烟测试不对其作出保证。
 - **MuJoCo 组装路径依赖 `MjSpec.attach`**：机器人 XML、地形和 task 传感器 fragment 在实例化阶段组装，并直接编译为 `MjModel`。
-- **Motrix 组装路径依赖 `motrixsim.msd.World.attach`**：`go2.xml` 提供机器人模型，`locomotion_task.xml` 作为携带接触传感器和 task 级别 keyframe 的 task fragment 被接入。
+- **Motrix 组装路径依赖 `motrixsim.msd.World.attach`**：`xqrobotwl.xml` 提供机器人模型，`locomotion_task.xml` 作为携带接触传感器和 task 级别 keyframe 的 task fragment 被接入。
 - **高度扫描支持通过 `create_hfield_scanner(...)`**：崎岖 env 在初始化期间缓存 scanner id 和偏移，然后在观测/奖励代码中消费 scanner 输出，热路径上不解析 XML。
 - **`scene.terrain.generator` 是冷路径配置**：在 env 构建之后修改 generator 不会影响已经实例化的场景。要更换地形，必须重建 env（即重新运行训练命令）。
 - **`import unilab.terrains` 不依赖 mujoco**：`TerrainGenerator.generate()` / `write_png()` 是纯 numpy + imageio 路径。

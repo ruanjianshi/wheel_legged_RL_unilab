@@ -16,15 +16,15 @@ Only one task in the current repo registers and wires up procedural terrain:
 
 | Task | owner YAML | Backend | Entry Algorithm | Code |
 | --- | --- | --- | --- | --- |
-| `Go2JoystickRough` | `mujoco.yaml`, `motrix.yaml` | MuJoCo / Motrix | PPO (`train_rsl_rl.py`) | `go2/rough.py` |
+| `XqRobotWLWalkRough` | `mujoco.yaml`, `motrix.yaml` | MuJoCo / Motrix | PPO (`train_rsl_rl.py`) | `xqrobotwl/rough.py` |
 
 During env construction:
 
-1. `Go2JoystickRoughCfg` declares a `SceneCfg` whose `model_file` points to `go2.xml`, `fragment_files` brings in the task-level contact sensors and `home` keyframe from `locomotion_task.xml`, and `scene.terrain` declares an hfield named `terrain_hfield` to be generated.
+1. `Go2JoystickRoughCfg` declares a `SceneCfg` whose `model_file` points to `xqrobotwl.xml`, `fragment_files` brings in the task-level contact sensors and `home` keyframe from `locomotion_task.xml`, and `scene.terrain` declares an hfield named `terrain_hfield` to be generated.
 2. The backend scene materializer calls `TerrainGenerator(...)` to produce a backend-agnostic merged height matrix and `terrain_origins`; the terrain generator itself does not depend on MuJoCo or Motrix.
 3. The MuJoCo materializer uses `MjSpec.add_hfield(...)` / `worldbody.add_geom(...)` to create the terrain, then uses `MjSpec.attach(...)` to attach the robot spec to the scene, and finally `compile()` produces the `MjModel`.
 4. The Motrix materializer uses `motrixsim.msd.World` to create the terrain world, uses `World.attach(...)` to stitch in the robot world and task fragment, and finally `msd.build(...)` produces the `SceneModel`.
-5. `go2.xml` is the robot model; `locomotion_task.xml` is the task fragment for rough terrain and contains the contact sensors associated with the terrain `floor` plus the task-level `home` keyframe.
+5. `xqrobotwl.xml` is the robot model; `locomotion_task.xml` is the task fragment for rough terrain and contains the contact sensors associated with the terrain `floor` plus the task-level `home` keyframe.
 6. The backend instance owns the cold-path scene artifacts until env `close()`; `terrain_origins` is passed back to env via a backend scene attribute, used for spawn / curriculum.
 
 `step()` / `reset()` / DR provider never read XML or access asset files; everything terrain-related happens on the cold path.
@@ -44,7 +44,7 @@ uv run train --algo ppo --task go2_joystick_rough --sim motrix
 
 ## 2. Overriding Terrain Parameters via Hydra Command Line
 
-`Go2JoystickRough` explicitly lists a set of override-able fields in `conf/ppo/task/go2_joystick_rough/{mujoco,motrix}.yaml`; these fields allow Hydra struct mode to accept command-line overrides.
+`XqRobotWLWalkRough` explicitly lists a set of override-able fields in `conf/ppo/task/go2_joystick_rough/{mujoco,motrix}.yaml`; these fields allow Hydra struct mode to accept command-line overrides.
 
 | Field | Purpose | YAML Default |
 | --- | --- | --- |
@@ -76,7 +76,7 @@ Fields not listed in the YAML (e.g. `sub_terrains`) currently **cannot** be over
 
 ## 3. Modifying Sub-terrains
 
-Sub-terrains are registered in `ALL_TERRAIN_PRESETS` in `unilab.terrains.config`. The 7 sub-terrains mixed by `Go2JoystickRough` by default:
+Sub-terrains are registered in `ALL_TERRAIN_PRESETS` in `unilab.terrains.config`. The 7 sub-terrains mixed by `XqRobotWLWalkRough` by default:
 
 | Name | Implementation | Description |
 | --- | --- | --- |
@@ -90,7 +90,7 @@ Sub-terrains are registered in `ALL_TERRAIN_PRESETS` in `unilab.terrains.config`
 
 Each has its own difficulty parameters (`step_height_range`, `slope_range`, `noise_range`, etc.); full field definitions are in `heightfield_terrains.py`. All sub-terrains (including `flat` and stairs) are now implemented via hfield, with resolution uniformly controlled by `TerrainGeneratorCfg.horizontal_scale` / `vertical_scale`.
 
-Built-in compositions are defined in `unilab.terrains.config`, and `Go2JoystickRoughCfg` defines its own owner defaults in `go2/rough.py`:
+Built-in compositions are defined in `unilab.terrains.config`, and `Go2JoystickRoughCfg` defines its own owner defaults in `xqrobotwl/rough.py`:
 
 - `Go2RoughTerrainCfg`: 1 × 1, by default only samples `random_rough` (proportion `0.2`, the rest of the sub-terrains are kept as configurable profiles but default to proportion `0.0`), random mode. Each env instance receives its own independent cfg object.
 - `ROUGH_TERRAINS_CFG`: 10 × 20, 7 sub-terrains mixed by proportion, random mode. Currently kept as a reusable profile; not the default training profile of `Go2JoystickRoughCfg`.
@@ -178,7 +178,7 @@ uv run train --algo ppo --task go2_joystick_rough --sim motrix \
 
 - **Both MuJoCo and Motrix materializers have automated smoke coverage**: the MuJoCo path returns `MjModel`, the Motrix path returns `SceneModel`. Production training performance and convergence quality still need to be recorded by independent benchmarks; they are not guaranteed by smoke tests.
 - **The MuJoCo assembly path depends on `MjSpec.attach`**: the robot XML, terrain, and task sensor fragment are assembled at the materialization stage and compiled directly into `MjModel`.
-- **The Motrix assembly path depends on `motrixsim.msd.World.attach`**: `go2.xml` provides the robot model, and `locomotion_task.xml` is wired in as the task fragment that carries contact sensors and the task-level keyframe.
+- **The Motrix assembly path depends on `motrixsim.msd.World.attach`**: `xqrobotwl.xml` provides the robot model, and `locomotion_task.xml` is wired in as the task fragment that carries contact sensors and the task-level keyframe.
 - **Height scan support goes through `create_hfield_scanner(...)`**: the rough env caches scanner ids and offsets during initialization, then consumes scanner output in observation/reward code without parsing XML on the hot path.
 - **`scene.terrain.generator` is a cold-path config**: modifying the generator after env construction does not affect the already materialized scene. To change terrains, the env must be reconstructed (i.e. rerun the training command).
 - **`import unilab.terrains` does not depend on mujoco**: `TerrainGenerator.generate()` / `write_png()` is a pure numpy + imageio path.

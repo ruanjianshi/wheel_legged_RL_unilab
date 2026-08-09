@@ -328,20 +328,20 @@ def _compose_task(task: str) -> Any:
         return compose("config", overrides=[f"task={task}"])
 
 
-def test_g1_walk_flat_mujoco_inherits_base_contract():
+def test_xqrobotV2_walk_flat_mujoco_inherits_base_contract():
     # The MuJoCo owner must inherit the shared contract from base.yaml verbatim.
-    mujoco = _compose_task("g1_walk_flat/mujoco")
-    assert OmegaConf.select(mujoco, "env.control_config.action_scale") == 0.25
+    mujoco = _compose_task("xqrobotV2_walk_flat/mujoco")
+    assert OmegaConf.select(mujoco, "env.control_config.action_scale") == 0.5
     assert OmegaConf.select(mujoco, "algo.empirical_normalization") is False
-    assert OmegaConf.select(mujoco, "algo.obs_groups.actor") == ["actor"]
+    assert OmegaConf.select(mujoco, "algo.obs_groups.default") == ["actor"]
 
 
-def test_g1_walk_flat_cross_backend_play_is_guarded(tmp_path):
+def test_xqrobotV2_walk_flat_cross_backend_play_is_guarded(tmp_path):
     # Motrix intentionally overrides contract fields, so MuJoCo->Motrix is guarded.
-    snapshot = extract_contract_snapshot(_compose_task("g1_walk_flat/mujoco"))
+    snapshot = extract_contract_snapshot(_compose_task("xqrobotV2_walk_flat/mujoco"))
     (tmp_path / "run_config.json").write_text(
         json.dumps({"contract_snapshot": snapshot}), encoding="utf-8"
     )
-    motrix = _compose_task("g1_walk_flat/motrix")
+    motrix = _compose_task("xqrobotV2_walk_flat/motrix")
     with pytest.raises(CrossBackendIncompatibleError):
         resolve_sim2sim_config(tmp_path, motrix)

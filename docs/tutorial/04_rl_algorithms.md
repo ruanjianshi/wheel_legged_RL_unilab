@@ -219,7 +219,7 @@ uv run train ... \
 ### 完整生命周期
 
 ```python
-# scripts/train_rsl_rl.py (简化版)
+# scripts/training/train_rsl_rl.py (简化版)
 
 # 1. Hydra 组合配置
 cfg = compose("config.yaml", "task/xqrobotV2_walk_flat/mujoco.yaml")
@@ -289,48 +289,6 @@ else:
 
 ---
 
-## 其他算法 (SAC/TD3/APPO)
-
-### SAC 启动
-
-```bash
-uv run train --algo sac --task xqrobotV2_walk_flat --sim mujoco
-```
-
-配置: `conf/offpolicy/config.yaml` + `conf/offpolicy/algo/sac.yaml` + `conf/offpolicy/task/sac/xqrobotV2_walk_flat/mujoco.yaml`
-
-关键 SAC 默认值:
-```yaml
-algo:
-  num_envs: 4096
-  updates_per_step: 4
-  actor_lr: 3e-4
-  critic_lr: 3e-4
-  gamma: 0.97
-  tau: 0.125          # 软更新系数
-  actor_hidden_dim: 512
-  critic_hidden_dim: 768
-  num_atoms: 101       # 分布式 critic (C51)
-  obs_normalization: true
-  use_layer_norm: true
-```
-
-### TD3 启动
-
-```bash
-uv run train --algo td3 --task xqrobotV2_walk_flat --sim mujoco
-```
-
-### APPO (异步 PPO)
-
-```bash
-uv run train --algo appo --task xqrobotV2_walk_flat --sim mujoco
-```
-
-APPO 将 learner 和 collector 分离为独立进程，支持 V-trace 偏差修正。
-
----
-
 ## Checkpoint 与恢复
 
 ### 目录结构
@@ -360,8 +318,8 @@ ckpt = {
 
 ```bash
 uv run train --algo ppo --task xqrobotV2_walk_flat --sim mujoco \
-    training.load_run=2026-06-30_22-49-32_mujoco \
-    training.checkpoint=model_2500.pt
+    algo.load_run=2026-06-30_22-49-32_mujoco \
+    algo.checkpoint=2500
 ```
 
 ### 评估已训练模型

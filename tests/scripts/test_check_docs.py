@@ -15,28 +15,6 @@ def test_documentation_files_match_current_repo_contracts():
     assert warnings == []
 
 
-def test_sharpa_domain_randomization_doc_matches_owner_config():
-    root = Path(__file__).resolve().parents[2]
-    doc_path = (
-        root
-        / "docs"
-        / "sphinx"
-        / "source"
-        / "zh_CN"
-        / "2-user_guide"
-        / "5-domain_randomization"
-        / "0-index.md"
-    )
-    content = doc_path.read_text(encoding="utf-8")
-
-    owner_cfg = OmegaConf.load(root / "conf" / "ppo" / "task" / "sharpa_inhand" / "mujoco.yaml")
-
-    assert "Sharpa" in content
-    assert "`geom_size`" in content
-    if float(owner_cfg.env.domain_rand.force_scale) > 0.0:
-        assert "`gravity`" in content
-
-
 def test_check_training_entrypoint_semantics_flags_issue_204_patterns():
     root = Path(__file__).resolve().parents[2]
     doc_path = root / "README.md"

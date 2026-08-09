@@ -342,11 +342,11 @@ Iter 5000:  评估 → Vx RMSE=0.04, Vy 串扰<0.06, 存活 95% ✅
 
 ## Pointers
 
-- PPO: `scripts/train_rsl_rl.py`
-- MLX PPO: `scripts/train_mlx_ppo.py`
-- APPO: `scripts/train_appo.py`
-- SAC / TD3: `scripts/train_offpolicy.py`
-- HIM-PPO: `scripts/train_him_ppo.py`
+- PPO: `scripts/training/train_rsl_rl.py`
+- MLX PPO: `scripts/training/train_mlx_ppo.py`
+- APPO: `scripts/training/train_appo.py`
+- SAC / TD3: `scripts/training/train_offpolicy.py`
+- HIM-PPO: `scripts/training/train_him_ppo.py`
 - env contract: `src/unilab/base/np_env.py`
 - backend contract: `src/unilab/base/backend/base.py`
 - training run helpers: `src/unilab/training/run.py`

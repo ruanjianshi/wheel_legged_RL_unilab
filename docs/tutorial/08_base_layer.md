@@ -320,8 +320,6 @@ def apply_cfg_overrides(target_obj, overrides):
 ```python
 _DEFAULT_REGISTRY_PACKAGES = (
     "unilab.envs.locomotion",
-    "unilab.envs.manipulation",
-    "unilab.envs.motion_tracking",
 )
 
 def ensure_registries(packages=None):

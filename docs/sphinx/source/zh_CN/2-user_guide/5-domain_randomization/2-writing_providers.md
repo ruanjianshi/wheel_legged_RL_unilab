@@ -26,11 +26,9 @@
 
 具有代表性的 provider 实现位于：
 
-- `src/unilab/envs/locomotion/go1/joystick.py`
-- `src/unilab/envs/locomotion/g1/joystick.py`
-- `src/unilab/envs/motion_tracking/g1/tracking.py`
-- `src/unilab/envs/manipulation/allegro_inhand/rotation.py`
-- `src/unilab/envs/manipulation/sharpa_inhand/rotation.py`
+- `src/unilab/envs/locomotion/xqrobotwl/joystick.py`
+- `src/unilab/envs/locomotion/xqrobotwl/joystick.py`
+- `src/unilab/envs/locomotion/xqrobotwl/rough.py`
 
 开发者 contract 详情见
 {doc}`../../4-developer_guide/2-contracts/4-dr_contract`。

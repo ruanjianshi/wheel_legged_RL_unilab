@@ -1,7 +1,7 @@
 # 仿真到真机
 
 为硬件上机准备一个训练好的 UniLab 策略。先从总览开始，然后依次走完导出、随机化、
-安全、延迟以及机器人专属的说明。
+安全、延迟与故障排查。
 
 ::::{grid} 1 1 2 2
 :gutter: 3
@@ -42,33 +42,12 @@
 面向硬件上机的症状、原因与修复说明。
 :::
 
-:::{grid-item-card} G1 全身
-:link: 2-g1_whole_body
-:link-type: doc
-G1 路线的运动跟踪部署说明。
-:::
-
-:::{grid-item-card} Go2 运动
-:link: 3-go2_locomotion
-:link-type: doc
-摇杆、崎岖地形与 Go2W 的部署说明。
-:::
-
-:::{grid-item-card} Allegro 手内操作
-:link: 4-allegro_inhand
-:link-type: doc
-手内操作部署检查。
-:::
-
 ::::
 
 ```{toctree}
 :hidden:
 
 1-overview
-2-g1_whole_body
-3-go2_locomotion
-4-allegro_inhand
 5-onnx_runtime
 6-domain_randomization
 7-safety_layers

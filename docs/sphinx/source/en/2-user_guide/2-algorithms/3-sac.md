@@ -1,7 +1,7 @@
 # SAC
 
 SAC is selected through the shared off-policy entrypoint
-`scripts/train_offpolicy.py`, which TD3 and FlashSAC share as well. The main
+`scripts/training/train_offpolicy.py`, which TD3 and FlashSAC share as well. The main
 config is `conf/offpolicy/config.yaml`, and the SAC algorithm defaults live in
 `conf/offpolicy/algo/sac.yaml`. The current log name is `fast_sac`.
 
@@ -36,7 +36,7 @@ CUDA_VISIBLE_DEVICES=0,7 uv run train --algo sac --task g1_walk_flat --sim mujoc
 
 ## Key Fields
 
-For the off-policy playback path (`scripts/train_offpolicy.py` / CLI `--algo sac`),
+For the off-policy playback path (`scripts/training/train_offpolicy.py` / CLI `--algo sac`),
 set `training.export_onnx=false` to skip `policy.onnx` export while still recording
 playback video. See {doc}`/en/1-getting_started/3-evaluation_and_playback`.
 
@@ -51,7 +51,7 @@ playback video. See {doc}`/en/1-getting_started/3-evaluation_and_playback`.
 - Multi-GPU SAC defaults to `training.multi_gpu_sync_mode=local_sgd` and
   `training.multi_gpu_sync_interval=1`.
 
-The current runner path in `scripts/train_offpolicy.py` requires synchronized
+The current runner path in `scripts/training/train_offpolicy.py` requires synchronized
 collection; `training.no_sync_collection=true` is rejected by the script.
 
 ```bash

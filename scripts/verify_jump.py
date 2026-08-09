@@ -2,7 +2,7 @@
 """Verify a trained jump checkpoint can jump: measure max height / air time / survival.
 
 Usage:
-    uv run python scripts/verify_jump.py --task XqRobotWLJumpVMC \
+    uv run scripts/verify_jump.py --task XqRobotWLJumpVMC \
         --checkpoint logs/rsl_rl_ppo/XqRobotWLJumpVMC/<run>/model_3000.pt
 
 The reward scales are shared by all four jump tasks (phase-gated jump rewards),
@@ -138,7 +138,6 @@ def main() -> int:
     trained_ov = trained_env_overrides(args.checkpoint)
     if trained_ov is not None:
         ctrl = trained_ov.get("control_config", {})
-        vmc = trained_ov.get("vmc", {})
         # The trained snapshot already carries clip_actions; only fall back to
         # per-task defaults when no snapshot exists.
     else:
@@ -198,10 +197,12 @@ def main() -> int:
 
         standing_z = float(np.median(base_z_log)) if base_z_log else 0.0
         jump_height = max_base_z - standing_z
-        print(f"task={args.task} survived={survived_steps}/{args.steps} "
-              f"terminated={terminated} max_base_z={max_base_z:.3f} "
-              f"standing_z={standing_z:.3f} jump_height={max(jump_height, 0.0):.3f} "
-              f"air_frac={air_steps / max(survived_steps, 1):.2f}")
+        print(
+            f"task={args.task} survived={survived_steps}/{args.steps} "
+            f"terminated={terminated} max_base_z={max_base_z:.3f} "
+            f"standing_z={standing_z:.3f} jump_height={max(jump_height, 0.0):.3f} "
+            f"air_frac={air_steps / max(survived_steps, 1):.2f}"
+        )
         return 0
     finally:
         env.close()

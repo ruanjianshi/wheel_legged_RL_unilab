@@ -8,11 +8,11 @@ owner；回放代码加载检查点、导出 `policy.onnx`，并在该路径实�
 
 | 算法路径 | 入口脚本 | 仓库中的导出行为 |
 | --- | --- | --- |
-| PPO（torch） | `scripts/train_rsl_rl.py` | 脚本入口处 `EXPORT_POLICY=True`；回放调用 `runner.export_policy_to_onnx(...)` 与 `runner.export_policy_to_jit(...)`。 |
-| HIM-PPO | `scripts/train_him_ppo.py` | 与 PPO 相同的脚本级导出模式。 |
-| APPO | `scripts/train_appo.py` | 回放写出 `policy.onnx` 并将 ONNX Runtime 输出与 PyTorch 比对校验。 |
-| SAC / TD3 / FlashSAC | `scripts/train_offpolicy.py` | 回放写出 `policy.onnx`；SAC 与 FlashSAC 在导出前使用 `actor.as_export_module()`。 |
-| MLX PPO | `scripts/train_mlx_ppo.py` | 回放将 MLX actor 权重转换为 PyTorch 模块，写出 `policy.onnx`，并校验 ONNX Runtime 输出。 |
+| PPO（torch） | `scripts/training/train_rsl_rl.py` | 脚本入口处 `EXPORT_POLICY=True`；回放调用 `runner.export_policy_to_onnx(...)` 与 `runner.export_policy_to_jit(...)`。 |
+| HIM-PPO | `scripts/training/train_him_ppo.py` | 与 PPO 相同的脚本级导出模式。 |
+| APPO | `scripts/training/train_appo.py` | 回放写出 `policy.onnx` 并将 ONNX Runtime 输出与 PyTorch 比对校验。 |
+| SAC / TD3 / FlashSAC | `scripts/training/train_offpolicy.py` | 回放写出 `policy.onnx`；SAC 与 FlashSAC 在导出前使用 `actor.as_export_module()`。 |
+| MLX PPO | `scripts/training/train_mlx_ppo.py` | 回放将 MLX actor 权重转换为 PyTorch 模块，写出 `policy.onnx`，并校验 ONNX Runtime 输出。 |
 
 ## 命令
 

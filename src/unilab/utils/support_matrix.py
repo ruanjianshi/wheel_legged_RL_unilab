@@ -18,34 +18,30 @@ END_MARKER = "<!-- END GENERATED SUPPORT MATRIX -->"
 BACKENDS: tuple[str, str] = ("mujoco", "motrix")
 
 _TASK_ORDER = {
-    "go1_joystick_flat": 0,
-    "go2_joystick_flat": 1,
-    "go2_joystick_rough": 2,
-    "g1_walk_flat": 3,
-    "g1_walk_rough": 4,
-    "g1_motion_tracking": 5,
-    "g1_flip_tracking": 6,
-    "g1_wall_flip_tracking": 7,
-    "x2_wall_flip_tracking": 8,
-    "allegro_inhand": 9,
-    "allegro_sac": 10,
-    "sharpa_inhand": 11,
-    "sharpa_inhand_grasp": 12,
+    "xqrobotwl_walk_flat": 0,
+    "xqrobotwl_walk_rough": 1,
+    "xqrobotwl_jump_flat": 2,
+    "xqrobotwl_jump_srl_flat": 3,
+    "xqrobotwl_jump_vmc_flat": 4,
+    "xqrobotwl_jump_srl_vmc_flat": 5,
+    "xqrobotwl_toe_walk_flat": 6,
+    "xqrobotV2_walk_flat": 7,
+    "xqrobotV2_walk_rough": 8,
+    "xqrobotV2_jump_flat": 9,
+    "xqrobotV2_toe_walk_flat": 10,
 }
 _TASK_LABELS = {
-    "go1_joystick_flat": "Go1 joystick",
-    "go2_joystick_flat": "Go2 joystick",
-    "go2_joystick_rough": "Go2 joystick rough",
-    "g1_walk_flat": "G1 walk flat",
-    "g1_walk_rough": "G1 walk rough",
-    "g1_motion_tracking": "G1 motion tracking",
-    "g1_flip_tracking": "G1 flip tracking",
-    "g1_wall_flip_tracking": "G1 wall flip tracking",
-    "x2_wall_flip_tracking": "X2 wall flip tracking",
-    "allegro_inhand": "Allegro in-hand",
-    "allegro_sac": "Allegro SAC in-hand",
-    "sharpa_inhand": "Sharpa in-hand",
-    "sharpa_inhand_grasp": "Sharpa in-hand grasp",
+    "xqrobotwl_walk_flat": "XqRobotWL walk flat",
+    "xqrobotwl_walk_rough": "XqRobotWL walk rough",
+    "xqrobotwl_jump_flat": "XqRobotWL jump flat",
+    "xqrobotwl_jump_srl_flat": "XqRobotWL jump SRL flat",
+    "xqrobotwl_jump_vmc_flat": "XqRobotWL jump VMC flat",
+    "xqrobotwl_jump_srl_vmc_flat": "XqRobotWL jump SRL+VMC flat",
+    "xqrobotwl_toe_walk_flat": "XqRobotWL toe-walk flat",
+    "xqrobotV2_walk_flat": "XqRobotV2 walk flat",
+    "xqrobotV2_walk_rough": "XqRobotV2 walk rough",
+    "xqrobotV2_jump_flat": "XqRobotV2 jump flat",
+    "xqrobotV2_toe_walk_flat": "XqRobotV2 toe-walk flat",
 }
 
 
@@ -282,7 +278,6 @@ def build_support_rows(root: Path | None = None) -> list[SupportRow]:
 
 def render_support_matrix(root: Path | None = None) -> str:
     resolved_root = repo_root(root)
-    mlx_tested_tasks = sorted(_mlx_tested_task_slugs(resolved_root), key=_task_sort_key)
     benchmark_note = (
         "未检测到与这些组合绑定的已提交 benchmark manifest，因此当前不会自动提升到 `Benchmarked`。"
     )
@@ -325,12 +320,8 @@ def render_support_matrix(root: Path | None = None) -> str:
             "### Source Index",
             "",
             "- Registry bootstrap: `src/unilab/envs/**` decorators via `unilab.base.registry.ensure_registries()`.",
-            "- Owner YAML scan: `conf/ppo/task/**`, `conf/appo/task/**`, `conf/offpolicy/task/**`.",
+            "- Owner YAML scan: `conf/ppo/task/**`, `conf/np3o/task/**`.",
             "- Generic compose coverage: `tests/config/test_config_system.py::test_supported_task_composes`.",
-            "- MLX-specific compose coverage only upgrades task owners listed in `tests/config/test_config_system.py::_PPO_MLX_TASKS`: "
-            + ", ".join(f"`{task}`" for task in mlx_tested_tasks)
-            + ".",
-            "- MLX runtime smoke: `tests/algos/test_mlx_ppo.py::test_mlx_ppo_one_iteration_real_env` currently exercises `go2_joystick_flat/mujoco`.",
         ]
     )
     return "\n".join(lines)

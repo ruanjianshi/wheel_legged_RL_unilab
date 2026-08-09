@@ -38,30 +38,24 @@ make setup-motrix
 演示回放（首次运行会从 Hugging Face 拉取预训练检查点）：
 
 ```bash
-uv run demo dance
+uv run demo teaser
 ```
 
-可用的 demo 名称：`teaser`、`dance`、`wallflip`、`wallflip2`、`boxtracking`、`locomani`、`inhandgrasp`。
+可用的 demo 名称：`teaser`。
 
-中国大陆用户：运动、场景、机器人网格和 demo 检查点在首次运行时从 Hugging Face 拉取。如果
+中国大陆用户：场景和 demo 检查点在首次运行时从 Hugging Face 拉取。如果
 `huggingface.co` 无法访问，请在运行训练、评估或 demo 命令前切到社区镜像：
 
 ```bash
 export HF_ENDPOINT=https://hf-mirror.com
 ```
 
-X2 机器人网格在首次运行时会自动从 Hugging Face (`unilabsim/unilab-robots`) 下载到 `src/unilab/assets/robots/x2/meshes/`，无需手动操作。如需提前预拉取：
-
-```bash
-uv run unilab-pull-assets --robot x2
-```
-
 ## 训练与评估
 
 ```bash
-uv run train --algo ppo --task go2_joystick_flat --sim motrix
+uv run train --algo ppo --task xqrobotwl_walk_flat --sim mujoco
 
-uv run eval --algo ppo --task go2_joystick_flat --sim motrix --load-run -1
+uv run eval --algo ppo --task xqrobotwl_walk_flat --sim mujoco --load-run -1
 
 # 面向 Linux/服务器运行的 Motrix 无头（headless）视频导出
 uv run eval --algo ppo --task go2_joystick_flat --sim motrix \

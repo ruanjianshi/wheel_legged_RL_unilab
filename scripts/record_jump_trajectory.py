@@ -12,7 +12,7 @@ the per-ctrl-step time series to an .npz file:
     phase     : SLIP-FSM phase id (jump_vmc/srl envs only; -1 = none)
 
 Usage:
-    uv run python scripts/record_jump_trajectory.py \
+    uv run scripts/record_jump_trajectory.py \
         --task XqRobotWLJumpVMC \
         --checkpoint logs/rsl_rl_ppo/.../model_9999.pt \
         --out jump_management/results/jump_traj_vmc.npz
@@ -58,9 +58,7 @@ def main() -> int:
             else {"action_scale": 0.6, "wheel_action_scale": 10.0, "clip_actions": 100.0}
         )
         ov = {"control_config": ctrl}
-    env = registry.make(
-        args.task, num_envs=1, sim_backend="mujoco", env_cfg_override=ov
-    )
+    env = registry.make(args.task, num_envs=1, sim_backend="mujoco", env_cfg_override=ov)
     try:
         obs_dim = env.obs_groups_spec["obs"]
         actor = load_actor(args.checkpoint, obs_dim, 8, hidden)
@@ -98,8 +96,10 @@ def main() -> int:
             task=args.task,
             checkpoint=str(args.checkpoint),
         )
-        print(f"task={args.task} steps={len(t)} max_base_z={max(base_z):.3f} "
-              f"standing={np.median(base_z[: args.settle]):.3f} -> {out}")
+        print(
+            f"task={args.task} steps={len(t)} max_base_z={max(base_z):.3f} "
+            f"standing={np.median(base_z[: args.settle]):.3f} -> {out}"
+        )
         return 0
     finally:
         env.close()

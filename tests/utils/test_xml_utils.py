@@ -17,48 +17,16 @@ from unilab.base.backend import (
 )
 
 
-def _g1_scene() -> str:
-    return str(ASSETS_ROOT_PATH / "robots" / "g1" / "scene_flat.xml")
+def _xqrobotwl_scene() -> str:
+    return str(ASSETS_ROOT_PATH / "robots" / "xqrobotwl" / "scene_flat.xml")
 
 
-def _go2_robot() -> str:
-    return str(ASSETS_ROOT_PATH / "robots" / "go2" / "go2.xml")
+def _xqrobotwl_robot() -> str:
+    return str(ASSETS_ROOT_PATH / "robots" / "xqrobotwl" / "xqrobotwl.xml")
 
 
-def _go2_mujoco_robot() -> str:
-    return str(ASSETS_ROOT_PATH / "robots" / "go2" / "go2_mujoco.xml")
-
-
-def _go1_robot() -> str:
-    return str(ASSETS_ROOT_PATH / "robots" / "go1" / "go1.xml")
-
-
-def _go1_mujoco_robot() -> str:
-    return str(ASSETS_ROOT_PATH / "robots" / "go1" / "go1_mujoco.xml")
-
-
-def _go2w_robot() -> str:
-    return str(ASSETS_ROOT_PATH / "robots" / "go2w" / "go2w.xml")
-
-
-def _go2w_mujoco_robot() -> str:
-    return str(ASSETS_ROOT_PATH / "robots" / "go2w" / "go2w_mujoco.xml")
-
-
-def _go2_locomotion_task() -> str:
-    return str(ASSETS_ROOT_PATH / "robots" / "go2" / "locomotion_task.xml")
-
-
-def _go1_locomotion_task() -> str:
-    return str(ASSETS_ROOT_PATH / "robots" / "go1" / "locomotion_task.xml")
-
-
-def _sharpa_robot() -> str:
-    return str(ASSETS_ROOT_PATH / "robots" / "sharpa_wave" / "right_sharpa_wave.xml")
-
-
-def _go2w_locomotion_task() -> str:
-    return str(ASSETS_ROOT_PATH / "robots" / "go2w" / "locomotion_task.xml")
+def _xqrobotwl_locomotion_task() -> str:
+    return str(ASSETS_ROOT_PATH / "robots" / "xqrobotwl" / "locomotion_task.xml")
 
 
 def _geom_id(model, mujoco, name: str) -> int:
@@ -90,23 +58,23 @@ def test_inject_mujoco_tracking_sensors_uses_mjspec_and_preserves_contract() -> 
     mujoco = pytest.importorskip("mujoco")
 
     tmp_xml, tracked_body_ids, valid_bnames = inject_mujoco_tracking_sensors(
-        _g1_scene(),
-        baselink_name="pelvis",
+        _xqrobotwl_scene(),
+        baselink_name="base_link",
     )
     try:
         assert tracked_body_ids == list(range(1, len(valid_bnames) + 1))
-        assert valid_bnames[0] == "pelvis"
+        assert valid_bnames[0] == "base_link"
 
         model = mujoco.MjModel.from_xml_path(tmp_xml)
         for sensor_name in (
-            "track_pos_w_pelvis",
-            "track_quat_w_pelvis",
-            "track_linvel_w_pelvis",
-            "track_angvel_w_pelvis",
-            "track_pos_b_pelvis",
-            "track_quat_b_pelvis",
-            "track_linvel_b_pelvis",
-            "track_angvel_b_pelvis",
+            "track_pos_w_base_link",
+            "track_quat_w_base_link",
+            "track_linvel_w_base_link",
+            "track_angvel_w_base_link",
+            "track_pos_b_base_link",
+            "track_quat_b_base_link",
+            "track_linvel_b_base_link",
+            "track_angvel_b_base_link",
         ):
             assert mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_SENSOR, sensor_name) >= 0
     finally:
@@ -117,17 +85,17 @@ def test_materialize_motrix_scene_adds_tracking_frame_sensors() -> None:
     motrixsim = pytest.importorskip("motrixsim")
 
     model = materialize_motrix_scene(
-        model_file=_g1_scene(),
+        model_file=_xqrobotwl_scene(),
         add_body_sensors=True,
-        base_name="pelvis",
+        base_name="base_link",
     )
     data = motrixsim.SceneData(model, batch=[1])
 
     for sensor_name in (
-        "track_pos_b_pelvis",
-        "track_quat_b_pelvis",
-        "track_linvel_b_pelvis",
-        "track_angvel_b_pelvis",
+        "track_pos_b_base_link",
+        "track_quat_b_base_link",
+        "track_linvel_b_base_link",
+        "track_angvel_b_base_link",
     ):
         assert model.get_sensor_value(sensor_name, data).shape[0] == 1
 
@@ -170,13 +138,6 @@ def test_materialize_scene_fragments_merges_static_scene_fragment(tmp_path) -> N
         os.remove(tmp_xml)
 
 
-def test_sharpa_contact_excludes_do_not_reference_same_body() -> None:
-    root = ET.parse(_sharpa_robot()).getroot()
-
-    for exclude in root.findall("./contact/exclude"):
-        assert exclude.get("body1") != exclude.get("body2")
-
-
 def test_materialize_mujoco_hfield_attached_scene_composes_robot_and_task_fragment(
     tmp_path,
 ) -> None:
@@ -194,10 +155,10 @@ def test_materialize_mujoco_hfield_attached_scene_composes_robot_and_task_fragme
     cfg.seed = 0
 
     model, terrain_origins = materialize_mujoco_hfield_attached_scene(
-        model_file=_go2_mujoco_robot(),
+        model_file=_xqrobotwl_robot(),
         terrain_cfg=cfg,
         output_dir=tmp_path,
-        fragment_files=[_go2_locomotion_task()],
+        fragment_files=[_xqrobotwl_locomotion_task()],
     )
 
     assert terrain_origins.shape == (2, 2, 3)
@@ -206,11 +167,7 @@ def test_materialize_mujoco_hfield_attached_scene_composes_robot_and_task_fragme
     assert scene_xml.is_file()
     scene_root = ET.parse(scene_xml).getroot()
     compiler = scene_root.find("compiler")
-    option = scene_root.find("option")
     assert compiler is None or compiler.get("discardvisual") != "true"
-    assert option is not None
-    assert option.get("cone") == "elliptic"
-    assert option.get("impratio") == "100"
     assert scene_root.find("./asset/texture[@name='groundplane']") is not None
     assert scene_root.find("./asset/material[@name='groundplane']") is not None
     assert scene_root.find("./visual/headlight") is not None
@@ -219,111 +176,12 @@ def test_materialize_mujoco_hfield_attached_scene_composes_robot_and_task_fragme
     assert floor_geom.get("material") == "groundplane"
     reloaded_model = mujoco.MjModel.from_xml_path(str(scene_xml))
     assert model.ngeom < reloaded_model.ngeom
-    assert int(model.opt.cone) == int(mujoco.mjtCone.mjCONE_ELLIPTIC)
-    assert model.opt.impratio == pytest.approx(100.0)
-    assert model.opt.ccd_iterations == 500
-    _assert_geom_contact_params(
-        model,
-        mujoco,
-        name="FL",
-        condim=6,
-        margin=0.005,
-        friction=(0.4, 0.02, 0.01),
-    )
-    _assert_geom_contact_params(
-        model,
-        mujoco,
-        name="FL_thigh_geom",
-        condim=1,
-        margin=0.001,
-        friction=(0.0, 0.0, 0.0),
-    )
     assert mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_HFIELD, "terrain_hfield") >= 0
     assert mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, "floor") >= 0
-    assert mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_SENSOR, "FL_foot_contact") >= 0
     assert mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_SENSOR, "gyro") >= 0
     assert mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_KEY, "home") >= 0
     assert mujoco.mj_name2id(reloaded_model, mujoco.mjtObj.mjOBJ_HFIELD, "terrain_hfield") >= 0
     assert mujoco.mj_name2id(reloaded_model, mujoco.mjtObj.mjOBJ_GEOM, "floor") >= 0
-
-
-def test_materialize_mujoco_hfield_attached_scene_preserves_go1_collision_xml(
-    tmp_path,
-) -> None:
-    mujoco = pytest.importorskip("mujoco")
-
-    from unilab.terrains import TerrainGeneratorCfg, flat
-
-    cfg = TerrainGeneratorCfg(
-        size=(4.0, 4.0),
-        horizontal_scale=0.2,
-        border_width=0.0,
-        num_rows=1,
-        num_cols=1,
-        sub_terrains={"flat": flat()},
-    )
-
-    model, terrain_origins = materialize_mujoco_hfield_attached_scene(
-        model_file=_go1_mujoco_robot(),
-        terrain_cfg=cfg,
-        output_dir=tmp_path,
-        fragment_files=[_go1_locomotion_task()],
-    )
-
-    assert terrain_origins.shape == (1, 1, 3)
-    assert model.opt.ccd_iterations == 500
-    _assert_geom_contact_params(
-        model,
-        mujoco,
-        name="FL",
-        condim=6,
-        margin=0.005,
-        friction=(0.8, 0.02, 0.01),
-    )
-    _assert_geom_contact_params(
-        model,
-        mujoco,
-        name="FL_thigh_geom",
-        condim=1,
-        margin=0.001,
-        friction=(0.0, 0.0, 0.0),
-    )
-    assert mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_SENSOR, "FL_foot_contact") >= 0
-
-
-def test_materialize_mujoco_hfield_attached_scene_preserves_go2w_collision_xml(
-    tmp_path,
-) -> None:
-    mujoco = pytest.importorskip("mujoco")
-
-    from unilab.terrains import TerrainGeneratorCfg, flat
-
-    cfg = TerrainGeneratorCfg(
-        size=(4.0, 4.0),
-        horizontal_scale=0.2,
-        border_width=0.0,
-        num_rows=1,
-        num_cols=1,
-        sub_terrains={"flat": flat()},
-    )
-
-    model, terrain_origins = materialize_mujoco_hfield_attached_scene(
-        model_file=_go2w_mujoco_robot(),
-        terrain_cfg=cfg,
-        output_dir=tmp_path,
-        fragment_files=[_go2w_locomotion_task()],
-    )
-
-    assert terrain_origins.shape == (1, 1, 3)
-    assert model.opt.ccd_iterations == 500
-    _assert_geom_contact_params(
-        model,
-        mujoco,
-        name="FL_wheel_collision",
-        condim=6,
-        margin=0.005,
-        friction=(0.8, 0.02, 0.01),
-    )
 
 
 def test_materialize_mujoco_hfield_attached_scene_accepts_repo_relative_fragments(
@@ -343,13 +201,13 @@ def test_materialize_mujoco_hfield_attached_scene_accepts_repo_relative_fragment
     cfg.seed = 0
 
     model, _ = materialize_mujoco_hfield_attached_scene(
-        model_file=str(ASSETS_ROOT_PATH / "robots" / "go2" / "go2.xml"),
+        model_file=_xqrobotwl_robot(),
         terrain_cfg=cfg,
         output_dir=tmp_path,
-        fragment_files=["src/unilab/assets/robots/go2/locomotion_task.xml"],
+        fragment_files=["src/unilab/assets/robots/xqrobotwl/locomotion_task.xml"],
     )
 
-    assert mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_SENSOR, "FL_foot_contact") >= 0
+    assert mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_SENSOR, "gyro") >= 0
 
 
 def test_materialize_motrix_hfield_attached_scene_composes_robot_and_task_fragment() -> None:
@@ -367,19 +225,17 @@ def test_materialize_motrix_hfield_attached_scene_composes_robot_and_task_fragme
     cfg.seed = 0
 
     model, terrain_origins = materialize_motrix_hfield_attached_scene(
-        model_file=_go2_robot(),
+        model_file=_xqrobotwl_robot(),
         terrain_cfg=cfg,
-        fragment_files=[_go2_locomotion_task()],
+        fragment_files=[_xqrobotwl_locomotion_task()],
     )
 
     assert terrain_origins.shape == (1, 1, 3)
     assert model.num_hfields == 1
     assert model.get_hfield_index("terrain_hfield") == 0
-    assert model.num_actuators == 12
     assert model.num_keyframes == 1
-    assert model.num_sensors >= 23
-    assert model.get_body("base") is not None
-    assert model.get_link("base") is not None
+    assert model.get_body("base_link") is not None
+    assert model.get_link("base_link") is not None
 
 
 def test_materialize_motrix_hfield_row_direction_uses_compiled_order() -> None:
@@ -400,9 +256,9 @@ def test_materialize_motrix_hfield_row_direction_uses_compiled_order() -> None:
 
     generated = TerrainGenerator(cfg).generate()
     motrix_model, _, motrix_sampler = materialize_motrix_hfield_attached_scene(
-        model_file=_go2_robot(),
+        model_file=_xqrobotwl_robot(),
         terrain_cfg=cfg,
-        fragment_files=[_go2_locomotion_task()],
+        fragment_files=[_xqrobotwl_locomotion_task()],
         return_surface_sampler=True,
     )
 

@@ -37,7 +37,7 @@ flowchart LR
 | ONNX 导出 | 训练回放脚本 + 部署辅助工具 | {doc}`5-onnx_runtime` |
 | 延迟 / 观测滞后 | 任务配置开关与部署侧日志 | {doc}`8-latency_budget` |
 | 安全层 | 硬件侧钳制 / 回退 | {doc}`7-safety_layers` |
-| 机器人上机 | 机器人专属指南 | {doc}`2-g1_whole_body`、{doc}`3-go2_locomotion`、{doc}`4-allegro_inhand` |
+| 机器人上机 | 机器人专属指南 | {doc}`../4-developer_guide/3-extending/1-new_task` |
 
 ## 开始之前你应当具备的条件
 
@@ -73,25 +73,11 @@ flowchart LR
 ::::{grid} 3
 :gutter: 2
 
-:::{grid-item-card} 🤖 G1 全身
-:link: 2-g1_whole_body
+:::{grid-item-card} 🤖 XqRobotWL / XqRobotV2
+:link: ../4-developer_guide/3-extending/1-new_task
 :link-type: doc
 
-人形运动跟踪部署、关节钳制范围、IMU 对齐。
-:::
-
-:::{grid-item-card} 🐕 Go2 运动
-:link: 3-go2_locomotion
-:link-type: doc
-
-Go2 与 Go2W 上的摇杆 + 崎岖地形策略。
-:::
-
-:::{grid-item-card} ✋ Allegro 手内操作
-:link: 4-allegro_inhand
-:link-type: doc
-
-灵巧的方块重定向、无触觉部署、抓取生成器。
+轮腿双足运动、粗糙地形与跳跃策略部署。
 :::
 
 ::::

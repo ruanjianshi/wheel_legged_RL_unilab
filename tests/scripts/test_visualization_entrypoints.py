@@ -11,7 +11,8 @@ _SCRIPTS_DIR = Path(__file__).parent.parent.parent / "scripts"
 
 
 def _load_script(name: str) -> Any:
-    path = _SCRIPTS_DIR / f"{name}.py"
+    # Interactive playback / task visualization entrypoints live under scripts/play/.
+    path = _SCRIPTS_DIR / "play" / f"{name}.py"
     spec = importlib.util.spec_from_file_location(name, path)
     mod = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
     spec.loader.exec_module(mod)  # type: ignore[union-attr]
@@ -27,7 +28,7 @@ def test_visualize_task_env_keeps_canonical_defaults():
 
     args = mod._parse_args([])
 
-    assert args.task == "Go2JoystickFlat"
+    assert args.task == "XqRobotWLWalkFlat"
     assert args.backend == "mujoco"
     assert args.num_envs == 4
 
@@ -38,7 +39,7 @@ def test_visualize_task_env_parses_explicit_args():
     args = mod._parse_args(
         [
             "--task",
-            "Go2JoystickRough",
+            "XqRobotWLWalkRough",
             "--backend",
             "motrix",
             "--num_envs",
@@ -46,7 +47,7 @@ def test_visualize_task_env_parses_explicit_args():
         ]
     )
 
-    assert args.task == "Go2JoystickRough"
+    assert args.task == "XqRobotWLWalkRough"
     assert args.backend == "motrix"
     assert args.num_envs == 8
 
@@ -199,26 +200,19 @@ def test_velocity_arrows_require_velocity_command_task_and_policy_obs():
     mod = _load_script("play_interactive")
 
     joystick_env = _keyboard_env(
-        env_cls_name="Go2WalkTask",
-        cfg_cls_name="Go2JoystickCfg",
-        module="unilab.envs.locomotion.go2.joystick",
-        obs_contains_command=True,
-    )
-    manip_loco_env = _keyboard_env(
-        env_cls_name="Go2ArmManipLocoEnv",
-        cfg_cls_name="Go2ArmManipLocoCfg",
-        module="unilab.envs.locomotion.go2_arm.manip_loco",
+        env_cls_name="XqRobotWLWalkFlatEnv",
+        cfg_cls_name="XqRobotWLWalkFlatCfg",
+        module="unilab.envs.locomotion.xqrobotwl.joystick",
         obs_contains_command=True,
     )
     missing_obs_command_env = _keyboard_env(
-        env_cls_name="Go2WalkTask",
-        cfg_cls_name="Go2JoystickCfg",
-        module="unilab.envs.locomotion.go2.joystick",
+        env_cls_name="XqRobotWLWalkFlatEnv",
+        cfg_cls_name="XqRobotWLWalkFlatCfg",
+        module="unilab.envs.locomotion.xqrobotwl.joystick",
         obs_contains_command=False,
     )
 
     assert mod._should_render_velocity_arrows(joystick_env) is True
-    assert mod._should_render_velocity_arrows(manip_loco_env) is False
     assert mod._should_render_velocity_arrows(missing_obs_command_env) is False
 
 

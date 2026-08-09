@@ -28,27 +28,19 @@ These three paths correspond to three lifecycle classes:
 
 | Task | Uses unified DR entry? | Structured form? | reset form | interval form | Code |
 | --- | --- | --- | --- | --- | --- |
-| `Go1JoystickFlat` | Yes | Yes: `Domain_Rand + Provider + ResetPlan` | task state sampling + common payload | push | `go1/joystick.py` |
-| `Go2JoystickFlat` | Yes | Yes: `Domain_Rand + Provider + ResetPlan` | task state sampling + common payload | push | `go2/joystick.py` |
-| `G1WalkFlat` | Yes | Yes: `Domain_Rand + Provider + ResetPlan` | task state sampling + common payload | push | `g1/joystick.py` |
-| `G1WalkRough` | Yes | Yes: reuses `G1WalkDomainRandomizationProvider` | task state sampling + common payload | push | `g1/joystick.py` |
-| `G1MotionTracking` | Yes | Yes: `Domain_Rand + Provider + ResetPlan` | extensive task-specific reset sampling + common payload | push | `motion_tracking/g1/tracking.py` |
-| `AllegroInhandRotation` | Yes | Yes: `DomainRandConfig + Provider + ResetPlan` | task-specific reset sampling + common payload | none | `allegro_inhand/rotation.py` |
-| `SharpaInhandRotation` | Yes | Yes: `InitRandomizationPlan + ResetPlan + IntervalRandomizationPlan` | grasp cache sampling + common payload | object `body_force` | `sharpa_inhand/rotation.py` |
-| `SharpaInhandRotationGrasp` | Yes | Yes: reuses the Sharpa rotation provider and overrides reset sampling | grasp collection reset + common payload | none | `sharpa_inhand/grasp_gen.py` |
+| `XqRobotWLWalkFlat` | Yes | Yes: `Domain_Rand + Provider + ResetPlan` | task state sampling + common payload | push | `xqrobotwl/joystick.py` |
+| `XqRobotWLWalkRough` | Yes | Yes: reuses `XqRobotWLDRProvider` | task state sampling + common payload | push | `xqrobotwl/rough.py` |
+| `XqRobotV2WalkFlat` | Yes | Yes: `Domain_Rand + Provider + ResetPlan` | task state sampling + common payload | push | `xqrobotV2/joystick.py` |
+| `XqRobotV2WalkRough` | Yes | Yes: reuses `XqRobotDRProvider` | task state sampling + common payload | push | `xqrobotV2/rough.py` |
 
 ## Per-task Domain Randomization List
 
 | Task | Currently implemented reset domain randomization | Currently implemented interval domain randomization | Default state |
 | --- | --- | --- | --- |
-| `Go1JoystickFlat` | base xy; base yaw; base qvel; command sampling; `current_actions/last_actions` zeroed; optional `base_mass_delta`; optional `base_com_offset`; optional `gravity` | `push_robots` | `base_mass_delta`, `base_com_offset`, and push enabled by default; `gravity` disabled by default |
-| `Go2JoystickFlat` | base xy; base yaw; base qvel; command sampling; `current_actions/last_actions` zeroed; kp/kd randomization (enabled by default); optional `base_mass_delta`; optional `base_com_offset`; optional `gravity` | `push_robots` | kp/kd enabled by default; common payload and push disabled by default |
-| `G1WalkFlat` | base xy; base yaw; base qvel sampled by `reset_base_qvel_limit`; command sampling; `gait_phase` sampling; `current_actions/last_actions` zeroed; kp/kd randomization (enabled by default); optional `base_mass_delta`; optional `base_com_offset`; optional `gravity` | `push_robots` | kp/kd enabled by default; common payload and push disabled by default |
-| `G1WalkRough` | Same as `G1WalkFlat`, directly reuses the same provider | `push_robots` | kp/kd enabled by default; common payload and push disabled by default |
-| `G1MotionTracking` | motion frame sampling; root pose perturbation `x/y/z/roll/pitch/yaw`; root velocity perturbation `x/y/z/roll/pitch/yaw`; joint position noise; under MuJoCo clipped by joint range; `current_actions/last_actions` zeroed; optional `base_mass_delta`; optional `base_com_offset`; optional `gravity` | `push_robots` | `pose_randomization`, `velocity_randomization`, `joint_position_range` have non-zero perturbations by default; common payload and push disabled by default |
-| `AllegroInhandRotation` | If a grasp cache exists, sample a grasp randomly; otherwise apply `joint_noise` to hand joints and `ball_z_offset` to the ball; always apply `ball_vel_noise` to ball linear velocity; optional common reset randomization payload (incl. `gravity`) | none | If the grasp cache path is available it is sampled by default; `joint_noise`, `ball_vel_noise`, `ball_z_offset` default to 0; common payload disabled by default |
-| `SharpaInhandRotation` | grasp cache bucketed sampling by `scale_ids`; object pose / quat reset; optional common reset randomization payload (incl. `gravity`) | object `body_force` direct force disturbance | `domain_rand.scale_list` defaults come from the owner YAML; under MuJoCo, object geom scale is materialized during init; common payload disabled by default; object force enabled by default via the Sharpa owner YAML |
-| `SharpaInhandRotationGrasp` | hand pose reset; object pose / quat reset; collects successful grasps and stores them bucketed by `scale_ids`; optional `base_mass_delta`; optional `base_com_offset`; optional `gravity` | none | Used by default to generate the Sharpa grasp cache; cache filename includes the single scale value; common payload disabled by default |
+| `XqRobotWLWalkFlat` | base xy; base yaw; base qvel; command sampling; `current_actions/last_actions` zeroed; kp/kd randomization (enabled by default); optional `base_mass_delta`; optional `base_com_offset`; optional `gravity` | `push_robots` | kp/kd enabled by default; common payload and push disabled by default |
+| `XqRobotWLWalkRough` | Same as `XqRobotWLWalkFlat`, directly reuses the same provider | `push_robots` | kp/kd enabled by default; common payload and push disabled by default |
+| `XqRobotV2WalkFlat` | base xy; base yaw; base qvel; command sampling; `current_actions/last_actions` zeroed; kp/kd randomization (enabled by default); optional `base_mass_delta`; optional `base_com_offset`; optional `gravity` | `push_robots` | kp/kd enabled by default; common payload and push disabled by default |
+| `XqRobotV2WalkRough` | Same as `XqRobotV2WalkFlat`, directly reuses the same provider | `push_robots` | kp/kd enabled by default; common payload and push disabled by default |
 
 ## Current Unified DR Capabilities and Boundaries
 
@@ -298,9 +290,7 @@ uv run train --algo ppo --task sharpa_inhand --sim mujoco 'env.domain_rand.scale
 
 ## Related Tasks
 
-- {doc}`G1 Motion Tracking <../4-tasks/2-motion_tracking>`: confirm motion assets and replay first before enabling DR.
-- {doc}`Sharpa In-Hand <../8-manipulation/1-dexterous_inhand>`: the scale / grasp-cache / DR boundary is sensitive.
-- {doc}`Go2 Rough Terrain <../4-tasks/1-locomotion>`: common items are mass, COM, friction, and push.
+- {doc}`XqRobotWL Rough Terrain <../4-tasks/1-locomotion>`: common items are mass, COM, friction, and push.
 
 For configuration examples, see {doc}`1-configuration`. For the developer
 provider interface and backend capability boundary, see

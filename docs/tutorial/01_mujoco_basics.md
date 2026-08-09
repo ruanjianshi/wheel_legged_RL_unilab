@@ -156,12 +156,13 @@ class SceneCfg:
 
 ### 场景组装流程
 
-```
+```python
 SceneCfg(model_file="xqrobotV2.xml",
-         fragment_files=["locomotion_task.xml"],      ← Keyframe 在这里
-         terrain=TerrainSceneCfg(generator=...))       ← 非空则生成地形
-          │
-          ▼
+         fragment_files=["locomotion_task.xml"],      # Keyframe 在这里
+         terrain=TerrainSceneCfg(generator=...))       # 非空则生成地形
+```
+
+```
 _build_mujoco_scene_context()
    ├─ 如果无地形: 直接 merge robot.xml + fragment .xml
    └─ 如果有地形:

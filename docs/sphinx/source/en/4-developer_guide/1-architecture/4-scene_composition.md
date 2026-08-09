@@ -29,9 +29,9 @@ task fragments, and terrain configuration:
 ```yaml
 env:
   scene:
-    model_file: src/unilab/assets/robots/go2/go2.xml
+    model_file: src/unilab/assets/robots/xqrobotwl/xqrobotwl.xml
     fragment_files:
-      - src/unilab/assets/robots/go2/locomotion_task.xml
+      - src/unilab/assets/robots/xqrobotwl/locomotion_task.xml
     terrain:
       hfield_name: terrain_hfield
       geom_name: floor
@@ -105,7 +105,7 @@ Disallowed on hot paths:
 
 The current procedural terrain user-facing path is Go2 rough terrain:
 
-- Env owner: `src/unilab/envs/locomotion/go2/rough.py`
+- Env owner: `src/unilab/envs/locomotion/xqrobotwl/rough.py`
 - Terrain generator: `src/unilab/terrains/terrain_generator.py`
 - MuJoCo materializer: `src/unilab/base/backend/mujoco/xml.py`
 - Motrix materializer: `src/unilab/base/backend/motrix/scene.py`

@@ -1,6 +1,6 @@
 defaults:
   - _self_
-  - task: go1_joystick_flat/mujoco
+  - task: xqrobotwl_walk_flat/mujoco
 
 algo:
   algo: ppo

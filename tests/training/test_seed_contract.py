@@ -62,13 +62,11 @@ def test_derive_worker_seed_is_deterministic_and_distinct_from_base_seed():
 @pytest.mark.parametrize(
     ("config_dir", "overrides"),
     [
-        ("ppo", ["task=go1_joystick_flat/mujoco"]),
-        ("ppo", ["task=go1_joystick_flat/mujoco", "algo.seed=41"]),
-        ("ppo", ["task=sharpa_inhand/mujoco_hora"]),
-        ("appo", ["task=go1_joystick_flat/mujoco"]),
-        ("appo", ["task=sharpa_inhand/mujoco_hora"]),
-        ("offpolicy", ["algo=sac", "task=sac/g1_walk_flat/mujoco"]),
-        ("offpolicy", ["algo=td3", "task=td3/g1_walk_flat/mujoco"]),
+        ("ppo", ["task=xqrobotwl_walk_flat/mujoco"]),
+        ("ppo", ["task=xqrobotwl_walk_flat/mujoco", "algo.seed=41"]),
+        ("ppo", ["task=xqrobotwl_jump_flat/mujoco"]),
+        ("ppo", ["task=xqrobotV2_walk_flat/mujoco"]),
+        ("ppo", ["task=xqrobotV2_walk_rough/mujoco"]),
     ],
 )
 def test_owner_configs_resolve_algorithm_seed_contract(config_dir: str, overrides: list[str]):

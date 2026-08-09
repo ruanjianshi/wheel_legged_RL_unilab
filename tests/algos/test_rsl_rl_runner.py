@@ -107,35 +107,40 @@ class _RslRlVecEnvWrapper:
 @pytest.mark.parametrize(
     "env_name",
     [
-        "Go2JoystickFlat",
-        "G1WalkFlat",
-        "AllegroInhandRotation",
+        "XqRobotWLWalkFlat",
+        "XqRobotV2WalkFlat",
     ],
 )
 def test_rsl_rl_ppo_one_iteration(
     env_name: str,
-    default_go2_reward_config,
-    default_g1_reward_config,
-    default_allegro_reward_config,
+    default_xq_reward_config,
 ):
     """RSL-RL PPO can complete 1 training iteration on a real env."""
     from rsl_rl.runners import OnPolicyRunner
 
-    if "Go2" in env_name:
-        reward_cfg = default_go2_reward_config
-        num_envs = 256
-    elif "G1" in env_name:
-        reward_cfg = default_g1_reward_config
-        num_envs = 256
-    else:
-        reward_cfg = default_allegro_reward_config
-        num_envs = 128
+    reward_cfg = default_xq_reward_config
+    num_envs = 256
 
     env = registry.make(
         env_name,
         num_envs=num_envs,
         sim_backend="mujoco",
-        env_cfg_override={"reward_config": reward_cfg},
+        env_cfg_override={
+            "reward_config": reward_cfg,
+            # Flat envs use 5D commands [vx, vy, vyaw, tsk, height] (see task YAML).
+            "commands": {
+                "vel_limit": [[-0.6, -0.3, -1.0, -0.1, 0.45], [0.6, 0.3, 1.0, 0.1, 0.85]],
+                "resampling_time": 3.0,
+            },
+            # Disable DR knobs that need cached per-robot tables (mirrors task YAMLs).
+            "domain_rand": {
+                "randomize_base_mass": False,
+                "randomize_ground_friction": False,
+                "randomize_kp": False,
+                "randomize_kd": False,
+                "randomize_init_yaw": False,
+            },
+        },
     )
     wrapped = _RslRlVecEnvWrapper(env, device="cpu")
 

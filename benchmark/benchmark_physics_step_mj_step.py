@@ -5,7 +5,7 @@ Benchmark MuJoCo parallel physics execution.
 Benchmarks mujoco.rollout with the configured thread count.
 
 Sweeps batch sizes across current locomotion owner task ids
-(go1_joystick_flat/go2_joystick_flat/g1_walk_flat).
+(xqrobotwl_walk_flat/xqrobotwl_walk_rough/xqrobotV2_walk_flat).
 Legacy env names remain accepted as aliases.
 """
 
@@ -63,8 +63,12 @@ class BenchRecord:
 
 DEFAULT_TASK_IDS = canonical_locomotion_task_ids()
 DEFAULT_BATCH_SIZES = [2**k for k in range(8, 15)]  # 256 .. 16384
-TASK_ALPHA = {"go1_joystick_flat": 0.75, "go2_joystick_flat": 0.9, "g1_walk_flat": 1.0}
-TASK_HATCH = {"go1_joystick_flat": "//", "go2_joystick_flat": "\\\\", "g1_walk_flat": "xx"}
+TASK_ALPHA = {"xqrobotwl_walk_flat": 0.75, "xqrobotwl_walk_rough": 0.9, "xqrobotV2_walk_flat": 1.0}
+TASK_HATCH = {
+    "xqrobotwl_walk_flat": "//",
+    "xqrobotwl_walk_rough": "\\\\",
+    "xqrobotV2_walk_flat": "xx",
+}
 
 
 def _keyframe0_state_and_ctrl(model: Any) -> tuple[np.ndarray, np.ndarray]:

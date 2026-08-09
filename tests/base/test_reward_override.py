@@ -8,13 +8,13 @@ from unilab.base import registry
 from unilab.base.registry import ensure_registries
 
 
-def test_reward_override_go1():
-    """Test Go1 reward config override."""
+def test_reward_override_xqrobotwl():
+    """Test XqRobotWL reward config override."""
     ensure_registries()
 
-    from unilab.envs.locomotion.go1.joystick import RewardConfig
+    from unilab.envs.locomotion.xqrobotwl.joystick import XqRobotWLRewardConfig
 
-    override_config = RewardConfig(
+    override_config = XqRobotWLRewardConfig(
         scales={"tracking_lin_vel": 999.0},
         tracking_sigma=0.5,
         base_height_target=0.5,
@@ -23,7 +23,7 @@ def test_reward_override_go1():
     env = cast(
         Any,
         registry.make(
-            "Go1JoystickFlat",
+            "XqRobotWLWalkFlat",
             num_envs=1,
             sim_backend="mujoco",
             env_cfg_override={"reward_config": override_config},
@@ -34,29 +34,24 @@ def test_reward_override_go1():
     env.close()
 
 
-def test_reward_override_g1():
-    """Test G1 reward config override."""
+def test_reward_override_xqrobotV2():
+    """Test XqRobotV2 reward config override."""
     ensure_registries()
 
-    from unilab.envs.locomotion.g1.joystick import G1WalkRewardConfig
+    from unilab.envs.locomotion.xqrobotV2.joystick import XqRobotRewardConfig
 
-    override_config = G1WalkRewardConfig(
+    override_config = XqRobotRewardConfig(
         scales={"tracking_lin_vel": 888.0, "alive": 20.0},
         tracking_sigma=0.3,
-        base_height_target=0.8,
-        min_base_height=0.3,
-        max_tilt_deg=65.0,
-        gait_frequency=1.5,
-        feet_phase_swing_height=0.09,
-        feet_phase_tracking_sigma=0.008,
-        close_feet_threshold=0.15,
-        pose_weights=[0.01] * 29,
+        base_height_target=0.65,
+        min_base_height=0.2,
+        max_tilt_deg=60.0,
     )
 
     env = cast(
         Any,
         registry.make(
-            "G1WalkFlat",
+            "XqRobotV2WalkFlat",
             num_envs=1,
             sim_backend="mujoco",
             env_cfg_override={"reward_config": override_config},

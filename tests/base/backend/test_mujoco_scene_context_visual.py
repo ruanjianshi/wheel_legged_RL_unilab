@@ -32,17 +32,3 @@ def test_visual_model_file_override_is_render_only() -> None:
     assert ctx.model_file == "/tmp/phys.xml"
     assert ctx.model_source == "/tmp/phys.xml"
     assert ctx.visual_model_file == "/tmp/visual.xml"
-
-
-def test_x2_wall_flip_wires_render_only_visual_twin() -> None:
-    from unilab.envs.motion_tracking.x2.flip_tracking import X2WallFlipTrackingEnvCfg
-
-    cfg = X2WallFlipTrackingEnvCfg()
-
-    # Physics = trained <body> wall; render = worldbody-geom twin.
-    assert cfg.scene.model_file.endswith("scene_flat_with_wall.xml")
-    assert cfg.scene.visual_model_file is not None
-    assert cfg.scene.visual_model_file.endswith("scene_flat_with_wall_visual.xml")
-    assert cfg.scene.model_file != cfg.scene.visual_model_file
-    assert Path(cfg.scene.model_file).is_file()
-    assert Path(cfg.scene.visual_model_file).is_file()

@@ -23,7 +23,7 @@ Render modes:
 - `none` — skip rendering, just compute metrics.
 
 `training.export_onnx=false` currently applies only to the off-policy playback path
-(`scripts/train_offpolicy.py` and CLI runs with `--algo sac|td3|flashsac`). It skips
+(`scripts/training/train_offpolicy.py` and CLI runs with `--algo sac|td3|flashsac`). It skips
 `policy.onnx` export and verification but still runs playback and video recording.
 
 ## MuJoCo Viewer Scripts

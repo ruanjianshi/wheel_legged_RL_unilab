@@ -77,10 +77,10 @@ Use `make test` for the fast path and `make test-all` (`make check` plus
 
 ## High-Signal Files
 
-- `scripts/train_rsl_rl.py`
-- `scripts/train_mlx_ppo.py`
-- `scripts/train_appo.py`
-- `scripts/train_offpolicy.py`
+- `scripts/training/train_rsl_rl.py`
+- `scripts/training/train_mlx_ppo.py`
+- `scripts/training/train_appo.py`
+- `scripts/training/train_offpolicy.py`
 - `src/unilab/base/np_env.py`
 - `src/unilab/base/backend/base.py`
 - `src/unilab/base/registry.py`

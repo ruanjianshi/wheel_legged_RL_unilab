@@ -30,8 +30,7 @@ The contracts everything else depends on: `NpEnv`, `SimBackend`, `Registry`,
 :::{grid-item-card} 🧪 `unilab.envs`
 :link: envs/index
 :link-type: doc
-Concrete tasks — locomotion, manipulation, motion tracking — layered on
-top of `base`.
+Concrete tasks — locomotion — layered on top of `base`.
 :::
 
 ::::

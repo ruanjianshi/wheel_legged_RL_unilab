@@ -253,7 +253,7 @@ class MyRobotWalkFlatEnv(MyRobotWalkEnv):
 ```
 
 ### 训练配置
-`conf/ppo/task/my_robot_walk_flat/mujoco.yaml`:
+`conf/ppo/task/<your_robot>_walk_flat/mujoco.yaml`:
 ```yaml
 training:
   task_name: MyRobotWalkFlat    # ★ = @envcfg 注册名

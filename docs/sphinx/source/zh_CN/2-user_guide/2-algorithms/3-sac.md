@@ -1,6 +1,6 @@
 # SAC
 
-SAC 通过共享的 off-policy 入口 `scripts/train_offpolicy.py` 选择，TD3 与 FlashSAC
+SAC 通过共享的 off-policy 入口 `scripts/training/train_offpolicy.py` 选择，TD3 与 FlashSAC
 也共用该脚本。主配置为 `conf/offpolicy/config.yaml`，SAC 算法的默认值位于
 `conf/offpolicy/algo/sac.yaml`。当前的日志名称为 `fast_sac`。
 
@@ -32,7 +32,7 @@ CUDA_VISIBLE_DEVICES=0,7 uv run train --algo sac --task g1_walk_flat --sim mujoc
 
 ## 关键字段
 
-对于 off-policy 回放路径（`scripts/train_offpolicy.py` / CLI `--algo sac`），设置
+对于 off-policy 回放路径（`scripts/training/train_offpolicy.py` / CLI `--algo sac`），设置
 `training.export_onnx=false` 可在仍然录制回放视频的同时跳过 `policy.onnx` 导出。参
 见 {doc}`/zh_CN/1-getting_started/3-evaluation_and_playback`。
 
@@ -47,7 +47,7 @@ CUDA_VISIBLE_DEVICES=0,7 uv run train --algo sac --task g1_walk_flat --sim mujoc
 - 多 GPU SAC 默认 `training.multi_gpu_sync_mode=local_sgd`，
   `training.multi_gpu_sync_interval=1`。
 
-`scripts/train_offpolicy.py` 中当前的 runner 路径要求同步采集；脚本会拒绝
+`scripts/training/train_offpolicy.py` 中当前的 runner 路径要求同步采集；脚本会拒绝
 `training.no_sync_collection=true`。
 
 ```bash

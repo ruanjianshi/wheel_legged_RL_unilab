@@ -6,10 +6,10 @@
 
 ## 选择集成路径
 
-- 同步 on-policy 示例：`scripts/train_rsl_rl.py` 与
-  `scripts/train_mlx_ppo.py`。
-- 异步 on-policy 示例：使用 `APPORunner` 的 `scripts/train_appo.py`。
-- Off-policy 示例：`scripts/train_offpolicy.py`，配合 `conf/offpolicy/`
+- 同步 on-policy 示例：`scripts/training/train_rsl_rl.py` 与
+  `scripts/training/train_mlx_ppo.py`。
+- 异步 on-policy 示例：使用 `APPORunner` 的 `scripts/training/train_appo.py`。
+- Off-policy 示例：`scripts/training/train_offpolicy.py`，配合 `conf/offpolicy/`
   下的 SAC、TD3 与 FlashSAC 配置。
 
 ## 实现清单

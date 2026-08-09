@@ -20,9 +20,7 @@ wheel_legged_RL_unilab/
 │   │   └── common/               #   网络骨架 (MLP, LayerNormMLP, RunningMeanStd)
 │   │
 │   ├── envs/                     # 环境实现
-│   │   ├── locomotion/           #   移动任务: go1, go2, go2w, go2_arm, g1, xqrobotV2, smallHumanoidRobot
-│   │   ├── manipulation/         #   操作任务: allegro, sharpa, stewart
-│   │   ├── motion_tracking/      #   动捕模仿: g1, x2
+│   │   ├── locomotion/           #   移动任务: xqrobotwl, xqrobotV2
 │   │   └── common/               #   共享函数 (rewards, commands, terrain_spawn, height_scan)
 │   │
 │   ├── terrains/                 # 地形生成系统
@@ -31,8 +29,8 @@ wheel_legged_RL_unilab/
 │   │   └── config.py             #   预设配置
 │   │
 │   ├── assets/                   # 机器人模型 + 场景 XML
-│   │   ├── robots/               #   12 种机器人 (xqrobotV2, go1, go2, go2w, g1, ...)
-│   │   └── motions/              #   动捕数据 (g1, x2)
+│   │   ├── robots/               #   2 种机器人 (xqrobotwl, xqrobotV2)
+│   │   └── scenes/               #   场景 XML
 │   │
 │   ├── base/                     # 核心抽象
 │   │   ├── np_env.py             #   NpEnv 契约 (reset/step/obs 规范)
@@ -104,22 +102,8 @@ wheel_legged_RL_unilab/
 
 | 机器人 | 目录 | 类型 | 任务 |
 |--------|------|------|------|
-| **XqRobotV2** | `xqrobotV2/` | 轮腿双足 | flat walk, rough walk, jump flat, toe walk |
-| **Go1** | `go1/` | 四足 | joystick flat, joystick rough |
-| **Go2** | `go2/` | 四足 | joystick flat, joystick rough, footstand |
-| **Go2W** | `go2w/` | 轮式四足 | joystick flat, joystick rough |
-| **Go2-Arm** | `go2_arm/` | 四足+手臂 | manip-loco |
-| **G1** | `g1/` | 人形 | walk flat/rough, motion tracking, flip, climb, box, wall flip |
-| **smallHumanoidRobot** | `smallHumanoidRobot/` | 小人形 | walk flat |
-| **X2** | `x2/` | 人形 | wall flip tracking |
-
-### 操作机器人 (Manipulation)
-
-| 机器人 | 目录 | 类型 | 任务 |
-|--------|------|------|------|
-| **Allegro Hand** | `allegro_hand/` | 四指灵巧手 | inhand manipulation, grasp |
-| **Sharpa Wave** | `sharpa_wave/` | 软体手 | inhand manipulation, grasp |
-| **Stewart** | `stewart/` | 六自由度平台 | balance |
+| **XqRobotWL** | `xqrobotwl/` | 轮腿双足 | flat walk, rough walk, jump flat, SRL/VMC jump, toe walk, stairs |
+| **XqRobotV2** | `xqrobotV2/` | 轮腿双足 | flat walk, rough walk, jump flat, toe walk, stairs |
 
 ---
 

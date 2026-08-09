@@ -41,7 +41,7 @@ flowchart LR
 | ONNX export | Training playback scripts + deploy helpers | {doc}`5-onnx_runtime` |
 | Latency / obs lag | Task config flags and deploy-side logs | {doc}`8-latency_budget` |
 | Safety layer | Hardware-side clamp / fallback | {doc}`7-safety_layers` |
-| Robot bringup | Robot-specific guides | {doc}`2-g1_whole_body`, {doc}`3-go2_locomotion`, {doc}`4-allegro_inhand` |
+| Robot bringup | Robot-specific guides | {doc}`../4-developer_guide/3-extending/1-new_task` |
 
 ## What you should have before starting
 
@@ -85,25 +85,11 @@ flowchart LR
 ::::{grid} 3
 :gutter: 2
 
-:::{grid-item-card} 🤖 G1 whole-body
-:link: 2-g1_whole_body
+:::{grid-item-card} 🤖 XqRobotWL / XqRobotV2
+:link: ../4-developer_guide/3-extending/1-new_task
 :link-type: doc
 
-Humanoid motion tracking deployment, joint clamp ranges, IMU alignment.
-:::
-
-:::{grid-item-card} 🐕 Go2 locomotion
-:link: 3-go2_locomotion
-:link-type: doc
-
-Joystick + rough terrain policies on Go2 and Go2W.
-:::
-
-:::{grid-item-card} ✋ Allegro in-hand
-:link: 4-allegro_inhand
-:link-type: doc
-
-Dexterous cube reorientation, tactile-free deployment, grasp generator.
+Wheel-legged biped locomotion, rough terrain, and jump policy deployment.
 :::
 
 ::::

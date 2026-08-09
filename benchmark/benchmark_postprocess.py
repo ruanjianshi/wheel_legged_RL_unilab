@@ -49,7 +49,7 @@ OUTPUT_DIR = Path("benchmark/outputs/postprocess")
 OUTPUT_JSON = OUTPUT_DIR / "latest_postprocess_benchmark.json"
 OUTPUT_PNG = OUTPUT_DIR / "latest_postprocess_latency.png"
 TORCH_DEVICE = "mps"
-OWNER_TASK_ID = "go1_joystick_flat"
+OWNER_TASK_ID = "xqrobotwl_walk_flat"
 ENV_TASK_NAME = locomotion_env_name(OWNER_TASK_ID)
 
 

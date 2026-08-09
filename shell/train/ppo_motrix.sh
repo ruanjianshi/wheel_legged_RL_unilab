@@ -9,7 +9,7 @@ ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT_DIR"
 
 # ---- 训练配置 ----
-TASK="go2w_joystick_flat/motrix"
+TASK="xqrobotV2_walk_flat/motrix"
 NUM_ENVS=16384
 MAX_ITERATIONS=5000
 # --------------------

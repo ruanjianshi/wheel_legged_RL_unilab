@@ -38,5 +38,5 @@ Start from the contracts: {doc}`../2-contracts/1-env_contract`,
 - Registry API: `src/unilab/base/registry.py`
 - Env state contract: `src/unilab/base/np_env.py`
 - Scene config: `src/unilab/base/scene.py`
-- Existing task examples: `src/unilab/envs/locomotion/go2/joystick.py`,
-  `src/unilab/envs/manipulation/allegro_inhand/rotation.py`
+- Existing task examples: `src/unilab/envs/locomotion/xqrobotwl/joystick.py`,
+  `src/unilab/envs/locomotion/xqrobotwl/joystick.py`

@@ -2,10 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from unilab.envs.locomotion.g1.joystick import G1WalkFlatCfg
-from unilab.envs.locomotion.go1.joystick import Go1JoystickCfg
-from unilab.envs.locomotion.go2.joystick import Go2JoystickCfg
-from unilab.envs.manipulation.sharpa_inhand.rotation import SharpaInhandRotationCfg
+from unilab.envs.locomotion.xqrobotV2.joystick import XqRobotV2WalkFlatCfg
+from unilab.envs.locomotion.xqrobotwl.joystick import XqRobotWLWalkFlatCfg
+from unilab.envs.locomotion.xqrobotwl.rough import XqRobotWLWalkRoughCfg
 
 
 @dataclass(frozen=True)
@@ -17,29 +16,23 @@ class LocomotionTaskSpec:
 
 
 _TASK_SPECS = {
-    "go1_joystick_flat": LocomotionTaskSpec(
-        owner_task_id="go1_joystick_flat",
-        env_task_name="Go1JoystickFlat",
-        display_name="go1_joystick_flat",
-        config_cls=Go1JoystickCfg,
+    "xqrobotwl_walk_flat": LocomotionTaskSpec(
+        owner_task_id="xqrobotwl_walk_flat",
+        env_task_name="XqRobotWLWalkFlat",
+        display_name="xqrobotwl_walk_flat",
+        config_cls=XqRobotWLWalkFlatCfg,
     ),
-    "go2_joystick_flat": LocomotionTaskSpec(
-        owner_task_id="go2_joystick_flat",
-        env_task_name="Go2JoystickFlat",
-        display_name="go2_joystick_flat",
-        config_cls=Go2JoystickCfg,
+    "xqrobotwl_walk_rough": LocomotionTaskSpec(
+        owner_task_id="xqrobotwl_walk_rough",
+        env_task_name="XqRobotWLWalkRough",
+        display_name="xqrobotwl_walk_rough",
+        config_cls=XqRobotWLWalkRoughCfg,
     ),
-    "g1_walk_flat": LocomotionTaskSpec(
-        owner_task_id="g1_walk_flat",
-        env_task_name="G1WalkFlat",
-        display_name="g1_walk_flat",
-        config_cls=G1WalkFlatCfg,
-    ),
-    "sharpa_inhand": LocomotionTaskSpec(
-        owner_task_id="sharpa_inhand",
-        env_task_name="SharpaInhandRotation",
-        display_name="sharpa_inhand",
-        config_cls=SharpaInhandRotationCfg,
+    "xqrobotV2_walk_flat": LocomotionTaskSpec(
+        owner_task_id="xqrobotV2_walk_flat",
+        env_task_name="XqRobotV2WalkFlat",
+        display_name="xqrobotV2_walk_flat",
+        config_cls=XqRobotV2WalkFlatCfg,
     ),
 }
 _TASK_ALIASES = {spec.env_task_name: spec.owner_task_id for spec in _TASK_SPECS.values()}

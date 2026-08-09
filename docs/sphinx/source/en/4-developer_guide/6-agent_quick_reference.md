@@ -9,11 +9,11 @@ repo facts.
 - Backend choice: {doc}`../2-user_guide/3-backends/3-choosing_a_backend`
 - Task index: {doc}`../2-user_guide/4-tasks/0-index`
 - Algorithms index: {doc}`../2-user_guide/2-algorithms/0-index`
-- PPO entrypoint: `scripts/train_rsl_rl.py`
-- MLX PPO entrypoint: `scripts/train_mlx_ppo.py`
-- APPO entrypoint: `scripts/train_appo.py`
-- SAC / TD3 / FlashSAC entrypoint: `scripts/train_offpolicy.py`
-- HIM-PPO entrypoint: `scripts/train_him_ppo.py`
+- PPO entrypoint: `scripts/training/train_rsl_rl.py`
+- MLX PPO entrypoint: `scripts/training/train_mlx_ppo.py`
+- APPO entrypoint: `scripts/training/train_appo.py`
+- SAC / TD3 / FlashSAC entrypoint: `scripts/training/train_offpolicy.py`
+- HIM-PPO entrypoint: `scripts/training/train_him_ppo.py`
 - HORA distillation entrypoint: `scripts/train_hora_distill.py`
 
 ## Contracts To Keep In Mind

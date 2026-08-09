@@ -14,6 +14,7 @@ Dumps, at each ctrl step:
     base_z      : base height (m)
     wheel_contact: [L,R] contact bool
 """
+
 import argparse
 import sys
 from pathlib import Path
@@ -66,7 +67,9 @@ def main() -> int:
                 dof_vel = env.get_dof_vel()
                 # VMC kinematics (left leg index 0)
                 vmc = env._vmc
-                theta1, theta2, theta0, L0, theta0_dot, L0_dot = vmc.compute_kinematics(dof_pos, dof_vel)
+                theta1, theta2, theta0, L0, theta0_dot, L0_dot = vmc.compute_kinematics(
+                    dof_pos, dof_vel
+                )
                 L0_l = float(L0[0, 0])
                 L0dot_l = float(L0_dot[0, 0])
                 # effective gains per phase (env override, NOT raw vmc defaults)
@@ -76,7 +79,6 @@ def main() -> int:
                     kp, kd, ff = vmc.get_l0_control_parameters()
                 kp_l, kd_l, ff_l = float(kp[0, 0]), float(kd[0, 0]), float(ff[0, 0])
                 # L0 reference: env stores the physical policy_ctrl used this step
-                last = state.info.get("torques", np.zeros((1, 8)))
                 base_z = float(np.asarray(env._backend.get_base_pos())[0, 2])
                 wc = state.info.get("wheel_contact", np.zeros((1, 2)))
                 phase = float(getattr(env, "_fsm_state", np.array([-1.0]))[0])
@@ -86,18 +88,35 @@ def main() -> int:
                 # store it. Approximate from kinematics target via L0_ref = L0 +
                 # (force_L0 - ff)/(kp): not exact. Instead log raw action L0 channel.
                 raw_act = action[0, 2]  # L0_L normalized action
-                rows.append((step, phase, L0_l, L0dot_l, base_z, int(wc[0, 0]), int(wc[0, 1]),
-                             kp_l, kd_l, ff_l, raw_act))
+                rows.append(
+                    (
+                        step,
+                        phase,
+                        L0_l,
+                        L0dot_l,
+                        base_z,
+                        int(wc[0, 0]),
+                        int(wc[0, 1]),
+                        kp_l,
+                        kd_l,
+                        ff_l,
+                        raw_act,
+                    )
+                )
         # find thrust window (phase==1 or phase==2) and print focused view
         print(f"task={args.task} step phase L0    L0dot  base_z  Lc Rc  kp_eff kd_eff ff_eff L0act")
         for r in rows:
             step, phase, L0l, L0d, bz, lc, rc, kp, kd, ff, act = r
-            if (settle_on := args.settle) <= step and phase >= 0:
-                print(f"{step:4d} {int(phase):5d} {L0l:5.3f} {L0d:6.2f} {bz:5.3f}  {lc}  {rc}  "
-                      f"{kp:6.0f} {kd:5.1f} {ff:6.0f} {act:5.2f}")
+            if args.settle <= step and phase >= 0:
+                print(
+                    f"{step:4d} {int(phase):5d} {L0l:5.3f} {L0d:6.2f} {bz:5.3f}  {lc}  {rc}  "
+                    f"{kp:6.0f} {kd:5.1f} {ff:6.0f} {act:5.2f}"
+                )
             elif step in (args.settle - 1, args.settle, args.settle + 5, total - 1):
-                print(f"{step:4d} {int(phase):5d} {L0l:5.3f} {L0d:6.2f} {bz:5.3f}  {lc}  {rc}  "
-                      f"{kp:6.0f} {kd:5.1f} {ff:6.0f} {act:5.2f}")
+                print(
+                    f"{step:4d} {int(phase):5d} {L0l:5.3f} {L0d:6.2f} {bz:5.3f}  {lc}  {rc}  "
+                    f"{kp:6.0f} {kd:5.1f} {ff:6.0f} {act:5.2f}"
+                )
     finally:
         env.close()
 

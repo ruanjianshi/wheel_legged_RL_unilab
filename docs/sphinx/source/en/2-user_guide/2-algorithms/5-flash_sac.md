@@ -18,7 +18,7 @@ uv run train --algo flashsac --task go2_joystick_flat --sim mujoco training.no_p
 
 ## Key Fields
 
-For the off-policy playback path (`scripts/train_offpolicy.py` / CLI `--algo flashsac`),
+For the off-policy playback path (`scripts/training/train_offpolicy.py` / CLI `--algo flashsac`),
 set `training.export_onnx=false` to skip `policy.onnx` export while still recording
 playback video. See {doc}`/en/1-getting_started/3-evaluation_and_playback`.
 
@@ -30,7 +30,7 @@ playback video. See {doc}`/en/1-getting_started/3-evaluation_and_playback`.
 - `algo.algo_params.actor_num_blocks=2`
 - `algo.algo_params.critic_num_blocks=2`
 
-`scripts/train_offpolicy.py` rejects `training.num_gpus > 1` for FlashSAC, so
+`scripts/training/train_offpolicy.py` rejects `training.num_gpus > 1` for FlashSAC, so
 keep the default single-GPU path unless the implementation changes.
 
 The log root is `logs/flash_sac/<task>/`.

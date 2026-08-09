@@ -29,14 +29,11 @@ def _xml(robot: str, scene: str = "scene_flat.xml") -> str:
 
 
 BASIC_ROBOTS = [
-    pytest.param(dict(model_file=_xml("g1"), base_name="pelvis"), id="g1"),
-    pytest.param(dict(model_file=_xml("go1"), base_name="trunk"), id="go1"),
-    pytest.param(dict(model_file=_xml("go2"), base_name="base"), id="go2"),
+    pytest.param(dict(model_file=_xml("xqrobotwl"), base_name="base_link"), id="xqrobotwl"),
+    pytest.param(dict(model_file=_xml("xqrobotV2"), base_name="base_link"), id="xqrobotV2"),
 ]
 
-_G1 = dict(model_file=_xml("g1"), base_name="pelvis")
-_ALLEGRO = dict(model_file=_xml("allegro_hand", "scene.xml"), base_name="palm")
-_SHARPA = dict(model_file=_xml("sharpa_wave", "scene.xml"), base_name="right_hand_C_MC")
+_G1 = dict(model_file=_xml("xqrobotwl"), base_name="base_link")
 
 NUM_ENVS = 2
 SIM_DT = 0.005
@@ -82,17 +79,6 @@ def _mujoco_expected_dof_dims(model) -> tuple[int, int]:
     return model.nq, model.nv
 
 
-def _allegro_state() -> tuple[np.ndarray, np.ndarray]:
-    qpos = np.zeros((1, 23), dtype=np.float64)
-    qvel = np.zeros((1, 22), dtype=np.float64)
-    qpos[0, :16] = np.linspace(-0.2, 0.2, 16)
-    qpos[0, 16:19] = np.array([-0.01, 0.02, 0.16])
-    qpos[0, 19:23] = np.array([0.92387953, 0.0, 0.38268343, 0.0])
-    qvel[0, :16] = np.linspace(-0.15, 0.15, 16)
-    qvel[0, 16:22] = np.array([0.1, -0.2, 0.05, 0.3, -0.1, 0.2])
-    return qpos, qvel
-
-
 # ---------------------------------------------------------------------------
 # MuJoCo — basic, 3 robots, no body sensors
 # ---------------------------------------------------------------------------
@@ -120,11 +106,11 @@ class TestMuJoCoBasic:
         from unilab.base.backend.mujoco.backend import MuJoCoBackend
 
         bkd = MuJoCoBackend(
-            SceneCfg(model_file=_SHARPA["model_file"]), 4, SIM_DT, base_name=_SHARPA["base_name"]
+            SceneCfg(model_file=_G1["model_file"]), 4, SIM_DT, base_name=_G1["base_name"]
         )
         assert bkd._pool is None
         mujoco = _mujoco_module()
-        geom_id = mujoco.mj_name2id(bkd.model, mujoco.mjtObj.mjOBJ_GEOM, "object")
+        geom_id = mujoco.mj_name2id(bkd.model, mujoco.mjtObj.mjOBJ_GEOM, "base_link_collision")
         base_size = np.asarray(bkd.model.geom_size[geom_id], dtype=np.float64).copy()
 
         bkd.apply_init_randomization(
@@ -132,10 +118,14 @@ class TestMuJoCoBasic:
                 model_assignments=np.array([0, 1, 0, 1], dtype=np.int32),
                 model_variants=(
                     ModelVariantSpec(
-                        geom_size_overrides=(GeomSizeOverride("object", tuple(base_size * 0.5)),)
+                        geom_size_overrides=(
+                            GeomSizeOverride("base_link_collision", tuple(base_size * 0.5)),
+                        )
                     ),
                     ModelVariantSpec(
-                        geom_size_overrides=(GeomSizeOverride("object", tuple(base_size * 0.75)),)
+                        geom_size_overrides=(
+                            GeomSizeOverride("base_link_collision", tuple(base_size * 0.75)),
+                        )
                     ),
                 ),
             )
@@ -156,10 +146,10 @@ class TestMuJoCoBasic:
         from unilab.base.backend.mujoco.backend import MuJoCoBackend
 
         bkd = MuJoCoBackend(
-            SceneCfg(model_file=_SHARPA["model_file"]), 4, SIM_DT, base_name=_SHARPA["base_name"]
+            SceneCfg(model_file=_G1["model_file"]), 4, SIM_DT, base_name=_G1["base_name"]
         )
         mujoco = _mujoco_module()
-        geom_id = mujoco.mj_name2id(bkd.model, mujoco.mjtObj.mjOBJ_GEOM, "object")
+        geom_id = mujoco.mj_name2id(bkd.model, mujoco.mjtObj.mjOBJ_GEOM, "base_link_collision")
         base_size = np.asarray(bkd.model.geom_size[geom_id], dtype=np.float64).copy()
 
         bkd.apply_init_randomization(
@@ -167,10 +157,14 @@ class TestMuJoCoBasic:
                 model_assignments=np.array([0, 1, 0, 1], dtype=np.int32),
                 model_variants=(
                     ModelVariantSpec(
-                        geom_size_overrides=(GeomSizeOverride("object", tuple(base_size * 0.5)),)
+                        geom_size_overrides=(
+                            GeomSizeOverride("base_link_collision", tuple(base_size * 0.5)),
+                        )
                     ),
                     ModelVariantSpec(
-                        geom_size_overrides=(GeomSizeOverride("object", tuple(base_size * 0.75)),)
+                        geom_size_overrides=(
+                            GeomSizeOverride("base_link_collision", tuple(base_size * 0.75)),
+                        )
                     ),
                 ),
             )
@@ -287,7 +281,7 @@ class TestMuJoCoBasic:
             NUM_ENVS,
             SIM_DT,
             base_name=_G1["base_name"],
-            push_body_name="torso_link",
+            push_body_name="left_link_1",
         )
         bkd.materialize()
         sampled = np.array([[0.5, -0.25, 0.1], [-0.1, 0.8, -0.4]], dtype=np.float64)
@@ -322,7 +316,7 @@ class TestMuJoCoBasic:
         bkd.step(np.zeros((NUM_ENVS, bkd.model.nu), dtype=np.float64))
 
         base_start = 6 * bkd._base_body_id
-        push_start = 6 * mujoco.mj_name2id(bkd.model, mujoco.mjtObj.mjOBJ_BODY, "torso_link")
+        push_start = 6 * mujoco.mj_name2id(bkd.model, mujoco.mjtObj.mjOBJ_BODY, "left_link_1")
         xfrc = calls[0]["control"][:, 0, bkd.model.nu :]
         np.testing.assert_allclose(xfrc[:, push_start : push_start + 3], sampled * limit[None, :])
         np.testing.assert_allclose(xfrc[:, base_start : base_start + 3], 0.0)
@@ -462,9 +456,9 @@ def test_mujoco_backend_discards_visual_assets():
 
     from unilab.base.backend.mujoco.backend import MuJoCoBackend
 
-    model_file = _xml("go2")
+    model_file = _xml("xqrobotwl")
     full = mujoco.MjModel.from_xml_path(model_file)
-    trimmed = MuJoCoBackend(SceneCfg(model_file=model_file), 1, SIM_DT, base_name="base")
+    trimmed = MuJoCoBackend(SceneCfg(model_file=model_file), 1, SIM_DT, base_name="base_link")
 
     assert trimmed.model.ngeom < full.ngeom
     assert trimmed.model.nmesh == 0
@@ -472,55 +466,8 @@ def test_mujoco_backend_discards_visual_assets():
     assert trimmed.model.nmat == 0
 
 
-@pytest.mark.slow
-def test_motrix_backend_fixed_base_set_state_matches_mujoco_for_hand_and_ball():
-    from unilab.base.backend.motrix.backend import MotrixBackend
-    from unilab.base.backend.mujoco.backend import MuJoCoBackend
-
-    pytest.importorskip("motrixsim")
-    mj = MuJoCoBackend(
-        SceneCfg(model_file=_ALLEGRO["model_file"]),
-        NUM_ENVS,
-        SIM_DT,
-        base_name=_ALLEGRO["base_name"],
-        add_body_sensors=True,
-    )
-    mj.materialize()
-    mx = MotrixBackend(
-        SceneCfg(model_file=_ALLEGRO["model_file"]),
-        NUM_ENVS,
-        SIM_DT,
-        base_name=_ALLEGRO["base_name"],
-        add_body_sensors=True,
-    )
-    qpos, qvel = _allegro_state()
-    env_idx = np.array([0])
-
-    mj.set_state(env_idx, qpos, qvel)
-    mx.set_state(env_idx, qpos, qvel)
-
-    np.testing.assert_allclose(mx.get_dof_pos()[0], qpos[0, :16], atol=1e-6)
-    np.testing.assert_allclose(mx.get_dof_vel()[0], qvel[0, :16], atol=1e-6)
-    np.testing.assert_allclose(np.asarray(mx.data.actuator_ctrls[0]), qpos[0, :16], atol=1e-6)
-    np.testing.assert_allclose(mx.get_base_pos(), mj.get_base_pos(), atol=2e-3)
-    np.testing.assert_allclose(np.abs(mx.get_base_quat()), np.abs(mj.get_base_quat()), atol=2e-3)
-
-    mj_ball_id = _mj_body_id(mj.model, "ball")
-    mx_ball_id = _mx_link_id(mx.model, "ball")
-    np.testing.assert_allclose(
-        mx.get_body_pos_w(np.array([mx_ball_id])),
-        mj.get_body_pos_w(np.array([mj_ball_id])),
-        atol=2e-3,
-    )
-    np.testing.assert_allclose(
-        mx.get_body_quat_w(np.array([mx_ball_id])),
-        mj.get_body_quat_w(np.array([mj_ball_id])),
-        atol=2e-3,
-    )
-
-
 # ---------------------------------------------------------------------------
-# MuJoCo — body sensors, G1 only
+# MuJoCo — body sensors
 # ---------------------------------------------------------------------------
 
 
@@ -603,24 +550,24 @@ class TestMuJoCoBodySensors:
         """Base body position relative to itself must be [0,0,0]."""
         mujoco = _mujoco_module()
 
-        pelvis_id = mujoco.mj_name2id(bkd.model, mujoco.mjtObj.mjOBJ_BODY, "pelvis")
-        pos_b = bkd.get_body_pos_b(np.array([pelvis_id]))
+        base_body_id = mujoco.mj_name2id(bkd.model, mujoco.mjtObj.mjOBJ_BODY, "base_link")
+        pos_b = bkd.get_body_pos_b(np.array([base_body_id]))
         np.testing.assert_allclose(pos_b, 0.0, atol=1e-5)
 
     def test_base_body_pos_w_matches_get_base_pos(self, bkd):
         """get_body_pos_w for the base body must equal get_base_pos()."""
         mujoco = _mujoco_module()
 
-        pelvis_id = mujoco.mj_name2id(bkd.model, mujoco.mjtObj.mjOBJ_BODY, "pelvis")
-        pos_w = bkd.get_body_pos_w(np.array([pelvis_id]))[:, 0, :]
+        base_body_id = mujoco.mj_name2id(bkd.model, mujoco.mjtObj.mjOBJ_BODY, "base_link")
+        pos_w = bkd.get_body_pos_w(np.array([base_body_id]))[:, 0, :]
         np.testing.assert_allclose(pos_w, bkd.get_base_pos(), atol=1e-5)
 
     def test_base_body_quat_b_is_identity(self, bkd):
         """Base body quaternion relative to itself must be identity [1,0,0,0]."""
         mujoco = _mujoco_module()
 
-        pelvis_id = mujoco.mj_name2id(bkd.model, mujoco.mjtObj.mjOBJ_BODY, "pelvis")
-        quat_b = bkd.get_body_quat_b(np.array([pelvis_id]))[:, 0, :]  # (N, 4)
+        base_body_id = mujoco.mj_name2id(bkd.model, mujoco.mjtObj.mjOBJ_BODY, "base_link")
+        quat_b = bkd.get_body_quat_b(np.array([base_body_id]))[:, 0, :]  # (N, 4)
         np.testing.assert_allclose(
             np.abs(quat_b),
             np.tile([1.0, 0.0, 0.0, 0.0], (quat_b.shape[0], 1)),
@@ -899,8 +846,8 @@ class TestMotrixBodySensors:
 
     def test_base_body_pos_b_is_zero(self, bkd):
         """Base body position relative to itself must be [0,0,0]."""
-        pelvis_id = bkd.model.get_body_index(_G1["base_name"])
-        pos_b = bkd.get_body_pos_b(np.array([pelvis_id]))
+        base_body_id = bkd.model.get_body_index(_G1["base_name"])
+        pos_b = bkd.get_body_pos_b(np.array([base_body_id]))
         np.testing.assert_allclose(pos_b, 0.0, atol=1e-4)
 
 

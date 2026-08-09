@@ -9,11 +9,11 @@ graph when that path implements ONNX Runtime checking.
 
 | Algorithm path | Entry script | Export behavior in repo |
 | --- | --- | --- |
-| PPO (torch) | `scripts/train_rsl_rl.py` | `EXPORT_POLICY=True` in the script entrypoint; playback calls `runner.export_policy_to_onnx(...)` and `runner.export_policy_to_jit(...)`. |
-| HIM-PPO | `scripts/train_him_ppo.py` | Same script-level export pattern as PPO. |
-| APPO | `scripts/train_appo.py` | Playback writes `policy.onnx` and verifies ONNX Runtime output against PyTorch. |
-| SAC / TD3 / FlashSAC | `scripts/train_offpolicy.py` | Playback writes `policy.onnx`; SAC and FlashSAC use `actor.as_export_module()` before export. |
-| MLX PPO | `scripts/train_mlx_ppo.py` | Playback converts the MLX actor weights into a PyTorch module, writes `policy.onnx`, and verifies ONNX Runtime output. |
+| PPO (torch) | `scripts/training/train_rsl_rl.py` | `EXPORT_POLICY=True` in the script entrypoint; playback calls `runner.export_policy_to_onnx(...)` and `runner.export_policy_to_jit(...)`. |
+| HIM-PPO | `scripts/training/train_him_ppo.py` | Same script-level export pattern as PPO. |
+| APPO | `scripts/training/train_appo.py` | Playback writes `policy.onnx` and verifies ONNX Runtime output against PyTorch. |
+| SAC / TD3 / FlashSAC | `scripts/training/train_offpolicy.py` | Playback writes `policy.onnx`; SAC and FlashSAC use `actor.as_export_module()` before export. |
+| MLX PPO | `scripts/training/train_mlx_ppo.py` | Playback converts the MLX actor weights into a PyTorch module, writes `policy.onnx`, and verifies ONNX Runtime output. |
 
 ## Commands
 

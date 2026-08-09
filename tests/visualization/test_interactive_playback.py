@@ -422,7 +422,7 @@ def test_keyboard_commander_nudges_stack_and_clamp_to_vel_limit() -> None:
 
 
 def test_keyboard_commander_rejects_bad_vel_limit_shape() -> None:
-    with pytest.raises(ValueError, match=r"shape \(2, 3\)"):
+    with pytest.raises(ValueError, match=r"needs at least 3 cols"):
         KeyboardCommander.from_vel_limit([[0.0, 0.0], [1.0, 1.0]])
 
 
@@ -569,6 +569,10 @@ def test_sac_hora_playback_session_updates_priv_info_after_reset_and_step(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
+    import sys
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts" / "training"))
     import train_offpolicy
     from omegaconf import OmegaConf
 
@@ -700,6 +704,10 @@ def test_hora_distill_playback_session_loads_stage2_checkpoint_and_student_polic
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
+    import sys
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts" / "training"))
     import train_hora_distill
     from omegaconf import OmegaConf
     from tensordict import TensorDict

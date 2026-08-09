@@ -16,7 +16,7 @@ uv run train --algo flashsac --task go2_joystick_flat --sim mujoco training.no_p
 
 ## 关键字段
 
-对于 off-policy 回放路径（`scripts/train_offpolicy.py` / CLI `--algo flashsac`），设
+对于 off-policy 回放路径（`scripts/training/train_offpolicy.py` / CLI `--algo flashsac`），设
 置 `training.export_onnx=false` 可在仍然录制回放视频的同时跳过 `policy.onnx` 导出。
 参见 {doc}`/zh_CN/1-getting_started/3-evaluation_and_playback`。
 
@@ -28,7 +28,7 @@ uv run train --algo flashsac --task go2_joystick_flat --sim mujoco training.no_p
 - `algo.algo_params.actor_num_blocks=2`
 - `algo.algo_params.critic_num_blocks=2`
 
-`scripts/train_offpolicy.py` 会拒绝 FlashSAC 的 `training.num_gpus > 1`，因此除非实
+`scripts/training/train_offpolicy.py` 会拒绝 FlashSAC 的 `training.num_gpus > 1`，因此除非实
 现发生变化，否则请保持默认的单 GPU 路径。
 
 日志根目录为 `logs/flash_sac/<task>/`。

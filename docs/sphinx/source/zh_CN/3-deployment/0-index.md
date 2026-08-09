@@ -17,7 +17,7 @@
 :link-type: doc
 :class-card: sd-shadow-md
 
-为 G1 / Go2 / Allegro 上机准备训练好的策略，包含 ONNX 导出与部署侧契约检查。
+为 XqRobotWL / XqRobotV2 上机准备训练好的策略，包含 ONNX 导出与部署侧契约检查。
 :::
 
 :::{grid-item-card} 🔀 仿真 → 仿真
@@ -49,24 +49,6 @@
 :link: 1-sim_to_real/1-overview
 :link-type: doc
 端到端流程 + go/no-go 清单。
-:::
-
-:::{grid-item-card} 🦿 G1 全身
-:link: 1-sim_to_real/2-g1_whole_body
-:link-type: doc
-29 自由度人形；运动跟踪部署。
-:::
-
-:::{grid-item-card} 🐕 Go2 运动
-:link: 1-sim_to_real/3-go2_locomotion
-:link-type: doc
-摇杆、崎岖地形、Go2W 轮足。
-:::
-
-:::{grid-item-card} 🤚 Allegro 手内操作
-:link: 1-sim_to_real/4-allegro_inhand
-:link-type: doc
-方块旋转；摩擦 + 视觉。
 :::
 
 :::{grid-item-card} 📦 ONNX 导出与运行时

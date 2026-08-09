@@ -3,7 +3,6 @@ Stage 2: NaN injection validation for single-process algorithms.
 
 Covers:
   PPO (rsl_rl)  x {obs, reward, ctrl} = 3 cases
-  HIM-PPO       x {obs, reward, ctrl} = 3 cases
 
 For each case: build a real runner via Hydra compose, attach NanGuard, patch
 env to inject NaN at step K (one-shot), assert nan_guard fires + dump file
@@ -66,40 +65,6 @@ def _attach_guard(env, output_dir: Path) -> NanGuard:
 # ---------------------------------------------------------------------------
 
 
-def build_him_ppo(num_envs: int, log_dir: Path, output_dir: Path):
-    from unilab.algos.torch.him_ppo.runner import HIMOnPolicyRunner
-
-    ensure_registries()
-    with initialize_config_dir(config_dir=str(ROOT_DIR / "conf/ppo_him"), version_base=None):
-        cfg = compose(
-            config_name="config",
-            overrides=[
-                "task=go2_arm_manip_loco/mujoco",
-                f"algo.num_envs={num_envs}",
-                "algo.num_steps_per_env=4",
-                "algo.max_iterations=1",
-                "algo.save_interval=100",
-                f"training.nan_guard.output_dir={output_dir}",
-            ],
-        )
-
-    backend_adapter = BackendAdapter(
-        cfg,
-        root_dir=ROOT_DIR,
-        algo_name="ppo_him",
-        scene_materializer=materialize_scene_visual_override,
-    )
-    env_cfg_override = backend_adapter.build_task_env_cfg_override()
-    env = create_env(cfg, num_envs=cfg.algo.num_envs, env_cfg_override=env_cfg_override)
-    guard = _attach_guard(env, output_dir)
-
-    device = _device()
-    wrapped_env = RslRlVecEnvWrapper(env, device=device)
-    rl_cfg = OmegaConf.to_container(cfg.algo, resolve=True)
-    runner = HIMOnPolicyRunner(wrapped_env, rl_cfg, log_dir=str(log_dir), device=device)
-    return env, runner, guard
-
-
 def build_ppo_rsl_rl(num_envs: int, log_dir: Path, output_dir: Path):
     from rsl_rl.runners import OnPolicyRunner
 
@@ -115,7 +80,7 @@ def build_ppo_rsl_rl(num_envs: int, log_dir: Path, output_dir: Path):
         cfg = compose(
             config_name="config",
             overrides=[
-                "task=go1_joystick_flat/mujoco",
+                "task=xqrobotwl_walk_flat/mujoco",
                 f"algo.num_envs={num_envs}",
                 "algo.num_steps_per_env=4",
                 "algo.max_iterations=1",
@@ -279,9 +244,6 @@ def main():
         ("PPO obs NaN", build_ppo_rsl_rl, _patch_obs_nan, 2, 2),
         ("PPO reward NaN", build_ppo_rsl_rl, _patch_reward_nan, 2, 2),
         ("PPO ctrl NaN", build_ppo_rsl_rl, _patch_ctrl_nan, 3, 2),
-        ("HIM-PPO obs NaN", build_him_ppo, _patch_obs_nan, 2, 2),
-        ("HIM-PPO reward NaN", build_him_ppo, _patch_reward_nan, 2, 2),
-        ("HIM-PPO ctrl NaN", build_him_ppo, _patch_ctrl_nan, 3, 2),
     ]
 
     results = []

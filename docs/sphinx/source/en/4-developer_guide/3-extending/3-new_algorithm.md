@@ -6,10 +6,10 @@ Algorithm work must preserve the env, config, and runner contracts. Start with
 
 ## Choose The Integration Path
 
-- Synchronous on-policy examples: `scripts/train_rsl_rl.py` and
-  `scripts/train_mlx_ppo.py`.
-- Async on-policy example: `scripts/train_appo.py` with `APPORunner`.
-- Off-policy examples: `scripts/train_offpolicy.py` with SAC, TD3, and
+- Synchronous on-policy examples: `scripts/training/train_rsl_rl.py` and
+  `scripts/training/train_mlx_ppo.py`.
+- Async on-policy example: `scripts/training/train_appo.py` with `APPORunner`.
+- Off-policy examples: `scripts/training/train_offpolicy.py` with SAC, TD3, and
   FlashSAC configs under `conf/offpolicy/`.
 
 ## Implementation Checklist

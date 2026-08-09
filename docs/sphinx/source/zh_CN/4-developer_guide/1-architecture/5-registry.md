@@ -9,8 +9,7 @@ Registry bootstrap 是一个针对环境的显式导入契约。它由
 1. 训练入口调用 `unilab.training.common.ensure_registries()`。
 2. 该 helper 委托给 `unilab.base.registry.ensure_registries()`。
 3. registry 导入已声明的 bootstrap 包：
-   `unilab.envs.locomotion`、`unilab.envs.manipulation` 与
-   `unilab.envs.motion_tracking`。
+   `unilab.envs.locomotion`。
 4. 每个包都暴露 `__unilab_registry_modules__`，即一个包含注册副作用的模块元组。
 5. 被导入的模块通过 `@registry.envcfg(...)` 注册 config，并通过
    `@registry.env(..., sim_backend=...)` 或 `registry.register_env(...)` 注册
@@ -31,7 +30,5 @@ Registry bootstrap 是一个针对环境的显式导入契约。它由
 
 - Bootstrap helper：`src/unilab/base/registry.py`
 - 训练 helper：`src/unilab/training/common.py`
-- 包声明：`src/unilab/envs/locomotion/__init__.py`、
-  `src/unilab/envs/manipulation/__init__.py`、
-  `src/unilab/envs/motion_tracking/__init__.py`
+- 包声明：`src/unilab/envs/locomotion/__init__.py`
 - 测试：`tests/base/test_registry.py`、`tests/utils/test_algo_utils.py`

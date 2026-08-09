@@ -2,7 +2,7 @@
 """Compare the four jump algorithms across speeds.
 
 Usage:
-    uv run python scripts/compare_jump.py \
+    uv run scripts/compare_jump.py \
         --algo "XqRobotWLJumpFlat=logs/.../model_9999.pt" \
         --algo "XqRobotWLJumpSRLFlat=logs/.../model_9999.pt" \
         --algo "XqRobotWLJumpVMC=logs/.../model_9999.pt" \

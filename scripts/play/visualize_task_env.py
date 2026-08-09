@@ -14,9 +14,9 @@ Motrix backend: delegates to `render_play_mode`, whose native renderer lays
 all `num_envs` robots out on a grid using `cfg.render_spacing`.
 
 Usage:
-    uv run scripts/visualize_task_env.py --task Go2JoystickFlat
-    uv run scripts/visualize_task_env.py --task Go2JoystickRough --num_envs 16
-    uv run scripts/visualize_task_env.py --task Go1JoystickFlat --backend motrix --num_envs 4
+    uv run scripts/visualize_task_env.py --task XqRobotWLWalkFlat
+    uv run scripts/visualize_task_env.py --task XqRobotWLWalkRough --num_envs 16
+    uv run scripts/visualize_task_env.py --task XqRobotV2WalkFlat --backend motrix --num_envs 4
 """
 
 # pyright: reportAttributeAccessIssue=false
@@ -96,8 +96,8 @@ def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--task",
         type=str,
-        default="Go2JoystickFlat",
-        help="Registered task name (e.g. Go2JoystickFlat, Go2JoystickRough, Go1JoystickFlat).",
+        default="XqRobotWLWalkFlat",
+        help="Registered task name (e.g. XqRobotWLWalkFlat, XqRobotV2WalkFlat).",
     )
     parser.add_argument(
         "--backend",

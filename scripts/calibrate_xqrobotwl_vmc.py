@@ -20,7 +20,7 @@ bend), so the achievable leg length is roughly [0.15, 0.50] m -- the leg cannot
 fully straighten within the joint range.
 
 Usage:
-    uv run python scripts/calibrate_xqrobotwl_vmc.py
+    uv run scripts/calibrate_xqrobotwl_vmc.py
 """
 
 from __future__ import annotations

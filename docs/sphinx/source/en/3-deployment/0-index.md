@@ -17,7 +17,7 @@ backends, and source frameworks. Each tutorial follows the same shape:
 :link-type: doc
 :class-card: sd-shadow-md
 
-Prepare a trained policy for G1 / Go2 / Allegro bring-up with ONNX exports and
+Prepare a trained policy for XqRobotWL / XqRobotV2 bring-up with ONNX exports and
 deploy-side contract checks.
 :::
 
@@ -50,24 +50,6 @@ Bring tasks over from Isaac Lab / Legged Gym / rsl_rl / skrl.
 :link: 1-sim_to_real/1-overview
 :link-type: doc
 End-to-end pipeline + go/no-go checklist.
-:::
-
-:::{grid-item-card} 🦿 G1 whole-body
-:link: 1-sim_to_real/2-g1_whole_body
-:link-type: doc
-29-DoF humanoid; motion-tracking deploy.
-:::
-
-:::{grid-item-card} 🐕 Go2 locomotion
-:link: 1-sim_to_real/3-go2_locomotion
-:link-type: doc
-Joystick, rough terrain, Go2W wheels.
-:::
-
-:::{grid-item-card} 🤚 Allegro in-hand
-:link: 1-sim_to_real/4-allegro_inhand
-:link-type: doc
-Cube rotation; friction + vision.
 :::
 
 :::{grid-item-card} 📦 ONNX export & runtime

@@ -113,7 +113,7 @@ make setup
 uv run demo dance
 ```
 
-可用的 demo 名称：`teaser`、`dance`、`wallflip`、`wallflip2`、`boxtracking`、`locomani`、`inhandgrasp`。
+可用的 demo 名称：`teaser`。
 完整的命令与参数请参阅 [统一 CLI](https://unilabsim.github.io/UniLab-doc/zh_CN/2-user_guide/1-training/1-cli_reference.html) 页面。
 
 > 中国大陆用户：动作、场景、机器人网格和 demo checkpoint 首次运行时会从 Hugging Face 拉取。如果 `huggingface.co`
@@ -126,40 +126,30 @@ uv run demo dance
 用于训练与评估：
 
 ```bash
-uv run train --algo appo --task go2_joystick_flat --sim motrix
+uv run train --algo ppo --task xqrobotwl_walk_flat --sim mujoco
 
-uv run eval --algo appo --task go2_joystick_flat --sim motrix --load-run -1
+uv run eval --algo ppo --task xqrobotwl_walk_flat --sim mujoco --load-run -1
 
 # Linux / 服务器环境下的 Motrix 无头视频导出
-uv run eval --algo appo --task go2_joystick_flat --sim motrix --load-run -1 --render-mode record
+uv run eval --algo ppo --task xqrobotV2_walk_flat --sim motrix --load-run -1 --render-mode record
 ```
 
-这会路由到 `go2_joystick_flat/motrix` 任务 owner 配置，并保持后端选择显式化。
+这会路由到 `xqrobotwl_walk_flat/mujoco` 任务 owner 配置，并保持后端选择显式化。
 
 在 macOS / MacBook 上，UniLab CLI 在需要时会通过 `mxpython` 路由 Motrix 交互式回放。Motrix 默认使用交互式回放；要导出无头视频请使用 `--render-mode record`，要跳过回放请使用 `--render-mode none`。更细的脚本级命令请参阅 [训练指南](https://unilabsim.github.io/UniLab-doc/zh_CN/2-user_guide/1-training/0-index.html)。
 
 ## 🏃 示例运行
 
 ```bash
-uv run train --algo sac --task g1_walk_flat --sim mujoco
+uv run train --algo ppo --task xqrobotwl_walk_flat --sim mujoco
 ```
 
 ```bash
-uv run train --algo sac --task g1_motion_tracking --sim motrix
+uv run train --algo ppo --task xqrobotwl_walk_rough --sim mujoco
 ```
 
 ```bash
-uv run train --algo appo --task sharpa_inhand --sim mujoco --profile hora
-```
-
-> Grasp cache 首次训练时会自动从 Hugging Face (`unilabsim/unilab-caches`) 下载到 `src/unilab/assets/caches/`，无需手动操作；如需为自定义 scale 重新生成（较慢）：
-> ```bash
-> bash scripts/sharpa_collect_grasps.sh 0.8 0.9 1.0 1.1 1.2 1.3 1.4 1.5
-> ```
-
-```bash
-uv run train --algo ppo --task go2_arm_manip_loco --sim motrix
-uv run eval --algo ppo --task go2_arm_manip_loco --sim motrix --load-run -1
+uv run train --algo ppo --task xqrobotwl_jump_flat --sim mujoco
 ```
 
 使用 `uv run train` 进行训练，使用 `uv run eval` 进行检查点回放，`uv run demo` 用于本地 demo 预设。这些命令可以明确指定算法、任务和后端。

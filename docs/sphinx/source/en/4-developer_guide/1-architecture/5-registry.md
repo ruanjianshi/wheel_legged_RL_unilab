@@ -9,8 +9,7 @@ defined by {doc}`/adr/ADR-0004-registry-bootstrap-contract` and implemented in
 1. Training entrypoints call `unilab.training.common.ensure_registries()`.
 2. That helper delegates to `unilab.base.registry.ensure_registries()`.
 3. The registry imports declared bootstrap packages:
-   `unilab.envs.locomotion`, `unilab.envs.manipulation`, and
-   `unilab.envs.motion_tracking`.
+   `unilab.envs.locomotion`.
 4. Each package exposes `__unilab_registry_modules__`, a tuple of modules that
    contain registration side effects.
 5. Imported modules register configs with `@registry.envcfg(...)` and env
@@ -35,7 +34,5 @@ defined by {doc}`/adr/ADR-0004-registry-bootstrap-contract` and implemented in
 
 - Bootstrap helper: `src/unilab/base/registry.py`
 - Training helper: `src/unilab/training/common.py`
-- Package declarations: `src/unilab/envs/locomotion/__init__.py`,
-  `src/unilab/envs/manipulation/__init__.py`,
-  `src/unilab/envs/motion_tracking/__init__.py`
+- Package declarations: `src/unilab/envs/locomotion/__init__.py`
 - Tests: `tests/base/test_registry.py`, `tests/utils/test_algo_utils.py`

@@ -25,10 +25,8 @@ body:
     attributes:
       label: Area
       options:
-        - G1
-        - Go2
-        - dexterous-hand
-        - WBT
+        - XqRobotWL
+        - XqRobotV2
         - motrix
         - mujoco
         - benchmark

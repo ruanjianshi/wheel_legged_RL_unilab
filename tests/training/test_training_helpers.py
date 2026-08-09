@@ -41,16 +41,11 @@ def _resolve_low_level_playback_flags(kwargs: dict[str, object]) -> dict[str, ob
     return updated
 
 
-def _normalize_overrides(overrides: list[str] | None, *, offpolicy: bool = False) -> list[str]:
+def _normalize_overrides(overrides: list[str] | None) -> list[str]:
     normalized: list[str] = []
-    algo = "sac"
     task_selected = False
 
     for override in overrides or []:
-        if override.startswith("algo="):
-            algo = override.split("=", 1)[1]
-            normalized.append(override)
-            continue
         if override.startswith("task="):
             task_selected = True
             normalized.append(override)
@@ -58,10 +53,7 @@ def _normalize_overrides(overrides: list[str] | None, *, offpolicy: bool = False
         normalized.append(override)
 
     if not task_selected:
-        if offpolicy:
-            normalized.append(f"task={algo}/g1_walk_flat/mujoco")
-        else:
-            normalized.append("task=go1_joystick_flat/mujoco")
+        normalized.append("task=xqrobotwl_walk_flat/mujoco")
     return normalized
 
 
@@ -69,12 +61,6 @@ def _ppo_cfg(overrides: list[str] | None = None):
     GlobalHydra.instance().clear()
     with initialize_config_dir(config_dir=str(_CONF_DIR / "ppo"), version_base="1.3"):
         return compose("config", overrides=_normalize_overrides(overrides))
-
-
-def _offpolicy_cfg(overrides: list[str] | None = None):
-    GlobalHydra.instance().clear()
-    with initialize_config_dir(config_dir=str(_CONF_DIR / "offpolicy"), version_base="1.3"):
-        return compose("config", overrides=_normalize_overrides(overrides, offpolicy=True))
 
 
 def test_get_latest_run_and_checkpoint_support_shared_checkpoint_resolution(tmp_path: Path):
@@ -264,45 +250,19 @@ def test_resolve_task_checkpoint_path_accepts_integer_latest_run(
     assert checkpoint_dir == run_dir
 
 
-def test_backend_adapter_env_cfg_override_for_motrix_sac_g1_walk_flat():
+def test_backend_adapter_builds_task_env_cfg_override():
     """Env cfg override carries reward + env preset fields. Algo is NOT touched."""
-    cfg = _offpolicy_cfg(["task=sac/g1_walk_flat/motrix"])
+    cfg = _ppo_cfg(["task=xqrobotwl_walk_flat/mujoco"])
 
-    adapter = BackendAdapter(cfg, root_dir=_ROOT_DIR, algo_name="sac")
+    adapter = BackendAdapter(cfg, root_dir=_ROOT_DIR, algo_name="ppo")
     env_cfg_override = adapter.build_task_env_cfg_override()
 
     # env_cfg_override has reward + env preset fields
-    assert env_cfg_override["reward_config"]["scales"]["tracking_lin_vel"] == pytest.approx(2.2)
-    assert env_cfg_override["domain_rand"]["randomize_kp"] is False
-    assert env_cfg_override["domain_rand"]["randomize_kd"] is False
+    assert "reward_config" in env_cfg_override
+    assert env_cfg_override["reward_config"]["scales"]["tracking_lin_vel"] == pytest.approx(1.5)
+    assert "domain_rand" in env_cfg_override
     # algo values come straight from YAML compose — no mutation, matches task owner values
-    assert cfg.algo.num_envs == 2048
-    assert cfg.algo.max_iterations == 5000
-
-
-def test_backend_adapter_builds_play_scene_override():
-    cfg = _ppo_cfg(["task=g1_motion_tracking/motrix", "training.play_only=true"])
-    assert cfg.training.play_env_num == 16
-    captured: dict[str, object] = {}
-
-    def _fake_materializer(source_model_file: str, **kwargs) -> str:
-        captured["source_model_file"] = source_model_file
-        captured.update(kwargs)
-        return "/tmp/g1_motion_tracking_play_scene.xml"
-
-    env_cfg_override = BackendAdapter(
-        cfg,
-        root_dir=_ROOT_DIR,
-        algo_name="ppo",
-        scene_materializer=_fake_materializer,
-    ).build_play_env_cfg_override()
-
-    assert cfg.training.play_env_num == 16
-    assert env_cfg_override["render_spacing"] == pytest.approx(2.5)
-    assert env_cfg_override["scene"].model_file == "/tmp/g1_motion_tracking_play_scene.xml"
-    assert captured["ground_texture_file"] == str(
-        _ROOT_DIR / "src/unilab/assets/robots/g1/textures/floor.png"
-    )
+    assert cfg.algo.max_iterations == 10000
 
 
 def test_render_play_mode_uses_env_interactive_contract():

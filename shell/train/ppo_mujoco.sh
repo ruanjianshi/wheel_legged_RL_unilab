@@ -10,7 +10,7 @@ ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT_DIR"
 
 # ---- 训练配置 (按需修改) ----
-TASK="go2w_joystick_flat/mujoco"   # 替换为你的 task
+TASK="xqrobotwl_walk_flat/mujoco"   # 替换为你的 task
 NUM_ENVS=4096
 MAX_ITERATIONS=5000
 # ------------------------------

@@ -1,7 +1,7 @@
 # MLX PPO
 
 MLX PPO uses the PPO task-owner tree but swaps the training runtime to the MLX
-implementation. The entry script is `scripts/train_mlx_ppo.py`, the config is
+implementation. The entry script is `scripts/training/train_mlx_ppo.py`, the config is
 `conf/ppo/config_mlx.yaml`, and the implementation lives under
 `src/unilab/algos/mlx/ppo/`.
 

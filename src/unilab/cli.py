@@ -77,7 +77,7 @@ def _override_key(override: str) -> str:
 def _check_task_name(task: str) -> None:
     if TASK_NAME_PATTERN.fullmatch(task) is None:
         raise SystemExit(
-            "--task must be a registry task name such as `go1_joystick`; "
+            "--task must be a registry task name such as `XqRobotWLWalkFlat`; "
             "do not include slashes, dots, or path separators."
         )
 

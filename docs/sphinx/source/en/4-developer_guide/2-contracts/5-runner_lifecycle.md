@@ -17,12 +17,12 @@ The training scripts follow the same high-level sequence:
 
 ## Runtime-Specific Owners
 
-- `scripts/train_rsl_rl.py` uses `RslRlVecEnvWrapper` and RSL-RL's
+- `scripts/training/train_rsl_rl.py` uses `RslRlVecEnvWrapper` and RSL-RL's
   `OnPolicyRunner`.
-- `scripts/train_mlx_ppo.py` uses the MLX PPO trainer path.
-- `scripts/train_appo.py` uses `APPORunner`, `RolloutRingBuffer`, and
+- `scripts/training/train_mlx_ppo.py` uses the MLX PPO trainer path.
+- `scripts/training/train_appo.py` uses `APPORunner`, `RolloutRingBuffer`, and
   `SharedWeightSync`.
-- `scripts/train_offpolicy.py` uses off-policy runners with `ReplayBuffer` and
+- `scripts/training/train_offpolicy.py` uses off-policy runners with `ReplayBuffer` and
   `SharedWeightSync`.
 - `AsyncRunner` owns collector process lifecycle and shared-resource cleanup for
   async runners.

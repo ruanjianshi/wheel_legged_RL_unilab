@@ -348,7 +348,7 @@ def _print_manual_recipe():
         To exercise NaN detection end-to-end inside a collector subprocess:
 
         1. Pick a task env file, e.g.
-           src/unilab/envs/locomotion/go1/go1_joystick.py
+           src/unilab/envs/locomotion/xqrobotwl/joystick.py
         2. Inside the env's update_state or apply_action, add a temporary
            one-shot NaN raise guarded by an env-counter, for example:
 
@@ -356,18 +356,17 @@ def _print_manual_recipe():
                    state.reward[0] = float("nan")
                    self._nan_done = True
 
-        3. Run a short training, e.g. (APPO):
-               python scripts/train_appo.py task=go1_joystick_flat/mujoco \\
+        3. Run a short training, e.g. (PPO):
+               python scripts/training/train_rsl_rl.py task=xqrobotwl_walk_flat/mujoco \\
                  algo.num_envs=8 algo.num_steps_per_env=4 \\
-                 algo.train_for_env_steps=64 \\
+                 algo.max_iterations=64 \\
                  training.nan_guard.enabled=true \\
                  training.nan_guard.output_dir=/tmp/unilab/nan_dumps
 
         4. Verify a dump file appears under the output_dir.
         5. Revert the env edit.
 
-        Repeat with scripts/train_offpolicy.py to exercise SAC/TD3/FlashSAC
-        (set algo=sac / algo=td3 / algo=flashsac via Hydra override).
+        Repeat with another task config to exercise a different env.
     """).strip()
     )
     print()

@@ -27,7 +27,7 @@ Choose MuJoCo or Motrix from owner YAMLs and backend capability evidence.
 :::{grid-item-card} Tasks
 :link: 4-tasks/0-index
 :link-type: doc
-Find locomotion, motion tracking, manipulation, and mobile manipulation tasks.
+Find locomotion tasks for XqRobotWL and XqRobotV2.
 :::
 
 :::{grid-item-card} Domain Randomization
@@ -40,12 +40,6 @@ Configure reset, init, and interval randomization through task owner configs.
 :link: 7-tooling/0-index
 :link-type: doc
 Export ONNX, inspect NaNs, send W&B logs, and export scenes.
-:::
-
-:::{grid-item-card} Manipulation Notes
-:link: 8-manipulation/0-index
-:link-type: doc
-Task-specific Allegro, Sharpa, and Go2+Airbot notes.
 :::
 
 ::::
@@ -61,5 +55,4 @@ Task-specific Allegro, Sharpa, and Go2+Airbot notes.
 5-domain_randomization/0-index
 6-terrain/0-index
 7-tooling/0-index
-8-manipulation/0-index
 ```

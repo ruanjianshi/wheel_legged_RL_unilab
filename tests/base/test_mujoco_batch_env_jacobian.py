@@ -26,7 +26,7 @@ from unilab.assets import ASSETS_ROOT_PATH
 
 mj: Any = mujoco
 
-GO2_SITE_NAME = "imu"
+XQ_SITE_NAME = "imu_in_base"
 
 
 @dataclass
@@ -69,9 +69,9 @@ def _reference_site_jacobian(
 @pytest.fixture
 def pool_ctx() -> Iterator[_PoolCtx]:
     rng = np.random.default_rng(0)
-    model = mj.MjModel.from_xml_path(_xml("go2"))
-    site_id = mj.mj_name2id(model, int(mj.mjtObj.mjOBJ_SITE), GO2_SITE_NAME)
-    assert site_id >= 0, f"go2 model is expected to expose site '{GO2_SITE_NAME}'"
+    model = mj.MjModel.from_xml_path(_xml("xqrobotwl"))
+    site_id = mj.mj_name2id(model, int(mj.mjtObj.mjOBJ_SITE), XQ_SITE_NAME)
+    assert site_id >= 0, f"xqrobotwl model is expected to expose site '{XQ_SITE_NAME}'"
     nbatch = 3
     pool = BatchEnvPool(model, nbatch=nbatch, nthread=2)
     try:

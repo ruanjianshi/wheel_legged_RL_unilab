@@ -53,6 +53,9 @@ DOC_PATTERNS = [
 
 SKIP_PATTERNS = [
     r"(^|/)\.git(/|$)",
+    # External literature/reference notes (e.g. BoltLocomotion/CleanRL) document
+    # other projects and reference their own paths — not repo-owned docs.
+    r"(^|/)docs/references(/|$)",
     r"(^|/)\.venv(/|$)",
     r"(^|/)__pycache__(/|$)",
     r"(^|/)\.pytest_cache(/|$)",
@@ -142,6 +145,9 @@ def check_file_paths(content: str, doc_path: Path, root: Path) -> list[str]:
                 continue
             if "::" in rel_path:
                 rel_path = rel_path.split("::", 1)[0]
+            # File+line citations like `src/foo.py:21-50` reference the file.
+            if re.search(r":\d+(-\d+)?$", rel_path):
+                rel_path = re.sub(r":\d+(-\d+)?$", "", rel_path)
             if not (root / rel_path).exists():
                 errors.append(f"{doc_path}: Path not found: {rel_path}")
 
@@ -159,20 +165,28 @@ def check_markdown_links(content: str, doc_path: Path, root: Path) -> list[str]:
 
     link_pattern = r"\[([^\]]+)\]\(([^)]+)\)"
 
-    for match in re.finditer(link_pattern, content):
-        link_text = match.group(1)
-        link_target = match.group(2)
-        if link_target.startswith(("http://", "https://", "#", "mailto:")):
+    # Skip code fences: `[name](ctx)` inside Python samples is not a markdown link.
+    in_fence = False
+    for line in content.splitlines():
+        if re.match(r"^\s*```", line):
+            in_fence = not in_fence
             continue
+        if in_fence:
+            continue
+        for match in re.finditer(link_pattern, line):
+            link_text = match.group(1)
+            link_target = match.group(2)
+            if link_target.startswith(("http://", "https://", "#", "mailto:")):
+                continue
 
-        if link_target.startswith("/"):
-            full_path = root / link_target.lstrip("/")
-        else:
-            full_path = doc_path.parent / link_target
+            if link_target.startswith("/"):
+                full_path = root / link_target.lstrip("/")
+            else:
+                full_path = doc_path.parent / link_target
 
-        full_path = Path(str(full_path).split("#")[0])
-        if not full_path.exists():
-            errors.append(f"{doc_path}: Link not found: {link_target} (text: '{link_text}')")
+            full_path = Path(str(full_path).split("#")[0])
+            if not full_path.exists():
+                errors.append(f"{doc_path}: Link not found: {link_target} (text: '{link_text}')")
 
     return errors
 

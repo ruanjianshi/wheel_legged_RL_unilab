@@ -1,7 +1,7 @@
 # MLX PPO
 
 MLX PPO 使用 PPO 的 task-owner 树，但将训练运行时替换为 MLX 实现。入口脚本是
-`scripts/train_mlx_ppo.py`，配置是 `conf/ppo/config_mlx.yaml`，实现位于
+`scripts/training/train_mlx_ppo.py`，配置是 `conf/ppo/config_mlx.yaml`，实现位于
 `src/unilab/algos/mlx/ppo/` 下。
 
 ## 快速开始

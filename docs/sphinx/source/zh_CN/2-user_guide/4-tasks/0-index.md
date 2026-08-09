@@ -9,25 +9,7 @@
 :::{grid-item-card} 运动控制
 :link: 1-locomotion
 :link-type: doc
-Go1、Go2、Go2W 和 G1 行走 owner。
-:::
-
-:::{grid-item-card} 动作追踪
-:link: 2-motion_tracking
-:link-type: doc
-G1 动作追踪、翻转、攀爬、墙面翻转和箱体追踪。
-:::
-
-:::{grid-item-card} 操作
-:link: 3-manipulation
-:link-type: doc
-Allegro 和 Sharpa 手内旋转与抓取生成。
-:::
-
-:::{grid-item-card} 移动操作
-:link: 4-manip_loco
-:link-type: doc
-Go2 加 Airbot 机械臂的运动控制与操作。
+XqRobotWL 和 XqRobotV2 行走、粗糙地形、跳跃与足尖行走 owner。
 :::
 
 ::::
@@ -36,7 +18,4 @@ Go2 加 Airbot 机械臂的运动控制与操作。
 :hidden:
 
 1-locomotion
-2-motion_tracking
-3-manipulation
-4-manip_loco
 ```

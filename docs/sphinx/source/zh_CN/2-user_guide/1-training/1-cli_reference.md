@@ -7,12 +7,12 @@ Hydra 组合。
 
 | 目标 | 命令形式 | 路由到的脚本 |
 | --- | --- | --- |
-| PPO | `uv run train --algo ppo --task <task> --sim <backend>` | `scripts/train_rsl_rl.py` |
-| MLX PPO | `uv run train --algo mlx_ppo --task <task> --sim <backend>` | `scripts/train_mlx_ppo.py` |
-| APPO | `uv run train --algo appo --task <task> --sim <backend>` | `scripts/train_appo.py` |
-| SAC | `uv run train --algo sac --task <task> --sim <backend>` | `scripts/train_offpolicy.py` |
-| TD3 | `uv run train --algo td3 --task <task> --sim <backend>` | `scripts/train_offpolicy.py` |
-| FlashSAC | `uv run train --algo flashsac --task <task> --sim <backend>` | `scripts/train_offpolicy.py` |
+| PPO | `uv run train --algo ppo --task <task> --sim <backend>` | `scripts/training/train_rsl_rl.py` |
+| MLX PPO | `uv run train --algo mlx_ppo --task <task> --sim <backend>` | `scripts/training/train_mlx_ppo.py` |
+| APPO | `uv run train --algo appo --task <task> --sim <backend>` | `scripts/training/train_appo.py` |
+| SAC | `uv run train --algo sac --task <task> --sim <backend>` | `scripts/training/train_offpolicy.py` |
+| TD3 | `uv run train --algo td3 --task <task> --sim <backend>` | `scripts/training/train_offpolicy.py` |
+| FlashSAC | `uv run train --algo flashsac --task <task> --sim <backend>` | `scripts/training/train_offpolicy.py` |
 
 示例：
 

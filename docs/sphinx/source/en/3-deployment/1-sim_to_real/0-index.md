@@ -1,8 +1,7 @@
 # Sim-to-Real
 
 Prepare a trained UniLab policy for hardware bring-up. Start with the overview,
-then move through export, randomization, safety, latency, and robot-specific
-notes.
+then move through export, randomization, safety, latency, and troubleshooting.
 
 ::::{grid} 1 1 2 2
 :gutter: 3
@@ -43,33 +42,12 @@ Training-side latency knobs and deploy-side measurement checks.
 Symptom, cause, and fix notes for hardware bring-up.
 :::
 
-:::{grid-item-card} G1 whole-body
-:link: 2-g1_whole_body
-:link-type: doc
-Motion-tracking deployment notes for the G1 path.
-:::
-
-:::{grid-item-card} Go2 locomotion
-:link: 3-go2_locomotion
-:link-type: doc
-Joystick, rough terrain, and Go2W deployment notes.
-:::
-
-:::{grid-item-card} Allegro in-hand
-:link: 4-allegro_inhand
-:link-type: doc
-In-hand manipulation deployment checks.
-:::
-
 ::::
 
 ```{toctree}
 :hidden:
 
 1-overview
-2-g1_whole_body
-3-go2_locomotion
-4-allegro_inhand
 5-onnx_runtime
 6-domain_randomization
 7-safety_layers

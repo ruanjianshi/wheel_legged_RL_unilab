@@ -27,9 +27,9 @@ class SceneCfg:
 ```yaml
 env:
   scene:
-    model_file: src/unilab/assets/robots/go2/go2.xml
+    model_file: src/unilab/assets/robots/xqrobotwl/xqrobotwl.xml
     fragment_files:
-      - src/unilab/assets/robots/go2/locomotion_task.xml
+      - src/unilab/assets/robots/xqrobotwl/locomotion_task.xml
     terrain:
       hfield_name: terrain_hfield
       geom_name: floor
@@ -98,7 +98,7 @@ materializer。
 
 当前面向用户的程序化地形路径是 Go2 崎岖地形：
 
-- Env owner：`src/unilab/envs/locomotion/go2/rough.py`
+- Env owner：`src/unilab/envs/locomotion/xqrobotwl/rough.py`
 - 地形生成器：`src/unilab/terrains/terrain_generator.py`
 - MuJoCo materializer：`src/unilab/base/backend/mujoco/xml.py`
 - Motrix materializer：`src/unilab/base/backend/motrix/scene.py`

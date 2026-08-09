@@ -9,7 +9,7 @@ ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT_DIR"
 
 # ---- 配置 ----
-TASK="go2w_joystick_flat/mujoco"
+TASK="xqrobotwl_walk_flat/mujoco"
 LOAD_RUN="${1:-}"
 # --------------
 

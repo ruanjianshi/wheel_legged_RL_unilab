@@ -6,64 +6,46 @@ import numpy as np
 import pytest
 
 
-def test_reward_injection_in_training():
-    """Test reward config is properly injected during training."""
-    from hydra import compose, initialize
-    from scripts.train_offpolicy import build_runner
-
-    with initialize(config_path="../../conf/offpolicy", version_base="1.3"):
-        cfg = compose(
-            config_name="config",
-            overrides=[
-                "task=sac/g1_walk_flat/mujoco",
-                "algo.max_iterations=1",
-                "algo.num_envs=64",
-                "training.no_play=true",
-                "training.task_name=G1WalkFlat",  # Ensure correct task
-            ],
-        )
-
-        runner = build_runner("sac", cfg)
-
-        # Verify runner was created with override
-        assert runner.env_cfg_override is not None
-        assert "reward_config" in runner.env_cfg_override
-
-        # Verify reward config dict has correct values
-        reward_dict = runner.env_cfg_override["reward_config"]
-        assert reward_dict["scales"]["tracking_lin_vel"] == 2.0
-        assert reward_dict["scales"]["alive"] == 10.0
-
-        runner.close()
-
-
 def test_reward_override_propagation():
     """Test reward override propagates through multiprocess collector."""
     from unilab.base import registry
     from unilab.base.registry import ensure_registries
-    from unilab.envs.locomotion.go1.joystick import RewardConfig
+    from unilab.envs.locomotion.xqrobotwl.joystick import XqRobotWLRewardConfig
 
     ensure_registries()
 
     # Create custom reward config
-    custom_config = RewardConfig(
+    custom_config = XqRobotWLRewardConfig(
         scales={
             "tracking_lin_vel": 5.0,
             "tracking_ang_vel": 0.5,
             "lin_vel_z": -10.0,
         },
         tracking_sigma=0.5,
-        base_height_target=0.4,
+        base_height_target=0.55,
     )
 
     # Create env with override
     env = cast(
         Any,
         registry.make(
-            "Go1JoystickFlat",
+            "XqRobotWLWalkFlat",
             num_envs=4,
             sim_backend="mujoco",
-            env_cfg_override={"reward_config": custom_config},
+            env_cfg_override={
+                "reward_config": custom_config,
+                "domain_rand": {
+                    "randomize_base_mass": False,
+                    "randomize_ground_friction": False,
+                    "randomize_kp": False,
+                    "randomize_kd": False,
+                    "randomize_init_yaw": False,
+                },
+                "commands": {
+                    "vel_limit": [[-0.6, -0.3, -1.0, -0.1, 0.45], [0.6, 0.3, 1.0, 0.1, 0.85]],
+                    "resampling_time": 3.0,
+                },
+            },
         ),
     )
 
@@ -95,7 +77,7 @@ def test_backward_compatibility_no_reward_config():
     # Should fail without reward_config
     with pytest.raises(ValueError, match="reward_config must be provided"):
         registry.make(
-            "Go1JoystickFlat",
+            "XqRobotWLWalkFlat",
             num_envs=2,
             sim_backend="mujoco",
         )
@@ -105,25 +87,25 @@ def test_zero_scale_skips_computation():
     """Test that reward functions with scale=0 are skipped."""
     from unilab.base import registry
     from unilab.base.registry import ensure_registries
-    from unilab.envs.locomotion.go1.joystick import RewardConfig
+    from unilab.envs.locomotion.xqrobotwl.joystick import XqRobotWLRewardConfig
 
     ensure_registries()
 
     # Set all scales to 0 except one
-    custom_config = RewardConfig(
+    custom_config = XqRobotWLRewardConfig(
         scales={
             "tracking_lin_vel": 1.0,
             "tracking_ang_vel": 0.0,  # Should be skipped
             "lin_vel_z": 0.0,  # Should be skipped
         },
-        tracking_sigma=0.25,
-        base_height_target=0.3,
+        tracking_sigma=0.3,
+        base_height_target=0.55,
     )
 
     env = cast(
         Any,
         registry.make(
-            "Go1JoystickFlat",
+            "XqRobotWLWalkFlat",
             num_envs=2,
             sim_backend="mujoco",
             env_cfg_override={"reward_config": custom_config},

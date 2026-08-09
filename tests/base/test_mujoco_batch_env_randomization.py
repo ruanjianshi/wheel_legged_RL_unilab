@@ -53,7 +53,7 @@ def _make_initial_state(model: Any) -> np.ndarray:
 
 @pytest.fixture
 def pool_ctx() -> Iterator[_PoolCtx]:
-    model = mj.MjModel.from_xml_path(_xml("go2"))
+    model = mj.MjModel.from_xml_path(_xml("xqrobotwl"))
     pool = BatchEnvPool(model, nbatch=2, nthread=1)
     try:
         yield _PoolCtx(model=model, pool=pool, initial_state=_make_initial_state(model))

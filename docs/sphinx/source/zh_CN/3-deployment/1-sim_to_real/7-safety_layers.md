@@ -40,12 +40,12 @@ flowchart LR
     OP -.->|E-stop| D
 ```
 
-把硬实时的安全检查放在部署控制器中，而不是训练脚本里。仓库的 G1 辅助路径导出部署
+把硬实时的安全检查放在部署控制器中，而不是训练脚本里。仓库的部署辅助路径导出部署
 配置并运行一个 MuJoCo 原型；它并不实现生产级的电机驱动器安全回路。
 
 ## 策略假定你已配置的内容
 
-G1 部署辅助工具会把这些字段导出到 `deploy_config.yaml`：
+部署辅助工具会把这些字段导出到 `deploy_config.yaml`：
 
 ```yaml
 action_scale: 2.0
@@ -57,7 +57,7 @@ kp: [...]
 kd: [...]
 ```
 
-`scripts/deploy/sim_prototype.py` 消费同样的字段，并应用
+`scripts/deploy/`（如果存在）消费同样的字段，并应用
 `action * action_scale + default_angles`、关节钳制与 EMA 平滑。硬件控制器应当消费
 生成的配置，而不是手动复制关节范围或增益。
 
@@ -74,4 +74,3 @@ kd: [...]
 
 - {doc}`5-onnx_runtime`
 - {doc}`9-troubleshooting`
-- {doc}`2-g1_whole_body`

@@ -43,13 +43,13 @@ flowchart LR
 ```
 
 Keep the hard real-time safety checks in the deploy controller, not in the
-training script. The repository's G1 helper path exports deploy config and runs
+training script. The deployment helper path exports deploy config and runs
 a MuJoCo prototype; it does not implement a production motor-driver safety
 loop.
 
 ## What the policy assumes you've configured
 
-The G1 deployment helper exports these fields into `deploy_config.yaml`:
+The deployment helper exports these fields into `deploy_config.yaml`:
 
 ```yaml
 action_scale: 2.0
@@ -61,7 +61,7 @@ kp: [...]
 kd: [...]
 ```
 
-`scripts/deploy/sim_prototype.py` consumes the same fields and applies
+`scripts/deploy/` (if present) consumes the same fields and applies
 `action * action_scale + default_angles`, joint clipping, and EMA smoothing.
 Hardware controllers should consume generated config rather than hand-copying
 joint ranges or gains.
@@ -81,4 +81,3 @@ isolation:
 
 - {doc}`5-onnx_runtime`
 - {doc}`9-troubleshooting`
-- {doc}`2-g1_whole_body`

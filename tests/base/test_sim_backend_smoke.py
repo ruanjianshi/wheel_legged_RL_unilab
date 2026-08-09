@@ -24,14 +24,11 @@ def _xml(robot: str, scene: str = "scene_flat.xml") -> str:
 
 
 BASIC_ROBOTS = [
-    pytest.param(dict(model_file=_xml("g1"), base_name="pelvis"), id="g1"),
-    pytest.param(dict(model_file=_xml("go1"), base_name="trunk"), id="go1"),
-    pytest.param(dict(model_file=_xml("go2"), base_name="base"), id="go2"),
+    pytest.param(dict(model_file=_xml("xqrobotwl"), base_name="base_link"), id="xqrobotwl"),
+    pytest.param(dict(model_file=_xml("xqrobotV2"), base_name="base_link"), id="xqrobotV2"),
 ]
 
-_G1 = dict(model_file=_xml("g1"), base_name="pelvis")
-_ALLEGRO = dict(model_file=_xml("allegro_hand", "scene.xml"), base_name="palm")
-_SHARPA = dict(model_file=_xml("sharpa_wave", "scene.xml"), base_name="right_hand_C_MC")
+_G1 = dict(model_file=_xml("xqrobotwl"), base_name="base_link")
 
 NUM_ENVS = 2
 SIM_DT = 0.005
@@ -108,27 +105,6 @@ def test_mujoco_backend_smoke_contract(robot):
     assert caps.supports_interval_push
 
 
-def test_mujoco_backend_fixed_base_dof_views_do_not_skip_first_joint():
-    mujoco = _mujoco_module()
-
-    from unilab.base.backend.mujoco.backend import MuJoCoBackend
-
-    bkd = MuJoCoBackend(
-        SceneCfg(model_file=_ALLEGRO["model_file"]),
-        NUM_ENVS,
-        SIM_DT,
-        base_name=_ALLEGRO["base_name"],
-    )
-    assert int(bkd.model.jnt_type[0]) != int(mujoco.mjtJoint.mjJNT_FREE)
-    _shape(bkd.get_dof_pos(), NUM_ENVS, bkd.model.nq)
-    _shape(bkd.get_dof_vel(), NUM_ENVS, bkd.model.nv)
-    _shape(bkd.get_base_pos(), NUM_ENVS, 3)
-    _shape(bkd.get_base_quat(), NUM_ENVS, 4)
-    np.testing.assert_allclose(bkd.get_base_lin_vel(), 0.0, atol=1e-8)
-    np.testing.assert_allclose(bkd.get_base_ang_vel(), 0.0, atol=1e-8)
-    _unit_quat(bkd.get_base_quat(), "MuJoCo fixed-base smoke")
-
-
 @pytest.mark.parametrize("robot", BASIC_ROBOTS)
 def test_motrix_backend_smoke_contract(robot):
     pytest.importorskip("motrixsim")
@@ -170,29 +146,11 @@ def test_motrix_backend_smoke_contract(robot):
     assert play_caps.supports_native_video_capture
 
 
-def test_motrix_backend_fixed_base_base_views_are_available():
-    pytest.importorskip("motrixsim")
-
-    from unilab.base.backend.motrix.backend import MotrixBackend
-
-    bkd = MotrixBackend(
-        SceneCfg(model_file=_ALLEGRO["model_file"]),
-        NUM_ENVS,
-        SIM_DT,
-        base_name=_ALLEGRO["base_name"],
-    )
-    _shape(bkd.get_base_pos(), NUM_ENVS, 3)
-    _shape(bkd.get_base_quat(), NUM_ENVS, 4)
-    np.testing.assert_allclose(bkd.get_base_lin_vel(), 0.0, atol=1e-8)
-    np.testing.assert_allclose(bkd.get_base_ang_vel(), 0.0, atol=1e-8)
-    _unit_quat(bkd.get_base_quat(), "Motrix fixed-base smoke")
-
-
 @pytest.mark.parametrize(
     "robot",
     [
-        pytest.param(dict(model_file=_xml("g1"), base_name="pelvis"), id="g1"),
-        pytest.param(dict(model_file=_xml("go2"), base_name="base"), id="go2"),
+        pytest.param(dict(model_file=_xml("xqrobotwl"), base_name="base_link"), id="xqrobotwl"),
+        pytest.param(dict(model_file=_xml("xqrobotV2"), base_name="base_link"), id="xqrobotV2"),
     ],
 )
 def test_cross_backend_base_pose_smoke(robot):
@@ -241,7 +199,7 @@ def test_cross_backend_model_properties_smoke():
     assert mj.num_dof_vel == mx.num_dof_vel
     assert mj.get_actuator_ctrl_range().shape == mx.get_actuator_ctrl_range().shape
 
-    body_names = ["pelvis", "torso_link"]
+    body_names = ["base_link", "left_link_1"]
     expected = np.asarray(get_named_body_ids(_G1["model_file"], body_names), dtype=np.int32)
     np.testing.assert_array_equal(mj.get_motion_body_ids(body_names), expected)
     np.testing.assert_array_equal(mx.get_motion_body_ids(body_names), expected)
@@ -253,18 +211,18 @@ def test_backend_batch_sensor_data_matches_individual_sensors(backend_type):
         pytest.importorskip("motrixsim")
 
     from unilab.base.backend import create_backend
-    from unilab.envs.locomotion.go2w.base import JOINT_SENSOR_PREFIXES
+    from unilab.envs.locomotion.xqrobotwl.base import JOINT_PREFIXES
 
     bkd = create_backend(
         backend_type,
-        SceneCfg(model_file=_xml("go2w", "scene_flat.xml")),
+        SceneCfg(model_file=_xml("xqrobotwl", "scene_flat.xml")),
         NUM_ENVS,
         SIM_DT,
         base_name="base_link",
     )
     bkd.materialize()
 
-    names = tuple(f"{prefix}_pos" for prefix in JOINT_SENSOR_PREFIXES[:4])
+    names = tuple(f"{prefix}_pos" for prefix in JOINT_PREFIXES[:4])
     expected = np.concatenate(
         [np.asarray(bkd.get_sensor_data(name)).reshape(NUM_ENVS, -1) for name in names],
         axis=1,
@@ -296,14 +254,14 @@ def test_mujoco_metadata_getters_return_stable_copies():
     from unilab.base.backend.mujoco.backend import MuJoCoBackend
 
     bkd = MuJoCoBackend(
-        SceneCfg(model_file=_SHARPA["model_file"]), NUM_ENVS, SIM_DT, base_name=_SHARPA["base_name"]
+        SceneCfg(model_file=_G1["model_file"]), NUM_ENVS, SIM_DT, base_name=_G1["base_name"]
     )
     model = bkd.model
-    object_geom_id = int(mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, "object"))
-    base_body_id = int(mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, _SHARPA["base_name"]))
+    object_geom_id = int(mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, "base_link_collision"))
+    base_body_id = int(mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, _G1["base_name"]))
 
-    assert bkd.get_geom_id("object") == object_geom_id
-    assert bkd.get_body_id(_SHARPA["base_name"]) == base_body_id
+    assert bkd.get_geom_id("base_link_collision") == object_geom_id
+    assert bkd.get_body_id(_G1["base_name"]) == base_body_id
     with pytest.raises(ValueError, match="Geom 'missing'"):
         bkd.get_geom_id("missing")
     with pytest.raises(ValueError, match="Body 'missing'"):
@@ -315,7 +273,7 @@ def test_mujoco_metadata_getters_return_stable_copies():
     default_qpos[0] += 1.0
     assert not np.isclose(default_qpos[0], model.qpos0[0])
 
-    geom_size = bkd.get_geom_size("object")
+    geom_size = bkd.get_geom_size("base_link_collision")
     _shape(geom_size, 3)
     np.testing.assert_allclose(geom_size, model.geom_size[object_geom_id])
     geom_size[0] += 1.0
@@ -335,7 +293,7 @@ def test_mujoco_metadata_getters_return_stable_copies():
 
     geom_names = bkd.get_geom_names()
     assert len(geom_names) == model.ngeom
-    assert geom_names[object_geom_id] == "object"
+    assert geom_names[object_geom_id] == "base_link_collision"
     assert base_body_id in set(int(body_id) for body_id in bkd.get_body_subtree_ids(base_body_id))
 
     geom_friction = bkd.get_geom_friction()
@@ -381,7 +339,7 @@ def test_mujoco_copy_body_state_matches_split_queries():
     )
     bkd.materialize()
     bkd.step(np.zeros((NUM_ENVS, bkd.model.nu)), nsteps=1)
-    body_ids = bkd.get_body_ids(["pelvis", "torso_link"])
+    body_ids = bkd.get_body_ids(["base_link", "left_link_1"])
 
     expected_pos = bkd.get_body_pos_w(body_ids)
     expected_quat = bkd.get_body_quat_w(body_ids)
@@ -429,7 +387,7 @@ def test_motrix_copy_body_state_matches_split_queries():
         base_name=_G1["base_name"],
         add_body_sensors=True,
     )
-    body_names = ["pelvis", "torso_link"]
+    body_names = ["base_link", "left_link_1"]
     body_ids = np.asarray([bkd.model.get_link_index(name) for name in body_names], dtype=np.int32)
 
     expected_pos = bkd.get_body_pos_w(body_ids)
@@ -451,8 +409,8 @@ def test_motrix_copy_body_state_matches_split_queries():
 
     row_ids = np.array([1, 0, 1], dtype=np.int32)
     np.testing.assert_allclose(
-        bkd.get_sensor_data_rows("pelvis_local_linvel", row_ids),
-        bkd.get_sensor_data("pelvis_local_linvel")[row_ids],
+        bkd.get_sensor_data_rows("base_link_local_linvel", row_ids),
+        bkd.get_sensor_data("base_link_local_linvel")[row_ids],
     )
 
 
@@ -462,7 +420,7 @@ def test_motrix_default_qpos_uses_mujoco_quaternion_convention():
     from unilab.base.backend.motrix.backend import MotrixBackend
 
     bkd = MotrixBackend(
-        SceneCfg(model_file=_SHARPA["model_file"]), NUM_ENVS, SIM_DT, base_name=_SHARPA["base_name"]
+        SceneCfg(model_file=_G1["model_file"]), NUM_ENVS, SIM_DT, base_name=_G1["base_name"]
     )
     qpos = bkd.get_default_qpos()
     assert qpos.ndim == 1
@@ -481,9 +439,9 @@ def test_motrix_default_qpos_uses_mujoco_quaternion_convention():
         np.broadcast_to(qpos, (NUM_ENVS, qpos.shape[0])).copy(),
         np.zeros((NUM_ENVS, bkd.model.num_dof_vel), dtype=np.float64),
     )
-    object_body_id = bkd.get_body_id("object")
+    base_body_id = bkd.get_body_id("base_link")
     np.testing.assert_allclose(
-        np.abs(bkd.get_body_quat_w(np.asarray([object_body_id], dtype=np.int32))[:, 0, :]),
+        np.abs(bkd.get_body_quat_w(np.asarray([base_body_id], dtype=np.int32))[:, 0, :]),
         np.broadcast_to([1.0, 0.0, 0.0, 0.0], (NUM_ENVS, 4)),
         atol=1.0e-6,
     )

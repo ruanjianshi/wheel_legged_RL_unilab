@@ -37,6 +37,12 @@ XqRobotWL 跳跃训练 — PPO 算法 + phase-gated 奖励 / Wheeled-SRL。
 | 29 | 论文图重出: 训练曲线 0.8 EMA 平滑 + 参考风格高度曲线 (2x2 + FSM 相位) | [→](2026-08-09/29_paper_figs_smooth_single_view.md) |
 | 30 | 论文图 nature/dataviz 规范重出: 新增图4.1 训练指标 (2x3) + 全图统一风格 | [→](2026-08-09/30_paper_figs_nature_style.md) |
 
+## 2026-08-10
+
+| 序号 | 标题 | 文件 |
+|------|------|------|
+| 31 | 仓库瘦身: 移除除 xqrobotwl/xqrobotV2 外所有机器人 | [→](2026-08-10/31_strip_repo_to_two_robots.md) |
+
 ## 2026-07-25
 
 | 序号 | 标题 | 文件 |
