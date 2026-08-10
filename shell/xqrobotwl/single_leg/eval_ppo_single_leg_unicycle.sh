@@ -9,7 +9,7 @@
 #   # 指定 checkpoint (推荐: 最佳 model_3000/4000 满 8s, model_4999 已退化):
 #   bash shell/xqrobotwl/eval_ppo_single_leg_unicycle.sh <run_id> --keyboard algo.checkpoint=3000
 # ============================================================
-ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
 cd "$ROOT_DIR"
 set -e
 
