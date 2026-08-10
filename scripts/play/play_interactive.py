@@ -1043,6 +1043,49 @@ def _print_keyboard_legend(args) -> None:
         print("  NOTE: action_mode is not 'policy'; commands will not drive the robot.")
 
 
+def _apply_viewer_forces(env: Any, mj_model: Any, viz_data: Any) -> None:
+    """Feed forces applied in the MuJoCo viewer back into the live simulation.
+
+    The native viewer writes Ctrl+drag forces into ``viz_data.xfrc_applied``
+    (shape ``(nbody, 6)`` = ``[fx fy fz tx ty tz]`` per body). ``viz_data``
+    is only a display mirror of the env (the env is stepped by
+    ``playback_session.advance``), so without this the applied force never
+    reaches the real robot motion.
+
+    Bodies are matched by NAME because the viewer model (resolved visual /
+    playback model) and the env physics model can have different body ids.
+    Forces are staged via the backend ``apply_body_wrench`` for the next step.
+    """
+    xfrc = getattr(viz_data, "xfrc_applied", None)
+    if xfrc is None or xfrc.shape[0] == 0 or not np.any(xfrc):
+        return
+    backend = getattr(env, "_backend", None)
+    backend_model = getattr(backend, "_model", None)
+    apply_wrench = getattr(backend, "apply_body_wrench", None)
+    if backend_model is None or apply_wrench is None:
+        return
+    body_ids: list[int] = []
+    wrenches: list[np.ndarray] = []
+    for bid in range(1, min(mj_model.nbody, xfrc.shape[0])):  # skip world body 0
+        wrench = np.asarray(xfrc[bid], dtype=np.float64)
+        if not np.any(wrench):
+            continue
+        name = mujoco.mj_id2name(mj_model, mujoco.mjtObj.mjOBJ_BODY, bid)
+        if not name:
+            continue
+        env_bid = mujoco.mj_name2id(backend_model, mujoco.mjtObj.mjOBJ_BODY, name)
+        if env_bid < 0:
+            continue
+        body_ids.append(int(env_bid))
+        wrenches.append(wrench)
+    if not body_ids:
+        return
+    apply_wrench(
+        np.asarray(body_ids, dtype=np.int32),
+        np.asarray(wrenches, dtype=np.float64)[None, :, :],  # (1, n_bodies, 6)
+    )
+
+
 def play_interactive(args, cfg: DictConfig | None = None, *, algo: str | None = None):
     device = _select_playback_device(cfg)
     print(f"[play_interactive] Device: {device}")
@@ -1255,6 +1298,10 @@ def play_interactive(args, cfg: DictConfig | None = None, *, algo: str | None = 
 
     print("[play_interactive] Opening viewer — close the window or press Esc to quit.")
     print("[play_interactive] Controls: Space=pause/resume, N=single-step, +/-=speed")
+    print(
+        "[play_interactive] Force feedback ENABLED: double-click a body, then Ctrl+Left(drag)=force / "
+        "Ctrl+Right(drag)=torque pushes the robot in the live sim."
+    )
     if commander is not None:
         _print_keyboard_legend(args)
 
@@ -1281,6 +1328,8 @@ def play_interactive(args, cfg: DictConfig | None = None, *, algo: str | None = 
 
         with torch.inference_mode():
             while viewer.is_running():
+                # Feed forces applied in the viewer window (Ctrl+drag) into the live sim.
+                _apply_viewer_forces(env, mj_model, viz_data)
                 t0 = time.perf_counter()
 
                 # Write the command before stepping so this step's obs follow it.
