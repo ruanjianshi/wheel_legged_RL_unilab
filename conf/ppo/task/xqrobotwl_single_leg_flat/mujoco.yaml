@@ -1,0 +1,117 @@
+# @package _global_
+# =============================================================================
+# XqRobotWL 单腿平衡(单轮支撑)训练配置 (MuJoCo 后端)
+# 5D 命令: [vx, vy, vyaw, tsk, sl_trigger]
+#
+# 单腿平衡 = 4 状态 FSM: 站立 → 折腿(FF收膝) → 单轮平衡(RL横滚) → 落腿(FF)
+# 核心 (与后空翻不同):
+# - 后空翻是弹道(开环可脚本化), 单腿平衡的**保持**是倒立摆调节(必须闭环反馈)
+# - FF 只做可脚本化的折腿/落腿过渡(状态0/2, 策略屏蔽), RL 专注状态1横滚主动平衡
+# - balance_upright 奖机身对齐平衡倾角(-28°), 非直立; wheel_off 防自由轮偷撑
+# - P1 验证 (devlog 01): 收膝折腿 + 侧倾 -28° → CoM距支撑轮 0.026m, 可行
+# =============================================================================
+training:
+  task_name: XqRobotWLSingleLegFlat
+  run_suffix: ""
+  sim_backend: mujoco
+  play_steps: 300
+  play_env_num: 1
+  render_spacing: 0.0
+
+interactive:
+  action_mode: policy
+  policy_obs_mode: auto
+  camera_follow_body: true
+  camera_distance: 4.0
+  camera_elevation: -15.0
+
+algo:
+  num_envs: 1024
+  num_steps_per_env: 24
+  max_iterations: 10000
+  empirical_normalization: false
+  obs_groups:
+    actor:
+      - actor
+    critic:
+      - critic
+  policy:
+    activation: elu
+    actor_hidden_dims: [512, 512, 256, 128]
+    critic_hidden_dims: [512, 512, 256, 128]
+    # 低探索引导: 平衡是调节问题, 高 std 会让横滚反馈被噪声淹没
+    init_noise_std: 0.05
+  algorithm:
+    learning_rate: 1.0e-4
+    entropy_coef: 0.005
+    clip_param: 0.2
+    gamma: 0.99
+    lam: 0.95
+    desired_kl: 0.01
+    max_grad_norm: 1.0
+
+env:
+  # ★ 100Hz 控制 (对齐 walk_flat 训练): 单腿平衡是调节任务, 非爆炸弹道;
+  # 且热启动自 walk_flat 模型(100Hz), 200Hz 会让继承的平衡权重失效
+  ctrl_dt: 0.01
+  control_config:
+    action_scale: 0.6
+    wheel_action_scale: 10.0
+    # 平衡需要大动作权限 (横滚修正), 不硬裁
+    clip_actions: 100.0
+  commands:
+    vel_limit:
+      - [-0.3, 0.0, -0.5, -0.1, 0]
+      - [0.3, 0.0, 0.5, 0.1, 1]
+    resampling_time: 4.0
+  max_episode_seconds: 8.0
+  curriculum:
+    enabled: false
+  domain_rand:
+    randomize_base_mass: false
+    randomize_ground_friction: false
+    randomize_kp: false
+    randomize_kd: false
+    random_com: false
+    randomize_leg_length: false
+
+reward:
+  only_positive_rewards: false
+  scales:
+    # ★ 单轮平衡核心: 机身侧倾压质心到支撑轮 (roll_ref=+28°, up_y/sin28° 线性梯度)
+    # 直立=0, 完全侧倾=1 — 平衡位本身侧倾, 不能奖直立
+    balance_upright: 12.0
+    # 自由轮(左)必须离地 — 防作弊靠支撑轮撑 (30°侧压下自由腿自然离地)
+    wheel_off: 6.0
+    # 角速度阻尼: 倒立摆保持需主动阻尼震荡, 只奖对齐不够 — 罚抖/晃才学会平稳持住
+    roll_rate: -0.3
+    # 姿态保持: 支撑腿伸直 + 自由腿微屈
+    fold_pose: -1.0
+    # 配重范围: 自由腿 L_hip_roll 保持在有效区间 (展开移CoM) — 配重是平衡关键通道
+    counterweight: 2.0
+    # 单轮平衡达成 (连续保持 0.5s) 一次性大奖 — 主目标
+    balance_complete: 100.0
+    stance_height: -1.0
+    # 站立/落腿态: 温和不倒奖励
+    stand_balance: 5.0
+    stand_height: 5.0
+    joint_action_rate: -0.1
+    wheel_action_rate: -0.015
+    action_magnitude: -0.02
+    leg_mirror: -2.0
+    alive: 1.0
+  tracking_sigma: 0.3
+  base_height_target: 0.55
+  # 平衡位本身侧倾 28°, 状态1阈值自动 +20°; 状态1倾倒(<75°)持续终止
+  max_tilt_deg: 55.0
+  min_base_height: 0.20
+  # 70% episode 触发单腿平衡, 30% 纯站立 (让策略保持两轮平衡基线)
+  sl_trigger_prob: 0.7
+  # 预热: 前 100 iter 纯站立, 100-200 iter 斜坡放开 sl_trigger
+  sl_warmup_iters: 100
+  # 单轮平衡保持 0.5s 即算完成 (给大奖; 之后可落腿重置)
+  balance_hold_time: 0.5
+  # ★ 从单轮平衡位直接起步 (跳过渡段, 先学"保持" — 后空翻 warmstart 同理)。
+  # 过渡段(站立→折腿)太难: 折腿时支撑腿膝 kp=60 撑不住, base 塌缩 z<0.40,
+  # balance_complete 的 height_ok 永不满足。先学保持, 再学过渡。
+  start_in_balance: true

@@ -352,7 +352,6 @@ def load_policy(ckpt_path: str, obs_dim: int, hidden_dims: list[int] | None = No
 
 def _infer_dims_from_state(state: dict, in_dim: int, out_dim: int) -> list[int]:
     dims = []
-    prev = in_dim
     for i in range(0, 20, 2):
         w_key = f"{i}.weight"
         if w_key not in state:
@@ -422,7 +421,7 @@ def run_scenario(
         with torch.inference_mode():
             raw_act = policy(torch.from_numpy(env._state.obs["obs"])).numpy()
 
-        state = env.step(raw_act)
+        env.step(raw_act)
         env._state.info["commands"] = cmd_arr
 
         if s >= skip_steps:
@@ -431,7 +430,6 @@ def run_scenario(
             bp = env._backend.get_base_pos()
 
             gravity = env._backend.get_sensor_data("upvector")
-            gz = np.clip(gravity[0, 2], -1, 1)
             roll = np.arctan2(gravity[0, 1], gravity[0, 2])
             pitch = np.arcsin(np.clip(-gravity[0, 0], -1, 1))
 

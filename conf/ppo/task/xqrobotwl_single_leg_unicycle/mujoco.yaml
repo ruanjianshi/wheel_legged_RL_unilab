@@ -1,0 +1,82 @@
+# @package _global_
+# =============================================================================
+# XqRobotWL 改进结构单轮平衡 RL (MuJoCo 后端) — 从零训练
+#
+# 改进结构 (devlog 20 结构搜索, 物理可行):
+# - 机身横躺 up=[0,-1,0], 左腿近直支撑, 右腿伸直配重, CoM 偏移 0.5cm
+# - 执行器 (env init 运行时设置): 腿 kp=300 kv=10 (防膝塌陷), 轮=扭矩源
+# - RL 控 [R_hip_roll, R_hip_pitch, L_wheel] (配重 roll + 轮 pitch), 支撑腿钉住
+# - 第一阶段: 只保持平衡 (vx=0), 第二阶段再开 vx 前进/后退
+# - 与 single_leg/single_leg_move/backflip 完全独立, 不热启动
+# =============================================================================
+training:
+  task_name: XqRobotWLSingleLegUnicycle
+  sim_backend: mujoco
+  play_steps: 300
+  play_env_num: 1
+  render_spacing: 0.0
+
+algo:
+  num_envs: 1024
+  num_steps_per_env: 24
+  max_iterations: 20000
+  empirical_normalization: false
+  policy:
+    activation: elu
+    actor_hidden_dims: [512, 512, 256, 128]
+    critic_hidden_dims: [512, 512, 256, 128]
+    init_noise_std: 0.05
+  algorithm:
+    learning_rate: 1.0e-4
+    entropy_coef: 0.005
+    clip_param: 0.2
+    gamma: 0.99
+    lam: 0.95
+    desired_kl: 0.01
+    max_grad_norm: 1.0
+
+env:
+  ctrl_dt: 0.01
+  control_config:
+    action_scale: 0.6
+    # 轮=扭矩源: RL 动作 × 8 → 轮扭矩 Nm (夹 ±20)
+    wheel_action_scale: 8.0
+    clip_actions: 100.0
+  commands:
+    # 5D: [vx, vy, vyaw, tsk, height] — 第一阶段只保持 (vx=0)
+    vel_limit:
+      - [0.0, 0.0, 0.0, 0.0, 0.6776]
+      - [0.0, 0.0, 0.0, 0.0, 0.6776]
+    resampling_time: 3.0
+  max_episode_seconds: 8.0
+  domain_rand:
+    randomize_base_mass: false
+    randomize_ground_friction: false
+    randomize_kp: false
+    randomize_kd: false
+    random_com: false
+    randomize_leg_length: false
+
+reward:
+  only_positive_rewards: false
+  scales:
+    # ★ 核心: 机身保持横躺参考 (up=[0,-1,0] 与 base长轴=[1,0,0] 同时对齐)
+    upright: 10.0
+    # 支撑轮贴地 (z≈0.11)
+    wheel_down: 3.0
+    # 配重保持伸直基准 (R_roll≈-1.50, R_knee≈0)
+    counterweight_pose: -0.5
+    # 角速度阻尼 (保持静止平衡)
+    damping: -0.5
+    # ★ 净漂移惩罚 (base 水平位移平方, 允许轮子滚动平衡; 不能用线速度惩罚 —
+    #   罚速度会阻止倒立摆必需的轮滚动, v2 实测平台 1.2s 反更低)
+    drift: -0.3
+    # 动作平滑
+    action_rate: -0.1
+    # 存活
+    alive: 1.0
+  tracking_sigma: 0.3
+  base_height_target: 0.6776
+  # 横躺参考 tilt≈0, 允许摆动
+  max_tilt_deg: 45.0
+  min_base_height: 0.30

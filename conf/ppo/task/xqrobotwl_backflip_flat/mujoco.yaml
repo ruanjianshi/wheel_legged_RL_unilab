@@ -1,0 +1,111 @@
+# @package _global_
+# =============================================================================
+# XqRobotWL 后空翻训练配置 (MuJoCo 后端)
+# 5D 命令: [vx, vy, vyaw, tsk, flip_trigger]
+#
+# 后空翻 = 一次性动作: 站立 → 蹲 → 爆发蹬地 → 空中收腿 → 展开 → 缓冲 → 恢复
+# 核心:
+# - 7 状态 FSM 前馈(固化 P1 验证参数) + PPO 强化
+# - flip_progress 追踪(up 向量无环绕俯仰角)
+# - 相位门控奖励: 飞行奖翻转进度, 落地奖直立/轮地匹配, 站立奖姿态
+# - 翻转专用终止: 飞行中不按倾角终止
+# =============================================================================
+training:
+  task_name: XqRobotWLBackflipFlat
+  run_suffix: ""
+  sim_backend: mujoco
+  play_steps: 300
+  play_env_num: 1
+  render_spacing: 0.0
+
+interactive:
+  action_mode: policy
+  policy_obs_mode: auto
+  camera_follow_body: true
+  camera_distance: 4.0
+  camera_elevation: -15.0
+
+algo:
+  num_envs: 1024
+  num_steps_per_env: 24
+  max_iterations: 10000
+  empirical_normalization: false
+  obs_groups:
+    actor:
+      - actor
+    critic:
+      - critic
+  policy:
+    activation: elu
+    actor_hidden_dims: [512, 512, 256, 128]
+    critic_hidden_dims: [512, 512, 256, 128]
+    # 低探索引导: ff 已验证 86-102% 翻转, 高 std(曾涨到3.9)会把 ff 淹没
+    init_noise_std: 0.05
+  algorithm:
+    learning_rate: 1.0e-4
+    entropy_coef: 0.005
+    clip_param: 0.2
+    gamma: 0.99
+    lam: 0.95
+    desired_kl: 0.01
+    max_grad_norm: 1.0
+
+env:
+  # ★ 200Hz 控制 (对齐 P1 开环): 100Hz 对爆发蹬地太粗糙 → 翻转不足 → 地面打滚 → "一翻就倒"
+  # 200Hz 下纯 ff 16/16 env 完成翻转+落地直立 (2026-08-05 验证)
+  ctrl_dt: 0.005
+  control_config:
+    action_scale: 0.6
+    wheel_action_scale: 10.0
+    # 对齐 V2 walk: 平衡需要大动作权限(它输出5.36不发散), 不硬裁
+    clip_actions: 100.0
+  commands:
+    vel_limit:
+      - [-0.3, 0.0, -0.5, -0.1, 0]
+      - [0.3, 0.0, 0.5, 0.1, 1]
+    resampling_time: 4.0
+  # 10s = 1000 步 (0.01s/步), 与其他配置一致; 翻转(~1.7s) + 落地后不倒观察(~8s)
+  max_episode_seconds: 10.0
+  curriculum:
+    enabled: false
+  domain_rand:
+    randomize_base_mass: false
+    randomize_ground_friction: false
+    randomize_kp: false
+    randomize_kd: false
+    random_com: false
+    randomize_leg_length: false
+
+reward:
+  only_positive_rewards: false
+  scales:
+    # ★ 确定性翻转 (2026-08-05 用户决定): 翻转期(FSM 0-5)策略动作被 env 屏蔽为 0, 纯 ff 驱动
+    # 翻转 (200Hz ff 16/16 可靠); RL 只在站立态(-1)生效, 专注平衡。flip_complete 是主目标。
+    # 反复实验证明策略会被 flip_progress 刷分诱导偏离 ff 把翻转搞坏, 故翻转期不容策略干扰。
+    flip_progress: 10.0  # 自动奖励 (ff 恒定旋转, 策略无法影响)
+    launch_thrust: 15.0
+    upright_landing: 10.0
+    landing_soft: 4.0
+    wheel_ground_matching: 20.0
+    base_height_landing: -5.0
+    posture_stand: -3.0
+    stand_balance: 5.0
+    stand_height: 5.0
+    ff_tracking: 3.0  # 翻转期策略被屏蔽, 此项实际恒 0 (保留无害)
+    flip_complete: 100.0
+    joint_action_rate: -0.1
+    wheel_action_rate: -0.015
+    action_magnitude: -0.02
+    leg_mirror: -2.0
+    alive: 1.0
+  tracking_sigma: 0.3
+  base_height_target: 0.65
+  # 倾倒(>50°)持续终止 + 机身/小腿碰地(z<0.20)立即终止
+  max_tilt_deg: 50.0
+  min_base_height: 0.20
+  flip_target_rad: 6.283
+  ff_gain: 1.0
+  # 只训练后空翻: 所有 episode 都触发翻转, 落地后不倒即可
+  flip_trigger_prob: 1.0
+  # 预热: 前 100 iter 纯站立, 100-200 iter 斜坡放开 flip_trigger
+  flip_warmup_iters: 100

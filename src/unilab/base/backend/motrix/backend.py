@@ -1126,6 +1126,15 @@ class MotrixBackend(SimBackend):
                 )
                 applied_force[:] = target_force
 
+    def apply_body_wrench(
+        self,
+        body_ids: np.ndarray,
+        wrench: np.ndarray,
+    ) -> None:
+        raise NotImplementedError(
+            "Motrix backend does not support body wrench (torque) perturbation"
+        )
+
     def create_hfield_scanner(
         self,
         *,

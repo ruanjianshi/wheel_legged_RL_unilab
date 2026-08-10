@@ -31,11 +31,40 @@ _devlog/<robot>/<task>/<algo>/<date>/<序号>_<slug>.md
 |--------|------|------|------|
 | xqrobotwl | jump | ppo | [论文图 nature/dataviz 规范重出: 图4.1 训练指标 (2x3) + 全图统一风格](xqrobotwl/jump/ppo/2026-08-09/30_paper_figs_nature_style.md) |
 
+### 2026-08-07
+
+| 机器人 | 任务 | 算法 | 标题 |
+|--------|------|------|------|
+| xqrobotwl | fall_recovery | ppo | [CPO 独立 conf/cpo 目录 + 约束 value loss 数值修复](xqrobotwl/fall_recovery/ppo/2026-08-07/04_cpo_conf_dir_and_value_scale.md) |
+| xqrobotwl | fall_recovery | ppo | [FTSR 环境实现 + 冒烟验证 + 终止门控修复](xqrobotwl/fall_recovery/ppo/2026-08-07/03_fsr_env_and_verify.md) |
+| xqrobotwl | fall_recovery | ppo | [移植 CPO 算法 (惩罚函数法)](xqrobotwl/fall_recovery/ppo/2026-08-07/02_cpo_port.md) |
+| xqrobotwl | fall_recovery | ppo | [方案改向 FTSR (力引导+分阶段+CPO)](xqrobotwl/fall_recovery/ppo/2026-08-07/01_fsr_design.md) |
+
 ### 2026-08-06
 
 | 机器人 | 任务 | 算法 | 标题 |
 |--------|------|------|------|
+| xqrobotwl | fall_recovery | ppo | [RL 环境 + 配置 + 启动脚本 (FSM 前馈翻身 + start_in_balance 课程)](xqrobotwl/fall_recovery/ppo/2026-08-06/02_env_and_config.md) |
+| xqrobotwl | fall_recovery | ppo | [P1 可行性 — 贴地后空翻起身机制](xqrobotwl/fall_recovery/ppo/2026-08-06/01_p1_feasibility.md) |
 | xqrobotwl | jump | ppo | [新增 PPO+VMC 与 SRL+VMC 两种跳跃算法](xqrobotwl/jump/ppo/2026-08-06/16_ppo_vmc_srl_vmc_algorithms.md) |
+
+### 2026-08-05
+
+| 机器人 | 任务 | 算法 | 标题 |
+|--------|------|------|------|
+| xqrobotwl | backflip | ppo | [确定性翻转: 翻转期策略屏蔽, 纯 ff 驱动 (用户决定)](xqrobotwl/backflip/ppo/2026-08-05/08_deterministic_flip.md) |
+| xqrobotwl | backflip | ppo | ["一翻就倒"根因: 控制率 100Hz 太粗, 改 200Hz (ctrl_dt=0.005)](xqrobotwl/backflip/ppo/2026-08-05/07_control_rate_200hz_fix.md) |
+| xqrobotwl | backflip | ppo | [V2 续训发散 (动作爆炸) — 模型选择教训](xqrobotwl/backflip/ppo/2026-08-05/06_overfit_action_explosion_v2.md) |
+| xqrobotwl | backflip | ppo | [奖励重平衡: ff_tracking 10 / flip_progress 30 (防刷旋转)](xqrobotwl/backflip/ppo/2026-08-05/05_rebalance_ff_tracking_vs_flip_progress.md) |
+| xqrobotwl | backflip | ppo | [flip_complete 判据改物理事件锁存 (根因: 旋转积分阈值不可达)](xqrobotwl/backflip/ppo/2026-08-05/04_flip_complete_event_latch.md) |
+
+### 2026-08-04
+
+| 机器人 | 任务 | 算法 | 标题 |
+|--------|------|------|------|
+| xqrobotwl | backflip | ppo | [修复预热斜坡累乘 bug + 站立态 flip_progress 重置](xqrobotwl/backflip/ppo/2026-08-04/03_warmup_trigger_bugfix.md) |
+| xqrobotwl | backflip | ppo | [环境开发: backflip.py + FSM前馈 + 相位门控奖励 + 训练管线](xqrobotwl/backflip/ppo/2026-08-04/02_env_development.md) |
+| xqrobotwl | backflip | ppo | [开环脚本物理可行性验证 (360° 后空翻 + 落地 3.8°)](xqrobotwl/backflip/ppo/2026-08-04/01_physics_feasibility.md) |
 
 ### 2026-07-18
 

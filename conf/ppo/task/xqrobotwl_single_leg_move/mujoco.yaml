@@ -1,0 +1,89 @@
+# @package _global_
+# =============================================================================
+# XqRobotWL 可移动单轮平衡训练配置 (MuJoCo 后端) — 独立 task, 从零训练
+#
+# 独轮车式控制 (经典控制验证 devlog 07):
+# - 支撑轮控 pitch + 前进/后退 (vx 命令跟踪)
+# - 自由腿配重 L_hip_roll 控 roll (22° 侧压)
+# - start_in_balance: episode 直接置 22° 侧压平衡位, 全程单轮
+# - 微扰动保持: 奖励温和, 不引导大幅动作 (静态已是稳定位)
+# - 与 single_leg/backflip/walk 完全独立, 不热启动
+# =============================================================================
+training:
+  task_name: XqRobotWLSingleLegMove
+  sim_backend: mujoco
+  play_steps: 300
+  play_env_num: 1
+  render_spacing: 0.0
+
+algo:
+  num_envs: 1024
+  num_steps_per_env: 24
+  max_iterations: 10000
+  empirical_normalization: false
+  policy:
+    activation: elu
+    actor_hidden_dims: [512, 512, 256, 128]
+    critic_hidden_dims: [512, 512, 256, 128]
+    # 低探索: 单腿是默认姿态(零动作保持配重展开), 高 std 把 L_hip_roll 抖到收回区触发 free_down
+    init_noise_std: 0.05
+  algorithm:
+    learning_rate: 1.0e-4
+    entropy_coef: 0.005
+    clip_param: 0.2
+    gamma: 0.99
+    lam: 0.95
+    desired_kl: 0.01
+    max_grad_norm: 1.0
+
+env:
+  # ★ 100Hz (walk 一致); 从零训练不需要热启动对齐, 但统一控制率
+  ctrl_dt: 0.01
+  control_config:
+    action_scale: 0.6
+    # 精细轮速控制: 单轮平衡对轮速扰动极敏感, 10 太大 (0.05动作→0.5rad/s 破坏平衡)
+    wheel_action_scale: 3.0
+    clip_actions: 100.0
+  commands:
+    # 5D: [vx, vy, vyaw, tsk, height] — 只开 vx ±0.3 (前进/后退)
+    vel_limit:
+      - [0.0, 0.0, 0.0, 0.0, 0.55]
+      - [0.0, 0.0, 0.0, 0.0, 0.55]
+    resampling_time: 3.0
+  max_episode_seconds: 8.0
+  domain_rand:
+    randomize_base_mass: false
+    randomize_ground_friction: false
+    randomize_kp: false
+    randomize_kd: false
+    random_com: false
+    randomize_leg_length: false
+
+reward:
+  only_positive_rewards: false
+  scales:
+    # ★ 核心: vx 跟踪 (能移动 — 用户要求前进/后退)
+    tracking_lin_vel: 1.5
+    # 姿态保持: 机身对齐 22° 侧压平衡参考 (温和)
+    balance_upright: 8.0
+    # ★ 自由轮(左)必须离地 — 防作弊 (策略会学会放下自由腿两轮支撑)
+    # 两轮支撑: wheel_off=0 但 alive+balance 更高 → 需高权重压过作弊收益
+    wheel_off: 15.0
+    # 姿态保持: 支撑腿直 + 自由腿微屈 (温和)
+    fold_pose: -0.5
+    # 角速度阻尼: 微扰动保持 (不引导大幅动作)
+    roll_rate: -0.2
+    # ★ 水平速度惩罚 (防漂移 — LQR 突破的关键 vx 反馈等价)
+    lin_vel: -0.8
+    # ★ LQR 参考引导: 罚 RL 动作偏离 LQR 控制器 (学显式状态反馈)
+    lqr_ref: -1.0
+    # 单轮平衡持续 0.5s 一次性大奖 (防两轮作弊, 给 RL 明确目标)
+    balance_complete: 50.0
+    joint_action_rate: -0.1
+    wheel_action_rate: -0.005
+    alive: 1.0
+  tracking_sigma: 0.3
+  base_height_target: 0.55
+  # 22° 侧压平衡位本身 tilt≈22°, 允许摆动
+  max_tilt_deg: 60.0
+  min_base_height: 0.20

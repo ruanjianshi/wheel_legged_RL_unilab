@@ -1,0 +1,154 @@
+# @package _global_
+# =============================================================================
+# XqRobotWL 跌倒恢复 FTSR 训练配置 (MuJoCo 后端, CPO 算法)
+# 基于论文: Hou et al. 2026 "Robust Fall Recovery for Armless Bipedal-Wheeled
+# Robots via Force-Guided Learning" — 力引导 + 高度分阶段奖励 + CPO 约束。
+#
+# 核心 (与早期"贴地后空翻"方案不同):
+# - 无脚本轨迹, 纯学习恢复: 多姿态复位 (仰卧/俯卧/左躺/右躺) 随机
+# - 训练期施加外部辅助力 F (向上) + 力矩 T (对齐直立), 作为 CPO 约束
+#   (C1=F, C2=T, d=0), 策略被引导逐步降低对辅助的依赖
+# - 高度分阶段奖励: ru (上半身直立, 目标 h_cmd1) → rs (站起, 目标 h_cmd2),
+#   按批次高度统计切换, 每阶段独立奖励集
+# - 贴地超过 10s 终止 (防死点)
+# - 恢复后站住平衡 (不含行走阶段)
+# =============================================================================
+training:
+  task_name: XqRobotWLFallRecoveryFlat
+  run_suffix: ""
+  sim_backend: mujoco
+  play_steps: 300
+  play_env_num: 1
+  render_spacing: 0.0
+
+interactive:
+  action_mode: policy
+  policy_obs_mode: auto
+  camera_follow_body: true
+  camera_distance: 4.0
+  camera_elevation: -15.0
+
+algo:
+  num_envs: 1024
+  num_steps_per_env: 24
+  max_iterations: 10000
+  empirical_normalization: false
+  obs_groups:
+    actor:
+      - actor
+    critic:
+      - critic
+  policy:
+    activation: elu
+    actor_hidden_dims: [512, 512, 256, 128]
+    critic_hidden_dims: [512, 512, 256, 128]
+    # 低探索引导: 恢复是调节问题, 高 std 会让反馈被噪声淹没
+    init_noise_std: 0.05
+  algorithm:
+    class_name: unilab.algos.torch.cpo:CPO
+    # 约束: C1=F (辅助力幅值), C2=T (辅助力矩幅值), d=0
+    num_constraints: 2
+    constraint_critic_hidden_dims: [512, 256, 128]
+    constraint_value_loss_coef: 0.1
+    constraint_penalty_coef: 1.0
+    # 罚因子 (论文基线 0.001; 过大→策略退化)
+    beta_init: 0.001
+    beta_max: 0.1
+    beta_growth: 1.0001
+    d_values: [0.0, 0.0]
+    learning_rate: 1.0e-4
+    entropy_coef: 0.005
+    clip_param: 0.2
+    gamma: 0.99
+    lam: 0.95
+    desired_kl: 0.01
+    max_grad_norm: 1.0
+
+env:
+  # ★ 100Hz 控制 (对齐 walk 热启动); 恢复是调节任务非爆炸弹道
+  ctrl_dt: 0.01
+  control_config:
+    action_scale: 0.6
+    wheel_action_scale: 10.0
+    clip_actions: 100.0
+  commands:
+    vel_limit:
+      - [0.0, 0.0, 0.0, 0.0, 0.30]
+      - [0.0, 0.0, 0.0, 0.0, 0.52]
+    resampling_time: 4.0
+  max_episode_seconds: 10.0
+  curriculum:
+    enabled: false
+  domain_rand:
+    randomize_base_mass: false
+    randomize_ground_friction: false
+    randomize_kp: false
+    randomize_kd: false
+    random_com: false
+    randomize_leg_length: false
+
+reward:
+  only_positive_rewards: false
+  tracking_sigma: 0.3
+  max_tilt_deg: 55.0
+  min_base_height: 0.15
+  # ── 高度分阶段 ──
+  h_cmd1: 0.32     # ru 目标 (降: 让 0.29 半撑能摸到, 更易进 rs)
+  h_cmd2: 0.52     # rs 目标 (站立; 对齐 walk 自然站姿 median 0.522, 0.55 需升直腿)
+  stage_fraction: 0.667  # 超过 h_cmd1 的代理比例达 2/3 切 rs
+  # ── 恢复里程碑阶梯 (桥接半撑→站立梯度死区) ──
+  recover_height: 0.45   # 最终站立高度阈值
+  rise_height: 0.35      # 中间里程碑: base_z>0.35 + 直立>0.80 + 双轮 保持 0.3s → rise 分
+  rise_hold: 0.3
+  rise_vel_height_cap: 0.45  # rise_vel 仅在此高度以下生效 (到站立后不再奖推, 防顶部跳动)
+  # ★ 自然站姿 (dof_pos 目标): walk 模型实测站立腿角 → base_z≈0.518
+  #   (DEFAULT_LEG_ANGLES 膝盖符号相反 → 0.474m, 会拉向错误姿态)
+  standing_angles: [0.1021, 0.0828, -0.0789, 0.0127, -0.1083, 0.0188]
+  # ── 力引导 (CPO 约束) ──
+  force_assist_enabled: true
+  force_max: 160.0   # 向上辅助力上限 N (加大: 给真实提升, 帮跨起身坎)
+  torque_max: 15.0   # 对齐力矩上限 Nm (加大: 帮躯干转正)
+  mu: 6.0            # 高度系数 (低处辅助更强)
+  force_end_iters: 3000  # 辅助力全局撤除的迭代数
+  # ── 终止 ──
+  idle_ground_time: 6.0
+  # ── 阶段奖励集 (论文 Table II 裁剪, 无行走阶段) ──
+  # ru (上半身直立): orient 罚倾覆 + base_height 奖 h1 + upright 奖躯干转正
+  #                  + wheel_force 奖撑腿 + rise/recover_complete 里程碑阶梯
+  scales_ru:
+    orient: -2.6
+    base_height: 8.0
+    upright: 2.0
+    rise: 30.0
+    rise_vel: 15.0
+    settle: 20.0   # ★ v3: 加角速度静止项后提高 — 罚摇摆 (站立时 |gyro| 实测 6-9 rad/s)
+    stand_still: 10.0   # 水平静止: 防恢复后一直后退 (独立项, 不乘死 settle)
+    no_yaw: 8.0   # ★ v4: 朝向静止 — 防以右腿为圆心转圈
+    wheel_symmetry: 5.0   # ★ v6/v7: 轮速对称 (差速转圈治本, v7 收紧阈值)
+    wheel_speed: 3.0   # ★ v6: 防轮子狂转空转
+    stand_pose: 15.0   # ★ v7: 门控站姿正奖励 (治蹲姿, 只站立期激活)
+    recover_complete: 100.0
+    act_rate: -0.06
+    dof_pos: -0.06
+    leg_bias: -2.0
+    no_fly: -2.0
+    wheel_force: 4.0
+    alive: 0.5
+  # rs (站起): orient + base_height 奖 h2 + upright + 里程碑阶梯 + settle/stand_still 平衡
+  scales_rs:
+    orient: -2.8
+    base_height: 12.0
+    upright: 2.0
+    rise: 30.0
+    rise_vel: 15.0
+    settle: 20.0   # ★ v3: 加角速度静止项后提高
+    stand_still: 10.0
+    no_yaw: 8.0   # ★ v4: 朝向静止 (防转圈)
+    wheel_symmetry: 5.0   # ★ v6/v7: 轮速对称 (差速转圈治本)
+    wheel_speed: 3.0   # ★ v6: 防轮子狂转空转
+    stand_pose: 15.0   # ★ v7: 门控站姿正奖励 (治蹲姿)
+    recover_complete: 100.0
+    act_rate: -0.02
+    dof_pos: -0.5   # ★ v5: 温和拉回自然站姿 (standing_angles)。v4 -2.0 太强压坏起身→保持 0.3s
+    leg_bias: -0.1   # ★ v5: 温和罚不对称。v4 -0.5 太强
+    alive: 0.5

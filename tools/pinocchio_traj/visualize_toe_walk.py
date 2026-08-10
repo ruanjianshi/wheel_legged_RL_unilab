@@ -76,7 +76,6 @@ def fk_right_leg(angles: np.ndarray, base_pos: np.ndarray = np.zeros(3)):
     right_hip_offset = HIP_BASE_OFFSET * np.array([1, -1, 1])
     right_thigh_offset = THIGH_OFFSET * np.array([1, -1, 1])
     right_calf_offset = CALF_OFFSET * np.array([1, -1, 1])
-    right_wheel_offset = WHEEL_OFFSET * np.array([1, -1, 1])
 
     hip_pos = base_pos + right_hip_offset
 
@@ -147,7 +146,6 @@ def main():
 
     # Time steps over one full cycle
     num_steps = 80
-    dt = 0.01  # 100Hz
     t = np.linspace(0, 0.5, num_steps)
 
     # Store wheel positions
