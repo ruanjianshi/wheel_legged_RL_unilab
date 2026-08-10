@@ -50,7 +50,7 @@ After validation, refresh the generated support data if the support status
 changed:
 
 ```bash
-uv run scripts/generate_support_matrix.py --write
+uv run tools/generate_support_matrix.py --write
 ```
 
 See {doc}`/glossary` for the evidence-grade definitions.

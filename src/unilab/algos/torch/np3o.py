@@ -35,6 +35,11 @@ def _build_cost_critic(
 
 
 class NP3O(FinalObservationAwarePPO):
+    # 惰性创建的约束缓冲 (见 _update_cost), 类级注解让 mypy 确定类型
+    _cost_buf: torch.Tensor
+    _cost_accum: torch.Tensor
+    _cost_val_buf: torch.Tensor
+
     def __init__(
         self,
         *args: Any,
@@ -212,10 +217,10 @@ class NP3O(FinalObservationAwarePPO):
 
     # ── override compute_returns ─────────────────────────────────────
 
-    def compute_returns(self, last_obs: TensorDict) -> None:
-        super().compute_returns(last_obs)
+    def compute_returns(self, obs: TensorDict) -> None:
+        super().compute_returns(obs)
 
-        critic_obs = self._critic_obs_tensor(last_obs)
+        critic_obs = self._critic_obs_tensor(obs)
         with torch.no_grad():
             last_cv = self.cost_critic(critic_obs)
 

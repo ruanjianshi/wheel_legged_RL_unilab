@@ -89,7 +89,7 @@ def _reward_wheel_air_time(ctx: RewardContext) -> np.ndarray:
 @dataclass
 class XqRobotV2JumpFlatCfg(XqRobotV2WalkFlatCfg):
     commands: XqRobotJumpCommands = field(default_factory=XqRobotJumpCommands)
-    reward_config: XqRobotJumpRewardConfig | None = None
+    reward_config: XqRobotJumpRewardConfig | None = None  # type: ignore[assignment]
     curriculum: XqRobotJumpCurriculumConfig = field(default_factory=XqRobotJumpCurriculumConfig)
     max_episode_seconds: float = 10.0
 
@@ -111,11 +111,14 @@ class XqRobotJumpDRProvider(XqRobotDRProvider):
 @registry.env("XqRobotV2JumpFlat", sim_backend="mujoco")
 class XqRobotV2JumpFlatEnv(XqRobotV2WalkFlatEnv):
     _cfg: XqRobotV2JumpFlatCfg
+    _jump_cfg: XqRobotJumpRewardConfig  # type: ignore[assignment]  # 收窄基类奖励配置类型
 
     def __init__(self, cfg: XqRobotV2JumpFlatCfg, num_envs=1, backend_type="mujoco"):
+        if cfg.reward_config is None:
+            raise ValueError("reward_config must be provided via Hydra configuration")
         self._jump_cfg = cfg.reward_config
         super().__init__(cfg, num_envs=num_envs, backend_type=backend_type)
-        self._dr_manager._provider = XqRobotJumpDRProvider()
+        self._dr_manager._provider = XqRobotJumpDRProvider()  # type: ignore[union-attr]
         self._obs_frame_dim = 33
         self._critic_frame_dim = 36
         self._obs_history = np.zeros(

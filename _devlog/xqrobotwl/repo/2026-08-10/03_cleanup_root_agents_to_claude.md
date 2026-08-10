@@ -1,8 +1,8 @@
-# [33] 根目录清理: 删 AGENTS.md 只留 CLAUDE.md + 散落文件
+# [03] 根目录清理: 删 AGENTS.md 只留 CLAUDE.md + 散落文件
 
 **日期**: 2026-08-10
 **来源**: 用户要求 "这个文件夹内散落的文件,进行清理没用的agent.md只保留claude.md"
-**关联**: [[32_shell_reorganize_by_task]]
+**关联**: [[02_shell_reorganize_by_task]]
 
 ---
 

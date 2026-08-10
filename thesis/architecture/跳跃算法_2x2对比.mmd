@@ -1,0 +1,30 @@
+%%{init: {"theme": "default"}}%%
+%% 四算法跳跃对比 — 2×2 实验设计 (论文核心)
+%% 编辑: https://mermaid.live
+graph TD
+    subgraph ROOT["研究问题: 轮腿机器人跳跃"]
+        Q["起跳 → 腾空 → 软着陆<br/>的稳定性与跳跃高度"]
+    end
+
+    subgraph MATRIX["2×2 四算法矩阵 (SRL 参考 × VMC 控制)"]
+        direction LR
+        subgraph NOVMC["无 VMC (纯学习)"]
+            NOVMC_A["A · 纯 PPO<br/>全动作强化学习"]
+            NOVMC_B["C · SRL<br/>PPO + FSM 参考前馈"]
+        end
+        subgraph YESVMC["有 VMC (模型控制)"]
+            YESVMC_A["B · PPO + VMC<br/>学习 + 虚拟模型控制"]
+            YESVMC_B["D · SRL + VMC<br/>参考前馈 + 模型控制"]
+        end
+    end
+
+    subgraph MET["对比指标"]
+        K1["跳跃高度 jump_height"]
+        K2["腾空时间 wheel_air_time"]
+        K3["垂直推力 vertical_thrust"]
+        K4["软着陆 landing_soft"]
+        K5["参考轨迹跟踪 / 能耗"]
+    end
+
+    ROOT --> MATRIX
+    MATRIX --> MET

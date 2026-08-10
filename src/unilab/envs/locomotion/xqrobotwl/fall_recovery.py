@@ -334,15 +334,15 @@ class XqRobotWLFallRecoveryRewardConfig:
 @registry.envcfg("XqRobotWLFallRecoveryFlat")
 @dataclass
 class XqRobotWLFallRecoveryFlatCfg(XqRobotWLJumpSRLFlatCfg):
-    commands: XqRobotWLFallRecoveryCommands = field(default_factory=XqRobotWLFallRecoveryCommands)
-    reward_config: XqRobotWLFallRecoveryRewardConfig | None = None
+    commands: XqRobotWLFallRecoveryCommands = field(default_factory=XqRobotWLFallRecoveryCommands)  # type: ignore[assignment]  # 子类收窄命令/奖励配置类型
+    reward_config: XqRobotWLFallRecoveryRewardConfig | None = None  # type: ignore[assignment]
     max_episode_seconds: float = 10.0
 
 
 class XqRobotWLFallRecoveryDRProvider(XqRobotWLJumpDRProvider):
     """多姿态复位: 4 种倒地姿态随机 + 姿态/关节扰动, 命令恒 height=h_cmd1."""
 
-    def _sample_commands(self, env: object, num_reset: int) -> np.ndarray:
+    def _sample_commands(self, env: Any, num_reset: int) -> np.ndarray:
         cmds = np.zeros((num_reset, 5), dtype=get_global_dtype())
         cmds[:, 4] = getattr(env._cfg.reward_config, "h_cmd1", 0.35)
         return cmds
@@ -418,8 +418,11 @@ class XqRobotWLFallRecoveryFlatEnv(XqRobotWLJumpSRLFlatEnv):
     """xqrobotwl 跌倒恢复 FTSR 环境 — 力引导约束 + 分阶段奖励 + 多姿态复位"""
 
     _cfg: XqRobotWLFallRecoveryFlatCfg
+    _jump_cfg: XqRobotWLFallRecoveryRewardConfig  # type: ignore[assignment]  # 收窄基类奖励配置类型
 
     def __init__(self, cfg: XqRobotWLFallRecoveryFlatCfg, num_envs=1, backend_type="mujoco"):
+        if cfg.reward_config is None:
+            raise ValueError("reward_config must be provided via Hydra configuration")
         self._jump_cfg = cfg.reward_config
         self._total_env_steps = 0
         super().__init__(cfg, num_envs=num_envs, backend_type=backend_type)
@@ -510,6 +513,7 @@ class XqRobotWLFallRecoveryFlatEnv(XqRobotWLJumpSRLFlatEnv):
         return out
 
     def _reset_done_envs(self) -> None:
+        assert self._state is not None
         done = self._state.terminated | self._state.truncated
         idx = np.flatnonzero(done).astype(np.int32)
         super()._reset_done_envs()

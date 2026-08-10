@@ -190,10 +190,10 @@ class CPO(FinalObservationAwarePPO):
 
     # ── override compute_returns ─────────────────────────────────────
 
-    def compute_returns(self, last_obs: TensorDict) -> None:
-        super().compute_returns(last_obs)
+    def compute_returns(self, obs: TensorDict) -> None:
+        super().compute_returns(obs)
 
-        critic_obs = self._critic_obs_tensor(last_obs)
+        critic_obs = self._critic_obs_tensor(obs)
         with torch.no_grad():
             last_cv = self.constraint_critic(critic_obs)
 

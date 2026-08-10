@@ -27,6 +27,8 @@ from unilab.base.backend.motrix.playback import run_motrix_playback
 
 _SCRIPTS_DIR = Path(__file__).parent.parent.parent / "scripts"
 
+_ROOT_DIR = Path(__file__).parent.parent.parent
+
 _CONF_DIR = Path(__file__).parent.parent.parent / "conf"
 
 _SRC_DIR = Path(__file__).parent.parent.parent / "src"
@@ -53,6 +55,7 @@ def _load_script(name: str) -> Any:
     candidates = (
         _SCRIPTS_DIR / "training" / f"{name}.py",
         _SCRIPTS_DIR / "play" / f"{name}.py",
+        _ROOT_DIR / "tools" / f"{name}.py",
         _SCRIPTS_DIR / f"{name}.py",
     )
     for candidate in candidates:

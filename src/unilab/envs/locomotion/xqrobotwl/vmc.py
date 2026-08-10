@@ -15,7 +15,7 @@ then maps (force_L0, torque_theta) through the 2-link leg Jacobian to hip/knee
 torques.
 
 Kinematics convention (numerically calibrated -- see
-``scripts/calibrate_xqrobotwl_vmc.py``):
+``tools/xqrobotwl/calibrate_xqrobotwl_vmc.py``):
 
     theta1 = hip_sign * q_hip_pitch + c1
     theta2 = knee_sign * q_knee + c2
@@ -41,7 +41,7 @@ import numpy as np
 class XqRobotWLVMCConfig:
     """Virtual-leg kinematics + VMC control parameters (calibrated values)."""
 
-    # ── Virtual-leg kinematics (calibrated, see scripts/calibrate_xqrobotwl_vmc.py) ──
+    # ── Virtual-leg kinematics (calibrated, see tools/xqrobotwl/calibrate_xqrobotwl_vmc.py) ──
     l1: float = 0.30053  # thigh length (hip_pitch -> knee)
     l2: float = 0.30070  # calf length (knee -> wheel)
     offset: float = -0.00003  # hip horizontal offset

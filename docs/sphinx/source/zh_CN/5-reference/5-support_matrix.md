@@ -27,7 +27,7 @@
 下面的矩阵由 registry、owner YAML 和测试清单自动汇总；不要手工编辑表格内容。需要刷新时运行：
 
 ```bash
-uv run scripts/generate_support_matrix.py --write
+uv run tools/generate_support_matrix.py --write
 ```
 
 <!-- BEGIN GENERATED SUPPORT MATRIX -->

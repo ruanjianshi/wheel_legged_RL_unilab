@@ -1,0 +1,49 @@
+%%{init: {"theme": "default"}}%%
+%% 两轮足机器人总体架构 — 多地形 × 多步态 × 多算法 → "分训-整合"两阶段范式
+%% 依据: 论文框架与实施计划.md + 两轮足机器人架构.png/xmind (2026-08)
+%% 编辑: https://mermaid.live
+graph TB
+
+    subgraph TASK["🎯 综合任务"]
+        T1["混合地形环境完整遍历<br/>粗糙 / 碎石 / 斜坡 / 台阶 / 独木桥 / 木桩间隙 / 狭窄通道 / 平面"]
+    end
+
+    subgraph STAGE2["第2阶段 · 学习式统一调度器 (整合 · 第7章核心创新)"]
+        direction TB
+        S_IN["输入: 地形感知 (地面高度剖面/轮地接触/地形类型) + 本体状态"]
+        S_PI["调度策略 π_h = softmax 门控 → 选择 / 混合步态专家"]
+        S_MECH["机制: 硬/软门控 · 滞回切换 · 能量指标辅助 · 课程式训练 · 冻结→联合微调"]
+        S_IN --> S_PI --> S_MECH
+    end
+
+    subgraph STAGE1["第1阶段 · 8个步态专家独立训练 (分训 · 第4-6章)"]
+        direction LR
+        G1["1 滚动行走<br/>Rolling walk"]
+        G2["2 粗糙地形行走<br/>Rough walk"]
+        G3["3 抬腿行走<br/>Toe walk"]
+        G4["4 跳跃<br/>High/Long jump"]
+        G5["5 抬腿上台阶<br/>Stair leg lift"]
+        G6["6 后空翻<br/>Backflip"]
+        G7["7 单腿平衡<br/>Single-leg balance"]
+        G8["8 跌倒恢复<br/>Fall recovery"]
+    end
+
+    subgraph ALGO["🧮 多算法库"]
+        direction LR
+        A1["单 RL: PPO · SAC · N3PO"]
+        A2["融合: PPO+VMC · PPO+SLIP · SLIP+PPO+VMC · PPO+MPC"]
+    end
+
+    subgraph TERRAIN["🗺️ 多地形库"]
+        direction LR
+        D1["平坦: 平面"]
+        D2["不平坦: 斜坡 · 碎石 · 不规则 · 弧度"]
+        D3["特殊: 台阶 · 独木桥 · 木桩"]
+    end
+
+    TASK -->|"按地形自动切换步态"| STAGE2
+    STAGE2 -->|"调用 / 门控"| STAGE1
+    STAGE1 --> ALGO
+    STAGE1 --> TERRAIN
+    D1 & D2 & D3 -.->|"专家适用地形"| STAGE1
+    ALGO -.->|"专家训练算法"| STAGE1

@@ -77,10 +77,10 @@ class XqRobotWLStairsCfg(XqRobotWLWalkFlatCfg):
 
 @registry.env("XqRobotWLStairs", sim_backend="mujoco")
 class XqRobotWLStairsEnv(XqRobotWLWalkRoughEnv):
-    _cfg: XqRobotWLStairsCfg
+    _cfg: XqRobotWLStairsCfg  # type: ignore[assignment]  # stairs cfg 继承 walk_flat, 基类 env 需 walk_rough cfg (运行时兼容)
 
     def __init__(self, cfg: XqRobotWLStairsCfg, num_envs=1, backend_type="mujoco"):
-        super().__init__(cfg, num_envs=num_envs, backend_type=backend_type)
+        super().__init__(cfg, num_envs=num_envs, backend_type=backend_type)  # type: ignore[arg-type]
         # Stairs uses 5D commands [vx, vy, vyaw, tsk, height] (see task YAML), so
         # obs/critic frames match flat (5D) rather than rough (4D).
         self._obs_frame_dim = 33  # 5D cmd: gyro(3)+grav(3)+diff(6)+vel(6)+wheel(2)+act(8)+cmd(5)

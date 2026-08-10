@@ -302,7 +302,7 @@ def _reward_height_progress(ctx: RewardContext) -> np.ndarray:
 @dataclass
 class XqRobotWLJumpSRLFlatCfg(XqRobotWLWalkFlatCfg):
     commands: XqRobotWLJumpCommands = field(default_factory=XqRobotWLJumpCommands)
-    reward_config: XqRobotWLJumpRewardConfig | None = None
+    reward_config: XqRobotWLJumpRewardConfig | None = None  # type: ignore[assignment]
     curriculum: XqRobotWLJumpCurriculumConfig = field(default_factory=XqRobotWLJumpCurriculumConfig)
     max_episode_seconds: float = 10.0
 
@@ -326,8 +326,11 @@ class XqRobotWLJumpSRLFlatEnv(XqRobotWLWalkFlatEnv):
     """PPO-SRL 融合跳跃 — PPO骨架 + SLIP前馈 + FSM观测"""
 
     _cfg: XqRobotWLJumpSRLFlatCfg
+    _jump_cfg: XqRobotWLJumpRewardConfig  # type: ignore[assignment]  # 收窄基类奖励配置类型
 
     def __init__(self, cfg: XqRobotWLJumpSRLFlatCfg, num_envs=1, backend_type="mujoco"):
+        if cfg.reward_config is None:
+            raise ValueError("reward_config must be provided via Hydra configuration")
         self._jump_cfg = cfg.reward_config
         self._total_env_steps = 0
         self._jump_curriculum_start = getattr(cfg.reward_config, "jump_curriculum_start", 0)
@@ -335,7 +338,7 @@ class XqRobotWLJumpSRLFlatEnv(XqRobotWLWalkFlatEnv):
         range_span = self._jump_curriculum_end - self._jump_curriculum_start
         self._jump_curriculum_step = float(range_span) if range_span > 0 else 1.0
         super().__init__(cfg, num_envs=num_envs, backend_type=backend_type)
-        self._dr_manager._provider = XqRobotWLJumpDRProvider()
+        self._dr_manager._provider = XqRobotWLJumpDRProvider()  # type: ignore[union-attr]
         self._fsm_state = -np.ones(num_envs, dtype=np.int32)
         self._fsm_timer = np.zeros(num_envs, dtype=np.float64)
         self._episode_max_height = np.zeros(num_envs, dtype=np.float64)

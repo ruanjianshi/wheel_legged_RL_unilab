@@ -7,7 +7,7 @@
 ## 复跑方式
 
 ```
-uv run scripts/audit_sim2sim_contracts.py
+uv run tools/audit_sim2sim_contracts.py
 ```
 
 该脚本只读，对每个 task 用 hydra `compose` 得到有效配置（展开 `defaults` / `base.yaml` /

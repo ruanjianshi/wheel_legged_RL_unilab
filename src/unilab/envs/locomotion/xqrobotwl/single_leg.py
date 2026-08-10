@@ -1,6 +1,6 @@
 """xqrobotwl 单腿平衡(单轮支撑)环境 — FSM前馈过渡 + PPO 横滚平衡
 
-基于 P1 验证 (scripts/xqrobotwl/single_leg_balance_feasibility.py) 固化的
+基于 P1 验证 (tools/xqrobotwl/single_leg_balance_feasibility.py) 固化的
 4 状态 FSM:
   -1站立(两轮) → 0折腿(FF收膝) → 1单轮平衡(RL核心) → 2落腿(FF) → 回 -1
 
@@ -233,6 +233,7 @@ def _reward_counterweight(ctx: RewardContext) -> np.ndarray:
 
 def _reward_stand_balance(ctx: RewardContext) -> np.ndarray:
     """站住不倒: 状态 -1/2 温和奖励直立 (up=cos tilt)"""
+    assert ctx.gravity is not None
     fsm = ctx.info["fsm_state"]
     active = np.isin(fsm, [-1, 2]).astype(np.float64)
     up = np.clip(ctx.gravity[:, 2], 0.0, 1.0)
@@ -288,8 +289,8 @@ class XqRobotWLSingleLegRewardConfig:
 @registry.envcfg("XqRobotWLSingleLegFlat")
 @dataclass
 class XqRobotWLSingleLegFlatCfg(XqRobotWLJumpSRLFlatCfg):
-    commands: XqRobotWLSingleLegCommands = field(default_factory=XqRobotWLSingleLegCommands)
-    reward_config: XqRobotWLSingleLegRewardConfig | None = None
+    commands: XqRobotWLSingleLegCommands = field(default_factory=XqRobotWLSingleLegCommands)  # type: ignore[assignment]
+    reward_config: XqRobotWLSingleLegRewardConfig | None = None  # type: ignore[assignment]
     max_episode_seconds: float = 8.0
 
 
@@ -300,7 +301,7 @@ class XqRobotWLSingleLegDRProvider(XqRobotWLJumpDRProvider):
     此时 reset 姿态 = P1 折叠平衡位, sl_trigger 恒 1。
     """
 
-    def _sample_commands(self, env: object, num_reset: int) -> np.ndarray:
+    def _sample_commands(self, env: Any, num_reset: int) -> np.ndarray:
         cmds = np.zeros((num_reset, 5), dtype=get_global_dtype())
         if getattr(env._cfg.reward_config, "start_in_balance", False):
             cmds[:, 4] = 1.0  # 恒触发单轮平衡
@@ -364,14 +365,17 @@ class XqRobotWLSingleLegFlatEnv(XqRobotWLJumpSRLFlatEnv):
     """xqrobotwl 单腿平衡环境 — FSM前馈过渡 + balance_upright + 相位门控奖励"""
 
     _cfg: XqRobotWLSingleLegFlatCfg
+    _jump_cfg: XqRobotWLSingleLegRewardConfig  # type: ignore[assignment]  # 收窄基类奖励配置类型
 
     def __init__(self, cfg: XqRobotWLSingleLegFlatCfg, num_envs=1, backend_type="mujoco"):
+        if cfg.reward_config is None:
+            raise ValueError("reward_config must be provided via Hydra configuration")
         self._jump_cfg = cfg.reward_config
         self._total_env_steps = 0
         self._warmup_progress = 0.0
         self._sl_warmup_env_steps = cfg.reward_config.sl_warmup_iters * 24 * num_envs
         super().__init__(cfg, num_envs=num_envs, backend_type=backend_type)
-        self._dr_manager._provider = XqRobotWLSingleLegDRProvider()
+        self._dr_manager._provider = XqRobotWLSingleLegDRProvider()  # type: ignore[union-attr]
         # 单腿平衡专用状态
         self._fsm_state = -np.ones(num_envs, dtype=np.int32)
         self._fsm_timer = np.zeros(num_envs, dtype=np.float64)
@@ -415,6 +419,7 @@ class XqRobotWLSingleLegFlatEnv(XqRobotWLJumpSRLFlatEnv):
     # ── reset: 硬重置 FSM/平衡状态 ──
 
     def _reset_done_envs(self) -> None:
+        assert self._state is not None
         done = self._state.terminated | self._state.truncated
         idx = np.flatnonzero(done).astype(np.int32)
         super()._reset_done_envs()

@@ -237,6 +237,7 @@ def _reward_landing_recovery(ctx: RewardContext) -> np.ndarray:
     commanded base height, which encourages recovering after a jump instead of
     settling into a tilted/collapsed landing.
     """
+    assert ctx.gravity is not None
     wheel_contact = ctx.info.get("wheel_contact", np.ones((ctx.num_envs, 2)))
     both_contact = (np.min(wheel_contact, axis=1) > 0.5).astype(np.float64)
     tilt = np.arccos(np.clip(-ctx.gravity[:, 2], -1, 1))
@@ -281,7 +282,7 @@ def _reward_anti_lazy(ctx: RewardContext) -> np.ndarray:
 @dataclass
 class XqRobotWLJumpFlatCfg(XqRobotWLWalkFlatCfg):
     commands: XqRobotWLJumpCommands = field(default_factory=XqRobotWLJumpCommands)
-    reward_config: XqRobotWLJumpRewardConfig | None = None
+    reward_config: XqRobotWLJumpRewardConfig | None = None  # type: ignore[assignment]
     curriculum: XqRobotWLJumpCurriculumConfig = field(default_factory=XqRobotWLJumpCurriculumConfig)
     max_episode_seconds: float = 10.0
 
@@ -303,8 +304,11 @@ class XqRobotWLJumpDRProvider(XqRobotWLDRProvider):
 @registry.env("XqRobotWLJumpFlat", sim_backend="mujoco")
 class XqRobotWLJumpFlatEnv(XqRobotWLWalkFlatEnv):
     _cfg: XqRobotWLJumpFlatCfg
+    _jump_cfg: XqRobotWLJumpRewardConfig  # type: ignore[assignment]  # 收窄基类奖励配置类型
 
     def __init__(self, cfg: XqRobotWLJumpFlatCfg, num_envs=1, backend_type="mujoco"):
+        if cfg.reward_config is None:
+            raise ValueError("reward_config must be provided via Hydra configuration")
         self._jump_cfg = cfg.reward_config
         self._total_env_steps = 0
         self._jump_curriculum_start = getattr(cfg.reward_config, "jump_curriculum_start", 0)
@@ -329,7 +333,7 @@ class XqRobotWLJumpFlatEnv(XqRobotWLWalkFlatEnv):
         self._window_crouched = np.zeros(num_envs, dtype=np.float64)
         self._window_min_z = np.full(num_envs, 0.55, dtype=np.float64)
         super().__init__(cfg, num_envs=num_envs, backend_type=backend_type)
-        self._dr_manager._provider = XqRobotWLJumpDRProvider()
+        self._dr_manager._provider = XqRobotWLJumpDRProvider()  # type: ignore[union-attr]
         self._obs_frame_dim = 33
         self._critic_frame_dim = 36
         self._obs_history = np.zeros(

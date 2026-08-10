@@ -47,6 +47,9 @@ run_summary.json
 .tmp/
 *.log
 .DS_Store
+
+# Render intermediate frames (ppm), mp4 is the deliverable
+video/**/_frames_*/
 .ipynb_checkpoints/
 *.bak
 *.backup

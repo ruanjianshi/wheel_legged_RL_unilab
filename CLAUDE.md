@@ -1,455 +1,681 @@
-# UniLab Agent Principles
+# wheel_legged_RL_unilab 企业级闭环开发规范
 
-**Always use `uv run`, not python**.
-
-UniLab 是一个 **高性能、模块化、contract 驱动** 的 RL infrastructure 仓库。
-
----
-
-## AI 自循环开发系统 (Self-Loop)
-
-AI 开发遵循闭环迭代：**训练 → 监控 → 评估 → 日志 → 分析 → 改进 → 自检 → 再训练**，循环直到达成目标。达成后自动发送邮件报告。
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                     AI Self-Loop 流程图                          │
-│                                                                 │
-│   用户设定目标                                                    │
-│      │                                                          │
-│      ▼                                                          │
-│   ┌──────┐    监控     ┌──────────┐                             │
-│   │ 训练  │───定期───→│ 训练曲线   │                             │
-│   │      │   检查     │ TensorBoard│                             │
-│   └──┬───┘           └────┬─────┘                              │
-│      │                    │                                     │
-│      │   达到检查点        │ 未达标                               │
-│      │   (每 1000 iter)   │ (继续训练)                         │
-│      ▼                    │                                     │
-│   ┌──────────┐            │                                     │
-│   │ 评估策略  │←───────────┘                                     │
-│   │ assess   │                                                  │
-│   └────┬─────┘                                                  │
-│        │                                                        │
-│        ▼                                                        │
-│   ┌──────────┐                                                   │
-│   │ 写开发日志 │── _devlog/<task>/<algo>/<date>/<n>_<slug>.md   │
-│   │ _devlog  │                                                  │
-│   └────┬─────┘                                                  │
-│        │                                                        │
-│        ▼                                                        │
-│   ┌──────────┐                                                   │
-│   │ 分析结论  │                                                   │
-│   │          │   查: tracking 误差, 稳定性, 对称性, 高度, 步态    │
-│   └────┬─────┘                                                  │
-│        │                                                        │
-│        ▼                                                        │
-│   ┌──────────┐   达标?                                            │
-│   │ 判断目标  │──Yes──→ ┌──────────┐ → ┌──────────┐              │
-│   │          │         │ 发送邮件   │   │ ✅ 完成   │              │
-│   └────┬─────┘         │ to 我     │   └──────────┘              │
-│        │ No            └──────────┘                              │
-│        ▼                                                        │
-│   ┌──────────┐                                                   │
-│   │ 改进方案  │   改: 超参/奖励权重/课程/地形/域随机化/网络结构     │
-│   │          │   原则: 每次只改一个变量, 对照实验                   │
-│   └────┬─────┘                                                  │
-│        │                                                        │
-│        ▼                                                        │
-│   ┌──────────┐                                                   │
-│   │ 自检验证  │   跑: make format, make type, pytest              │
-│   │          │   原则: 不通过不进入训练                            │
-│   └────┬─────┘                                                  │
-│        │                                                        │
-│        ▼                                                        │
-│   ┌──────┐                                                       │
-│   │ 再训练 │ → 回到监控, 循环                                      │
-│   └──────┘                                                       │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### Phase 1: 训练启动
-
-```bash
-# 单 GPU 训练 (后台运行 + 日志)
-setsid bash -c 'CUDA_VISIBLE_DEVICES=0 uv run train --algo ppo --task xqrobotV2_walk_flat --sim mujoco' \
-  &>/tmp/flat_train.log & disown
-
-# 或使用便利脚本
-CUDA_VISIBLE_DEVICES=0 bash shell/xqrobotV2/flat/train_ppo_flat.sh
-
-# 查看训练日志
-tail -f /tmp/flat_train.log
-```
-
-**训练启动检查清单**:
-- [ ] 确认 GPU 空闲 (`nvidia-smi`)
-- [ ] 确认训练输出目录已创建 (`logs/rsl_rl_ppo/XqRobotV2WalkFlat/<timestamp>/`)
-- [ ] 确认 TensorBoard 可访问 (`uv run tensorboard --logdir logs/`)
-- [ ] 写入出发日志到 `_devlog/`
-
-### Phase 2: 定期监控
-
-AI 应**主动**每隔指定 iter 检查训练状态，不等待用户指示。
-
-```bash
-# TensorBoard 启动 (后台)
-bash shell/xqrobotV2/tools/tensorboard.sh flat 8080  # → http://localhost:8080
-
-# 查看最新训练日志摘要
-tail -100 /tmp/flat_train.log | grep -E "iter|mean_reward|mean_episode_length|action_std|tracking"
-
-# 列出可用 checkpoint
-ls logs/rsl_rl_ppo/XqRobotV2WalkFlat/<run>/model_*.pt | sort -t_ -k2 -n
-
-# 查看最新 iter
-grep -oP 'iter: \d+' /tmp/flat_train.log | tail -1
-```
-
-**监控指标正常/异常判断**:
-
-| 指标 | 正常趋势 | 异常信号 | 处理 |
-|------|----------|----------|------|
-| `mean_reward` | 持续上升 | 停滞 >500 iter 不增 | 调 lr 或奖励权重 |
-| `mean_episode_length` | 持续增长到 max | 突然下降 | 检查 DR 或课程 |
-| `action_std` | 缓慢下降 (0.5→0.05) | 快速塌缩到 <0.01 | entropy_coef 太低 |
-| `tracking_lin_vel` | 持续上升 | 波动剧烈, 不收敛 | 检查奖励 scale |
-| `base_height` | 收敛到 target±0.05 | 持续偏移 | 检查 reward_scale |
-| `orientation_error` | < -0.5 (reward high) | > -5.0 (机器人倾斜) | 检查终止条件 |
-| `mean_loss` | 平稳 < 0.1 | 爆炸 > 10 | 梯度裁剪/学习率 |
-
-**AI 应在训练异常时主动介入**：分析 TensorBoard 曲线，提出改进方案。
-
-### Phase 3: 策略评估
-
-每个达到里程碑的 checkpoint (每 1000 iter 或训练结束) 都须评估。
-
-```bash
-# 基础评估 (decoupling 6 场景)
-uv run assess/runner.py -t <task> -a <algo> -r <run> -c <iter>
-
-# 全量评估 + 绘图 + CSV + 报告
-uv run assess/runner.py -t <task> -a <algo> -r <run> -c <iter> \
-    -s full --plot --csv --report
-
-# 跨 checkpoint 趋势
-uv run assess/runner.py -t <task> -a <algo> -r <run> \
-    --trend --ckpts 1000,2000,3000,4000,5000 -s decoupling
-
-# 跨模型对比
-uv run assess/runner.py --cmp \
-    results/<task>/<algo>/<s1>/metrics.json \
-    results/<task>/<algo>/<s2>/metrics.json --plot
-```
-
-**task 与 env 自动适配**: `assess/runner.py` 根据 `-t` 自动选择对应环境。
-- `flat_walk` → 平地环境
-- `rough_walk` → 粗糙地形环境
-- `toe_walk` → 脚趾行走环境
-
-### Phase 4: 开发日志
-
-每次 Phase 3 评估完成后，**必须**写入分析日志。详见 [AI 开发日志纪律](#ai-开发日志纪律)。
-
-通过分析报告，得出本次循环"结论"。关键不是命令跑完，而是要提炼出**量化结论**：
-实验是否起效？Vx/Vy 解耦了没？跟上一个 checkpoint 比有没有进步？等等。
-
-### Phase 5: 判断目标
-
-根据评估结果和用户设定的目标判断是否完成：
-
-| 目标 | 判断标准 | 指标 |
-|------|----------|------|
-| 行走 | Vx/Vy 跟踪误差 < 0.1, 存活 ≥ 95% | vx_rmse, survival_rate |
-| 稳定 | base_height_rmse < 0.05, max_tilt < 15° | base_height_rmse, max_tilt |
-| 解耦 | Vy crosstalk < 0.05 (仅 Vx 指令时) | vy_xtalk |
-| 后退 | Vx=-0.3 时 AvgVx < -0.25 | avg_velocity_x |
-| 侧移 | Vy=±0.3 时 AvgVy > 0.25 | avg_velocity_y |
-| 能效 | COT < 2.0 | cot_xy |
-
-**达成目标 → Phase 5.5 发邮件报告，然后停止循环。未达成 → 进入 Phase 6。**
-
-### Phase 5.5: 发送最终报告
-
-任务达标后，自动生成 HTML/文本报告并发送邮件给开发者。
-
-```bash
-# 环境变量 (密码不暴露在命令行)
-export UNILAB_SMTP_USER=qfantastic@2925.com
-export UNILAB_SMTP_PASS=<密码>
-
-uv run tools/email/report.py -t <task> -a <algo> -r <run> -c <ckpt>
-
-# 一键 (评估 + 发邮件)
-UNILAB_SMTP_USER=qfantastic@2925.com UNILAB_SMTP_PASS=<密码> \
-  bash tools/email/send.sh <task> <algo> <run> <ckpt>
-```
-
-报告内容: 任务名、算法、训练参数、分场景评估数据、综合指标、自动结论（✅/⚠️/❌）。
-
-该工具也支持 `--preview` 仅预览不发送，或 `--to` 指定其他收件人。
-
-### Phase 6: 改进方案
-
-分析 Phase 3 的评估报告，识别瓶颈，提出改进。
-
-**改进原则**:
-1. **单一变量**: 每次只改一个条件，以确定因果关系
-2. **对照实验**: 保留旧实验作为基线，新实验直接对比
-3. **可逆**: 所有改动通过 YAML 配置，不硬编码
-4. **量化**: 每次改动必须提出预期指标变化
-
-**改进手段优先级** (从低风险到高风险):
-1. 调整奖励权重 (reward.scales) — 最低风险
-2. 调整课程参数 (curriculum.*) — 低风险
-3. 调整 PPO 超参 (entropy_coef, lr, noise_std) — 中风险
-4. 调整命令范围 (vel_limit) — 中风险
-5. 调整地形配置 (terrain proportions) — 中风险
-6. 调整网络结构 (hidden_dims) — 高风险
-7. 调整观测空间 (obs groups) — 高风险
-8. 调整机械结构 (XML, keyframe) — 最高风险
-
-### Phase 7: 自检验证
-
-每次代码/配置修改后，进入 Phase 7。
-
-```bash
-# 格式检查
-make format     # ruff format
-
-# 类型检查
-make type       # mypy
-
-# 单元测试
-make test       # pytest
-
-# 全量检查
-make test-all   # format + type + test
-```
-
-**门禁规则**: `make test-all` 未通过 → 禁止启动训练，回退修改。
-
-通过后写入改进日志到 `_devlog/`，然后进入 Phase 1 → 启动新一轮训练。
-
-### Phase 8: 完整循环示例
-
-```
-Iter 0:     出发日志: "启动 flat_walk PPO 训练, entropy=0.002, hips=-0.1/+0.1"
-Iter 1000:  评估 → action_std=0.40 太高 → 调 entropy=0.01 → 自检通过 → 再训练
-Iter 3000:  评估 → Vx tracking=0.85 → Vy 串扰=0.65 → 分析: hip 不对称
-           → 改 hips 为对称外展 → 自检通过 → 再训练
-Iter 4000:  评估 → Vy 串扰=0.04 ✅ → Vx tracking=0.95 → 后退弱
-           → 增加后退命令比例 → 自检通过 → 再训练
-Iter 5000:  评估 → Vx RMSE=0.04, Vy 串扰<0.06, 存活 95% ✅
-           → 完成日志: "flat_walk 达成目标"
-           → 发送邮件报告 → qfantastic@2925.com
-```
+> 本规范适用于 xqrobotwl（两轮足机器人）的强化学习开发全流程。
+> 目标：**开发有痕、借鉴有据、任务独立、项目有序、跨平台可用、版本可回滚**。
+> 面向角色：AI 开发人员（执行者）与项目负责人（老板/决策者）。
+> 一切开发行为都必须可追溯、可汇报、可复盘。
 
 ---
 
-## AI 编码行为规范
+## 0. 总则：开发人员的职责与汇报机制
 
-减少 LLM 常见编码错误。对于简单任务可按判断放宽。
+**核心原则：你是一个开发人员，我（老板）需要你对开发进行详细汇报——做了什么、实现了什么效果、进展如何、遇到什么技术问题、如何解决。一切开发都有记录和痕迹。**
 
-### 1. 先想再写
+### 0.1 汇报机制
 
-**不假设、不隐藏困惑、暴露权衡。**
+每个开发阶段，开发人员必须主动向负责人汇报，不得只埋头写代码：
 
-动手前：
-- 明确说出你的假设。不确定就问。
-- 如果一个需求有多种理解，全部列出——不要默默选定一种。
-- 如果有更简单的做法，指出来。
-- 如果有地方不清楚，**停下来**，说出困惑点。
+| 汇报节点 | 汇报内容 | 产出物 |
+|---|---|---|
+| 任务启动前 | 目标、可行性评估、参考方案 | 参考文档 + 开发框架 |
+| 开发过程中 | 进展、当前所处阶段、遇到的问题 | 开发进展时间线（实时更新） |
+| 里程碑达成 | 评估数据、效果、达标情况 | 评估报告 + 渲染视频 |
+| 任务完成 | 最终交付物、遗留问题、备份信息 | 交付文档 + 版本备份 |
 
-### 2. 简洁优先
+### 0.2 一切有痕
 
-**最少代码解决问题。不做猜测性开发。**
+- 每次代码/超参/架构修改 → 写开发日志（见 §1.1）
+- 每次训练 → 监控 + 每千轮评估（见 §1.2）
+- 每个方案 → 记录效果与劣势（见 §2）
+- 每个版本 → 备份可回滚（见 §6）
 
-- 不写用户没要求的功能。
-- 不为单次使用建抽象层。
-- 不为了"灵活性"或"可配置性"做额外工作。
-- 不处理不可能发生的异常场景。
-- 如果写了 200 行可以精简到 50 行，重写。
-
-自问：「资深工程师会觉得这段代码过度设计吗？」如果会，简化。
-
-### 3. 精准修改
-
-**只改必须改的。只清理自己造成的残留。**
-
-修改已有代码时：
-- **不要**"优化"旁边的代码、注释、格式。
-- **不要**重构没坏的东西。
-- 匹配现有代码风格，即使你会写得更漂亮。
-- 如果注意到无关的死代码，口头提一句——不要删除。
-
-当你的修改产生孤立依赖：
-- 删除**你的修改**导致的无用 import / 变量 / 函数。
-- 不删除之前就存在的死代码，除非被要求。
-
-**检验标准**：每一行变更都能追溯到用户的需求。
-
-### 4. 目标驱动
-
-**定义成功标准。循环直到验证通过。**
-
-把任务转化为可验证的目标：
-- "加校验" → "先写非法输入的测试，然后让它通过"
-- "修 bug" → "先写复现的测试，然后让它通过"
-- "重构 X" → "确保测试前后都通过"
-
-强成功标准让你自主循环推进。弱标准（"能用就行"）需要不断追问。
+**未记录 = 未发生。** 没有日志的改动不算完成。
 
 ---
 
-## Core Principles
+## 1. 开发要有痕
 
-1. **Contract first**: 不为了一次通过绕过 env / backend / runner contract。
-2. **Fix at owner layer**: `scripts/` 只组装流程，不承载长期业务规则。
-3. **Config first**: task / reward / backend 优先通过 Hydra + registry 表达。
-4. **Backend isolation**: MuJoCo / Motrix 差异留在 backend 适配层和配置层。
-5. **Evidence only**: support claim 只写仓库里已有的注册、配置、测试或 benchmark 事实。
-6. **Validate near risk**: 在最接近风险的边界补验证，不只跑顶层命令。
-7. **Cold-path asset access only**: asset/XML/model metadata 只允许在 init / materialization / cache 等低频路径处理；热路径不能解析 asset，也不能靠 `getattr` / `hasattr` 探测 backend 私有能力。
-8. **Self-Loop Mandate**: AI 必须主动推进训练→评估→分析→改进 闭环，不等待用户逐条指令。
+### 1.1 开发日志（必写）
 
----
+每次对开发任务的修改都必须写开发日志。日志必须包含：
 
-## High-Risk Areas
-
-| 区域 | 不可破坏的不变量 |
-|------|----------------|
-| Env  | `NpEnvState.obs` 必须是 dict；`reset()` 返回 `(obs_dict, info_dict)`；`obs_groups_spec` 影响 wrapper 和 learner 维度。 |
-| Config / Reward | reward 通过 Hydra 注入；后端切换必须通过 `task=<task>/<backend>` 选择 owner YAML，`training.sim_backend` 只是 owner YAML 的身份字段，不能单独 override 来切后端。算法超参数直接走 YAML compose，不经 Python 层解释。 |
-| Backend | backend-specific 逻辑留在 backend / env 适配层，不向训练脚本扩散。env 层只能调用 `SimBackend`（`base.py`）中已声明的方法；若某方法只在 MuJoCo 或 Motrix 中存在，必须先将其加入 `SimBackend` 抽象接口（可抛 `NotImplementedError`），禁止直接在 env 里调用 backend 子类的私有方法（即"功能泄漏/feature leakage"）。新增 backend 专有能力时，需同步更新 `SimBackend`。 |
-| Asset / Metadata | `ASSETS_ROOT_PATH`、`model_file`、XML / asset 元数据只允许在 init / materialization / cache 等低频路径访问；`step/reset/domain randomization` 等热路径不得解析 asset 或基于 asset 元数据做运行时分支。 |
-| Asset / XML structure | `<keyframe>` 必须放在 task-level XML（`scene_*.xml` 或 `locomotion_task.xml` 等 fragment），**禁止放进 robot.xml**。robot.xml 是纯机器人描述（body / joint / actuator / sensor），跟 task / 场景无关；keyframe 是 task 起始姿态，属于场景或 task 资源。motrix 后端需要 keyframe 时通过 `scene.fragment_files` 引用 fragment XML。 |
-| Async | 不绕开 runner lifecycle，也不另起 collector / learner 同步协议。 |
-| Sim2Sim 契约 | 跨后端 play 时，影响策略 I/O / 网络结构的字段必须跨后端一致；不一致即 `CrossBackendIncompatibleError`。详见下方 Sim2Sim 章节。 |
-
----
-
-## Sim2Sim 跨后端配置契约
-
-`src/unilab/training/sim2sim.py` 按 dotted path 维护三类字段：
-
-- **DENYLIST**（差异即 `CrossBackendIncompatibleError`）：`algo.obs_groups`、`env.control_config.action_scale`、`algo.policy.actor_hidden_dims` / `critic_hidden_dims`、`algo.empirical_normalization` / `algo.obs_normalization`、`env.sampling_mode`。`env.*` 子集对**任一方向**的不对称出现也 fail-closed；`algo` 专属字段目标缺省时按设计跳过（跨算法合法）。
-- **WARNING_LIST**：`reward.*`、`env.control_config.simulate_action_latency`、`env.ctrl_dt`。
-- **ALLOWLIST**（自由覆盖）：`training.sim_backend`、`env.scene`、`training.play_steps`、`env.domain_rand`、`env.noise_config`、`env.commands.vel_limit`。
-
-训练时 `ExperimentTracker.start()` 把上述字段写入 `run_config.json` 的 `contract_snapshot`（不改 checkpoint 格式，旧 run 无 snapshot 时 fallback + warning）；五个 play 入口在建 env 前调用 `resolve_sim2sim_config` 校验，并用 `policy_load_dim_guard` 包裹 checkpoint 加载以把维度不匹配的隐晦报错重抛为显式诊断。设 `training.sim2sim_strict=false` 可把 DENYLIST 差异降级为 warning（默认 `true`）。DENYLIST 字段应通过 task 的 `base.yaml` 共享（范例：`conf/ppo/task/g1_walk_flat/{base,mujoco,motrix}.yaml`）；跨后端契约审计见 `scripts/audit_sim2sim_contracts.py`。
-
----
-
-## Pointers
-
-- PPO: `scripts/training/train_rsl_rl.py`
-- MLX PPO: `scripts/training/train_mlx_ppo.py`
-- APPO: `scripts/training/train_appo.py`
-- SAC / TD3: `scripts/training/train_offpolicy.py`
-- HIM-PPO: `scripts/training/train_him_ppo.py`
-- env contract: `src/unilab/base/np_env.py`
-- backend contract: `src/unilab/base/backend/base.py`
-- training run helpers: `src/unilab/training/run.py`
-- visualization helpers: `src/unilab/visualization/`
-- env shared numeric helpers: `src/unilab/envs/common/rotation.py`, `src/unilab/envs/common/math.py`
-- MLX rotation helpers: `src/unilab/algos/mlx/common/rotation.py`
-- config schema: `src/unilab/structured_configs.py`
-- async runner: `src/unilab/ipc/async_runner.py`
-- sim2sim 跨后端契约: `src/unilab/training/sim2sim.py`
-- **Policy assessment**: `assess/runner.py` — 评估 .pt 模型，按 `task/algo/session` 分类输出
-- **Assessment docs**: `assess/README.md` — 指标定义、场景集、使用说明
-- **DevLog**: `_devlog/README.md` — 开发日志规范，AI 必须自记录每次变更
-- **Email report**: `tools/email/report.py` — 自循环最终报告生成 & 邮件发送
-
-### 便利脚本
-
-| 脚本 | 功能 | 用法 |
-|------|------|------|
-| `shell/xqrobotV2/flat/train_ppo_flat.sh` | Flat Walk 训练 | `CUDA_VISIBLE_DEVICES=0 bash shell/xqrobotV2/flat/train_ppo_flat.sh` |
-| `shell/xqrobotV2/rough/train_ppo_rough.sh` | Rough Walk 训练 | `CUDA_VISIBLE_DEVICES=1 bash shell/xqrobotV2/rough/train_ppo_rough.sh` |
-| `shell/xqrobotV2/jump/train_ppo_jump_flat.sh` | Jump 训练 | `CUDA_VISIBLE_DEVICES=1 bash shell/xqrobotV2/jump/train_ppo_jump_flat.sh` |
-| `shell/xqrobotV2/toe_walk/train_ppo_toe_walk_flat.sh` | Toe Walk 训练 | `CUDA_VISIBLE_DEVICES=1 bash shell/xqrobotV2/toe_walk/train_ppo_toe_walk_flat.sh` |
-| `shell/xqrobotV2/flat/eval_ppo_flat.sh` | 键盘控制评估 | `bash shell/xqrobotV2/flat/eval_ppo_flat.sh --keyboard` |
-| `shell/xqrobotV2/tools/tensorboard.sh` | TensorBoard | `bash shell/xqrobotV2/tools/tensorboard.sh flat 8080` |
-
----
-
-## AI 开发日志纪律
-
-**每次修改代码/超参/架构后，AI 必须写入 `_devlog/`**：
-
-1. 新建日志文件 `_devlog/<task>/<algo>/<YYYY-MM-DD>/<序号>_<slug>.md`
-2. 使用 `_devlog/TEMPLATE.md` 模板
-3. 更新对应 `INDEX.md`
-4. 更新全局 `_devlog/INDEX.md`
-
-**不得跳过**：代码变更、超参调优、bug 修复、评估结论、架构调整。  
-**可跳过**：纯查询（无修改）、仅运行命令、临时调试。
-
-在完成代码/配置修改后，主动提示用户"需要写日志"，并执行写入。
-
-### 日志章节要求
+```
+_devlog/<task>/<algo>/<YYYY-MM-DD>/<序号>_<slug>.md
+```
 
 | 章节 | 必填 | 内容 |
-|------|------|------|
-| **日期** | ✅ | YYYY-MM-DD |
-| **来源** | ✅ | 触发原因 |
-| **问题描述** | ✅ | 具体现象、数据指标、错误日志 |
-| **根因分析** | ✅ | 为什么会发生，影响范围 |
-| **解决方案** | ✅ | 具体修改内容 |
-| **修改文件** | ✅ | 绝对路径 + 行号 + 改动内容摘要 |
-| **验证方法** | ✅ | 如何确认修复有效 |
-| **评估结果** | 条件 | 若涉及策略修改，必须附 assess 评估数据 |
-| **后续计划** | ✅ | 遗留问题、下一步方向 |
-| **关联日志** | 条件 | 链接到相关的前序/后续日志 |
+|---|---|---|
+| 日期 | ✅ | YYYY-MM-DD |
+| 来源 | ✅ | 触发原因（用户反馈 / 评估发现 / 技术问题） |
+| 修改了什么 | ✅ | 具体改动描述（含参数调整） |
+| 哪些文件 | ✅ | 绝对路径 + 行号 |
+| 训练后效果 | ✅ | 无辅助确定性评估数据（恢复率/保持/姿态等） |
+| 参数调整好坏 | ✅ | 改了什么参数、效果变好还是变坏、数据对比 |
+| 根因分析 | ✅ | 为什么会这样 |
+| 验证方法 | ✅ | 如何确认有效 |
+| 后续计划 | ✅ | 遗留问题、下一步 |
+| 关联日志 | 条件 | 链接前序/后续日志 |
+
+**写日志的时机**：代码/超参/架构改动后立即写，评估完成后补充结果。更新 `_devlog/<task>/INDEX.md`。
+
+### 1.2 训练监控与每千轮评估
+
+**每次开启训练都要监控，每 1000 轮进行一次评估测试。**
+
+- 训练启动：`nohup uv run scripts/training/train_cpo.py ... > /tmp/fallrec/<run>.log 2>&1 &`（1024 envs、禁辅助力）
+- 挂 monitor：每 1000 iter 自动提醒（`tail -f` + grep）
+- **每 1000 iter 跑无辅助确定性评估**：
+
+```bash
+uv run mjpython tools/xqrobotwl/eval_fall_recovery.py \
+    --run <run_dir> --ckpt model_XXX.pt --num_envs 20
+# --pose 0-3 逐姿态测 (0仰卧 1俯卧 2左躺 3右躺)
+```
+
+**评估测试必须覆盖**（不限于）：
+- **姿态**（见 §1.3 姿态评估）
+- **关节角度**（每个关节是否在合理范围、是否对称）
+- **功能好坏**（任务能否完成、完成质量）
+
+**任务特定的评估测试**（示例：跳跃任务）：
+- 模拟按键触发跳跃
+- 监控**跳跃前**的姿态（下蹲蓄力是否正确）
+- 监控**跳跃过程**的姿态（起跳/腾空/翻转）
+- 监控**落地后**的姿态（是否站稳、缓冲是否正确）
+
+### 1.3 姿态评估（★ 姿态表格）
+
+**姿态评估 = 监控关节角度 + 推理机器人姿态。** 关节角度组合 → 判定姿态类别。
+
+#### 关节定义（xqrobotwl 腿部 6 关节）
+
+```
+Joint order: [L_hip_roll, L_hip_pitch, L_knee, R_hip_roll, R_hip_pitch, R_knee]
+自然站姿 (walk 实测 standing_angles): [+0.102, +0.083, -0.079, +0.013, -0.108, +0.019]
+关节极限: hip_roll L≥0/R≤0, hip_pitch ±1.0, knee ±0.85
+自然站立高度: base_z ≈ 0.52m
+```
+
+#### 姿态判定表格（评估时必须按此表推理并记录）
+
+| 姿态类别 | 判定依据（关节角度组合） | 正常/异常 | 处置 |
+|---|---|---|---|
+| **正常站立** | 腿角≈standing_angles，左右对称，base_z≈0.52，直立 up_z>0.85 | ✅ 正常 | 保持 |
+| **下蹲** | 双膝屈曲（\|knee\|↑），hip_pitch 前摆，base_z 降 | ⚠️ 视任务 | 若恢复后蹲姿 → 检查站姿奖励 |
+| **伸腿** | 双膝伸直（knee→0），hip_pitch 展开，base_z 升 | ⚠️ 视任务 | 若恢复后过高 → 检查超高惩罚 |
+| **左右腿一前一后** | L_pitch 与 R_pitch 差值大（\|Δ\|>0.3），不对称 | ❌ 异常 | 检查 leg_bias / 站姿对称 |
+| **髋外展/内收** | hip_roll 大幅偏离（L>0.5 或 R<-0.5） | ❌ 异常 | 检查髋关节约束 |
+| **前倾** | up vector x 分量明显（up_x 大负），重心前移 | ❌ 异常 | 检查前倾/平衡 |
+| **后倾** | up vector x 分量明显（up_x 大正） | ❌ 异常 | 检查后倾/平衡 |
+| **左右倾斜** | up vector y 分量明显，body roll 大 | ❌ 异常 | 检查侧向平衡 |
+| **左右高低腿** | L_knee 与 R_knee 差异大，左右 hip 不对称 | ❌ 异常 | 检查 leg_bias |
+| **转圈** | yaw 累计旋转大（>walk 水平~56°），左右轮速差大 | ❌ 异常 | 检查 wheel_symmetry |
+| **轮子点地** | 站立时轮子离地率>0 | ❌ 异常 | 检查轮地接触 |
+| **摇摆** | 站立时 \|gyro\|>1 rad/s | ❌ 异常 | 检查角速度静止项 |
+
+**评估记录**：每次评估输出每个姿态类别的出现情况（正常/异常 + 关节角度实测值）。异常姿态要定位到具体关节。
+
+#### 关节角度 → 姿态映射表（按关节角度区间反查姿态）
+
+评估时拿到 6 关节角度数值后，按此表反推机器人姿态：
+
+| 关节角度特征 | 对应姿态 |
+|---|---|
+| 双膝微屈（knee≈±0.15）+ 腿角≈standing_angles + base_z≈0.52 | 正常站立 |
+| 双膝深屈（\|knee\|>0.5）+ hip_pitch 前摆 + base_z 明显降 | 下蹲 |
+| 双膝伸直（knee→0）+ hip_pitch 展开 + base_z 明显升 | 伸腿/过高 |
+| L_pitch 与 R_pitch 差值大（\|Δ\|>0.3） | 左右腿一前一后 |
+| L_hip_roll>0.5 或 R_hip_roll<-0.5 | 髋外展/内收 |
+| L_knee 与 R_knee 差异大 + 左右 hip 不对称 | 左右高低腿 |
+| base_roll 明显（\|roll\|>0.2） | 左右倾斜 |
+| base_pitch 明显（\|pitch\|>0.2）+ up_x 大 | 前倾/后倾 |
+| yaw 持续增大 + 左右轮速差大 | 转圈 |
+| 站立时 \|gyro\|>1 rad/s | 摇摆 |
+| 站立时轮子离地 | 轮子点地 |
+
+**反推流程**：读取姿态数据 CSV（§1.5）→ 每步取 6 关节角度 + base 欧拉角 → 按上表判定 → 统计各姿态出现时长/占比。
+
+### 1.4 线速度与角速度追踪
+
+**无指令时，机器人应处于"站立微动平衡"状态。**
+
+- 未给定指令时，不允许出现：**一直前进、一直后退、一直转圈** 等持续误差
+- 追踪指标：
+  - 线速度：本地 linvel x/y（应≈0，微动平衡允许小幅波动）
+  - 角速度：gyro（站立应 <1 rad/s）
+  - yaw 累计旋转（应 ≈walk 水平，~56°）
+- 判定：站立期平均 \|linvel_xy\| < 0.2 m/s、\|gyro\| < 1 rad/s
+
+### 1.5 姿态数据记录（★ 数据优先）
+
+**任何姿态都以数据表示。视频和图只是给负责人看效果的，数据才是评估依据。**
+
+#### 1.5.1 每步姿态数据导出
+
+每个评估通过的 checkpoint，导出**每一步的完整姿态数据 CSV**，供读取和反推姿态：
+
+```bash
+uv run mjpython tools/xqrobotwl/dump_pose_data.py \
+    --run <run_dir> --ckpt model_4000.pt \
+    [--pose 0-3] [--steps 900] [--prefix <任务名>]
+# 输出: logs/pose_data/<prefix>_model_XXX.pt_<姿态>.csv
+```
+
+CSV 数据列（每步一行）：
+
+| 列 | 含义 | 单位 |
+|---|---|---|
+| step / time_s | 步序号 / 时间 | — / s |
+| L/R_hip_roll, L/R_hip_pitch, L/R_knee | **6 腿部关节角度** | rad |
+| base_roll/pitch/yaw | base 欧拉角 | rad |
+| base_x/y/z | base 位置 | m |
+| linvel_x/y/z | 本地线速度 | m/s |
+| gyro_x/y/z | 角速度 | rad/s |
+| wheel_L/R_rads | 轮子角速度 | rad/s |
+| up_z | 直立度 (up·[0,0,1]) | — |
+| wheel_contact_L/R | 轮地接触 | 0/1 |
+| recover_completed | 恢复完成锁存 | 0/1 |
+
+#### 1.5.2 从数据反推姿态
+
+由关节角度组合 + base 姿态数据反推姿态类别（判定阈值见 §1.3 姿态表格）：
+
+```python
+# 示例: 从 CSV 反推每个时刻的姿态
+import csv
+rows = list(csv.DictReader(open("logs/pose_data/xxx.csv")))
+for r in rows:
+    z, up = float(r["base_z"]), float(r["up_z"])
+    Lp, Rp = float(r["L_hip_pitch_rad"]), float(r["R_hip_pitch_rad"])
+    Lk, Rk = float(r["L_knee_rad"]), float(r["R_knee_rad"])
+    yaw = float(r["base_yaw_rad"])
+    if z < 0.25:           pose = "倒地"
+    elif abs(Lp - Rp) > 0.3: pose = "左右腿一前一后"
+    elif z > 0.60:         pose = "伸腿/过高"
+    elif up > 0.85:        pose = "站立"
+    else:                  pose = "过渡"
+```
+
+#### 1.5.3 数据文件管理
+
+- 数据 CSV 存 `logs/pose_data/`（与视频 `video/` 对应，同一次评估两者都产出）
+- 文件名含任务名 + checkpoint + 姿态，可追溯
+- **报告时数据优先**：向负责人汇报时附 CSV 路径 + 关键帧数据（如跳跃前/中/后各关节角度数值），视频作为补充展示
 
 ---
 
-## GitHub CLI (gh) 速查
+## 2. 开发需借鉴，不可盲目开发
 
-### Issue 查看
-```bash
-gh issue view <number>
-gh api repos/<owner>/<repo>/issues/<number> --jq '.body'
+**禁止盲目修改。** 开发新姿态或优化任务效果前，必须走完整流程：**评估问题 → 查资料 → 定方案 → 开发测试 → 监控记录 → 对比总结**。
+
+### 2.1 先评估现有问题（诊断先行）
+
+**开发前先诊断现有模型的问题，不凭感觉动手。**
+
+以跌倒恢复为例，开发前必须明确：
+- 是**无法恢复**？
+- 还是**恢复后姿态不对**（转圈 / 轮子点地 / 左右腿一前一后 / 高度过高）？
+
+诊断手段：跑评估 + 写诊断脚本（测站立 base_z 分布、腿角 vs 自然站姿、左右轮速、yaw 累计、|gyro|、轮子离地率）。**有诊断数据才能定方案。**
+
+### 2.2 文献与开源研究（★ 参考文档）
+
+**基于问题查询相关论文和开源项目，学习参考，然后评估制定方案。**
+
+- 参考对象**不限于两轮足机器人**（四足、人形、倒立摆控制等均可借鉴）
+- 每个参考的论文/开源项目 → **写参考文档**
+
+参考文档结构：
+
+```
+docs/references/<YYYY-MM-DD>_<topic>_<ref_name>.md
 ```
 
-### PR 创建与管理
-```bash
-gh pr create --title "标题" --body "内容" --base main
-gh pr list
-gh pr view
+| 章节 | 内容 |
+|---|---|
+| 参考来源 | 论文标题/链接，或开源项目名/仓库 |
+| 核心方法 | 它怎么解决类似问题的 |
+| 可借鉴点 | 哪些思路/公式/奖励设计可迁移 |
+| 与我们的差异 | 机器人结构/任务/约束的差异 |
+| 落地建议 | 如何应用到本项目 |
+
+### 2.3 开环可行性评估
+
+**开发新任务前，先开环评估该机器人是否可实现。**
+
+- 例：跌倒恢复开发前，先验证机器人物理上能否从倒地起身（机械极限、关节范围）
+- 例：后空翻开发前，先验证翻转可行性（开环力矩能否完成 360°）
+- 产物：可行性评估脚本 + 结论（`tools/xqrobotwl/*_feasibility.py`）
+
+### 2.4 渲染可视化（★ 视角内）
+
+**任何新构地形 / 评估测试，都要渲染可视化视频给负责人观察。**
+
+- 每个评估通过的 checkpoint 渲染视频
+- 渲染脚本：`tools/xqrobotwl/render_recovery_video.py --run <run> --ckpt model_XXX.pt [--pose 0-3]`
+- **★ 视频必须保证机器人始终在视角范围内，不可出视角**（相机跟踪 `cam_tracking=True`）
+- 交付：`video/<task>/<描述>.mp4`
+
+### 2.5 开发框架 + 进展时间线
+
+**每个任务先制定开发框架，逐步开发；框架实时更新。**
+
+- **开发框架**（任务启动时制定，给负责人审阅）：
+  - 目标 / 约束 / 方案 / 分阶段计划 / 风险
+- **开发进展时间线文档**（实时更新）：
+  - 当前开发位置
+  - 每个开发部分带来的影响和效果
+  - 历史阶段记录
+
+进展时间线文档结构：
+
+```
+docs/timeline/<task>.md
 ```
 
-### PR Gate
-
-创建或更新 PR 前必须满足：
-
-1. 最终提交已经完成，且 `git status --short --branch` 确认工作树干净。
-2. 最终提交已经通过 `make test-all`。
-3. 如果用户明确说明已经跑过 `make test-all`，不要重复跑；但必须在 PR body 的 Validation 里记录 `make test-all` 已完成。
-4. 如果 `make test-all` 未通过且用户没有明确 override，不要创建或更新 PR。
-
-### CI 工作流查看
-```bash
-gh run list
-gh run list --workflow=<workflow-name>
-gh run view <run-id>
-gh run list --status=failure
-```
-
-### 常用组合
-```bash
-gh api repos/unilabsim/UniLab/issues/174 --jq '.title, .body'
-git push -u origin fix/issue-174-mlx-ppo-config-alignment
-gh pr create --title "fix: xxx" --body "Fixes #174" --base main
-```
+| 日期 | 阶段 | 做了什么 | 影响/效果 | 问题与解决 |
+|---|---|---|---|---|
+| 2026-08-07 | 方案 | 制定 FTSR 框架 | — | — |
+| 2026-08-07 | v1 训练 | 加超高惩罚 band0.08 | 恢复率崩 | 改 band0.12 |
+| ... | ... | ... | ... | ... |
 
 ---
 
-## Context
+## 3. 各任务独立，互不影响
 
-- 项目架构: `README.md`
-- 架构标准与验证详情：[docs/sphinx/source/zh_CN/4-developer_guide/0-index.md](docs/sphinx/source/zh_CN/4-developer_guide/0-index.md)
-- 协作流程与 PR 规范：[docs/sphinx/source/zh_CN/4-developer_guide/5-contributing_workflow.md](docs/sphinx/source/zh_CN/4-developer_guide/5-contributing_workflow.md)
-- 开发者入口（环境、命令、提交规范）：本文件 (CLAUDE.md)
-- 文档本地构建与发布到 UniLab-doc：[docs/sphinx/README.md#本地发布到-unilab-doc](docs/sphinx/README.md#本地发布到-unilab-doc)
+**每个开发任务必须独立，互不干涉，支持并行开发/训练/评估测试。**
+
+### 3.1 任务隔离
+
+| 任务 | 环境 | 配置 | 脚本 | devlog | 视频 | 目标见 |
+|---|---|---|---|---|---|---|
+| 平地滚动行走 | `joystick.py` | `conf/ppo/task/xqrobotwl_walk_flat/` | `tools/xqrobotwl/` | `_devlog/xqrobotwl/` | `video/walk/` | §7.2 |
+| 点足平地行走 | `toe_walk` 相关 | `conf/.../xqrobotwl_toe_walk_flat/` | 同上 | 同上 | `video/toe_walk/` | §7.3 |
+| 不平坦地形行走 | `rough_walk` 相关 | `conf/.../xqrobotwl_rough/` | 同上 | 同上 | `video/rough/` | §7.4 |
+| 平地跳跃 | `jump*.py` | `conf/.../xqrobotwl_jump*_flat/` | 同上 | 同上 | `video/jump/` | §7.5 |
+| 平地后空翻 | `backflip.py` | `conf/.../xqrobotwl_backflip_flat/` | 同上 | 同上 | `video/backflip/` | §7.6 |
+| 单腿平衡 | `single_leg*.py` | `conf/.../xqrobotwl_single_leg*/` | 同上 | 同上 | `video/single_leg/` | §7.7 |
+| 跌倒恢复 | `fall_recovery.py` | `conf/cpo/task/xqrobotwl_fall_recovery_flat/` | 同上 | 同上 | `video/fall_recovery/` | §7.8 |
+| 抬腿上台阶 | 待建 | 待建 | 同上 | 同上 | `video/stair/` | §7.9 |
+
+**隔离原则**：
+- 每个任务有自己的 env / config / 训练脚本 / devlog 目录 / 视频目录
+- 任务间**不共享可变状态**，改动一个任务不牵连其他
+- 训练日志独立（`logs/rsl_rl_<algo>/<task>/<run>/`）
+- 支持并行：多个任务可同时开训练（不同 run 目录）、同时评估、同时渲染
+
+### 3.2 并行开发支持
+
+- 每个任务可独立开训练进程（独立日志、独立 run 目录）
+- 每个任务独立评估/渲染（不互相阻塞）
+- **多个 AI agent 可并行开发不同任务**，互不影响干涉
+- 共享只读资源（机器人 XML、backend）不得被单个任务独占修改
+
+---
+
+## 4. 项目树管理与分类
+
+**构建文件不可乱放，做好分类管理，命名规范、一看就懂。定期清理无用文件。**
+
+### 4.1 顶层目录规范
+
+```
+wheel_legged_RL_unilab/
+├── src/unilab/envs/locomotion/xqrobotwl/   # 任务环境 (每任务一个文件)
+├── conf/<algo>/task/<task>/                # 任务配置 (每任务一个目录)
+├── tools/xqrobotwl/                         # 任务脚本 (eval_/render_/*_feasibility/dump_pose_data/infer_pose_from_csv)
+├── tools/                                   # 全仓库工具 (analyze_offpolicy/audit_sim2sim/generate_support_matrix/… + email/mujoco/pinocchio_traj/xqrobotV2)
+├── scripts/training/                        # 训练入口
+├── shell/xqrobotwl/                         # 启动/评估脚本
+├── logs/                                    # 训练产物 (git 忽略)
+├── video/<task>/                            # 结果视频
+├── _devlog/<task>/                          # 开发日志
+├── docs/references/                         # 参考文档
+├── docs/timeline/                           # 开发进展时间线
+└── backup/<task>_<version>/                 # 版本备份
+```
+
+### 4.2 命名规范
+
+| 对象 | 规范 | 示例 |
+|---|---|---|
+| 任务环境文件 | `snake_case.py`，语义清晰 | `fall_recovery.py` |
+| 配置目录 | `<task>_<variant>_flat/` | `xqrobotwl_fall_recovery_flat/` |
+| 训练 run 目录 | 自动时间戳 `<YYYY-MM-DD>_<HH-MM-SS>_mujoco` | `2026-08-09_15-14-54_mujoco/` |
+| checkpoint | `model_<iter>.pt` | `model_4000.pt` |
+| 评估脚本 | `eval_<task>.py` | `eval_fall_recovery.py` |
+| 渲染脚本 | `render_<task>.py` | `render_recovery_video.py` |
+| 视频 | `<日期>_<描述>.mp4` | `2026-08-07_恢复并稳定站立_model4000.mp4` |
+| devlog | `<序号>_<slug>.md` | `23_delivery_v7_4pose.md` |
+| 参考文档 | `<日期>_<主题>_<来源>.md` | `2026-08-09_force_guided_ftsr.md` |
+
+**规则**：文件名一眼能看懂是什么任务、什么内容。
+
+### 4.3 定期清理
+
+- 无用文件（临时脚本、废弃实验）及时清理或归档到 backup
+- 大体积训练产物（logs、frames）不进 git，用 `.gitignore` 管理
+- 定期更新项目树文档（README 或 docs/）反映当前结构
+
+---
+
+## 5. 跨平台适配（Ubuntu / macOS）
+
+**项目需适配 Ubuntu 与 macOS，自动检测系统属性并适配。**
+
+### 5.1 系统检测
+
+- 运行时检测 `platform.system()` / `sys.platform`
+  - `Darwin` → macOS
+  - `Linux` → Ubuntu/Linux
+- 检测点：
+  - **硬件**：Apple Silicon (mps) vs NVIDIA GPU (cuda)
+  - **Python 环境**：`uv` / venv 路径
+  - **路径**：iCloud Drive (macOS) vs 服务器路径 (Linux)
+
+### 5.2 适配策略
+
+| 项 | macOS (Darwin) | Ubuntu (Linux) |
+|---|---|---|
+| 计算设备 | `mps`（float32，不支持 float64） | `cuda`（支持 float32/64） |
+| 并行 env | 1024（MPS 实测 296k env步/秒） | 1024+ |
+| 依赖安装 | `uv`（Apple Silicon 注意编译） | `uv` |
+| 路径 | iCloud Drive（注意文件驱逐） | 服务器路径 |
+| GPU 检查 | — | `nvidia-smi` |
+
+**规则**：
+- 训练脚本自动检测设备（mps/cuda/cpu）并选择
+- 设备相关差异（如 float64 支持）必须在代码层适配
+- 文档标注各系统已验证的命令
+
+---
+
+## 6. 版本备份
+
+**每个训练较好的任务都要做版本备份，备份可直接加载模型运行。**
+
+### 6.1 备份策略
+
+- 备份目录：`backup/<task>_<version>/`
+- 备份时机：训练达标（甜点位确认）后立即备份
+- 备份内容：
+  - checkpoint（模型权重 `.pt`）
+  - 对应配置（conf/ 下该任务的 yaml）
+  - 环境代码快照（env 文件）
+  - 启动/评估脚本
+  - git commit 记录 + 变更 diff
+  - README（说明怎么加载运行）
+
+### 6.2 备份可直接运行
+
+**备份必须"开箱即跑"**——在备份目录里加载模型就能跑，不依赖当前工作区状态：
+
+```bash
+# 备份目录结构示例
+backup/XqRobotWLFallRecoveryFlat/fall_recovery_v7/
+├── model_4000.pt          # 甜点位 checkpoint
+├── conf/                  # 完整配置
+├── src/                   # 对应环境代码
+├── shell/                 # 启动脚本
+├── git_commit.txt         # 备份时的 git 版本
+├── uncommitted.diff       # 未提交变更
+└── README.md              # 加载/运行说明
+```
+
+**验证**：备份完成后，必须从备份目录单独加载模型跑一次评估，确认可用。
+
+---
+
+## 7. 项目开发目的（八大任务）
+
+> 本项目最终需要实现**八大任务**。每个任务的效果评估以**验证脚本 + 模拟按键输入控制 + 监控评估**为准，
+> **评估时间要足够长**，确保稳定测出准确数据（避免偶然性）。
+
+### 7.0 通用评估规范（所有任务）
+
+**所有任务的共同基础要求**：
+- **稳定姿态**：静态站立时姿态稳定，无持续漂移
+- **微动平衡**：未给指令时处于站立微动平衡（见 §1.4），不持续前进/后退/转圈
+- **指令追踪效果好**：给定指令后，机器人准确执行（前进/后退/转向/侧移）
+
+**通用评估方式**（每个任务都要做）：
+1. **验证脚本**：确定性评估脚本（如 `tools/xqrobotwl/eval_*.py`），多次运行取统计
+2. **模拟按键输入控制**：模拟键盘/手柄指令（前进、后退、转向、侧移、跳跃触发等），观察指令响应
+3. **监控评估**：导出姿态数据 CSV（§1.5）+ 渲染视频（§2.4），数据 + 视频双验证
+4. **长时评估**：评估时长要足够长（站立保持 ≥10s、行走 ≥30s、动作类任务重复 ≥10 次），稳定测出准确数据
+
+**评估时长要求**：
+
+| 任务类型 | 最低评估时长/次数 | 目的 |
+|---|---|---|
+| 静态站立/单腿平衡 | 连续保持 ≥10s | 测稳定性，排除偶然 |
+| 行走类 | 连续 ≥30s 或 ≥10m | 测持久追踪 |
+| 动作类（跳跃/后空翻） | 重复 ≥10 次 | 测成功率 |
+| 跌倒恢复 | 每姿态 ≥20 episodes | 测恢复率 |
+
+### 7.1 八大任务总览
+
+| # | 任务 | 核心目标 | 难度 |
+|---|---|---|---|
+| 1 | 平地滚动行走 | 稳定姿态 + 微动平衡 + 指令追踪 + 腿长可调 + 侧移 | 基础 |
+| 2 | 点足平地行走 | 稳定 + 微动 + 指令追踪 + 平缓抬腿 + 机身高度正常 + 侧移 | 基础 |
+| 3 | 不平坦地形行走 | 稳定 + 微动 + 指令追踪 + 地形自适应 | 中 |
+| 4 | 平地跳跃 | 稳定 + 下蹲蓄力 + 上跳 + 收腿 + 轮速匹配 + 稳定落地 | 中 |
+| 5 | 平地后空翻 | 完整后空翻姿态 + 稳定落地恢复 | 中高 |
+| 6 | 平地单腿平衡 | 三态：站立→单腿保持 / 倾斜单腿行走 / 独轮姿态控制 | 高 |
+| 7 | 跌倒恢复 | 任何跌倒姿态 → 稳定站立微动平衡 | 高 |
+| 8 | 抬腿上台阶 | 高台阶跳跃上、低台阶抬腿上、上下稳定 | 高 |
+
+### 7.2 任务 1：平地滚动行走
+
+**目标效果**：
+- 稳定姿态，微动平衡
+- 指令追踪效果好（前进、后退、转向）
+- **腿长可调**（不同命令下可蹲下/站直，腿部适应不同高度要求）
+- **侧向移动**（横向平移能力）
+
+**评估方式**：
+- 验证脚本：确定性行走评估，测 Vx/Vy 追踪误差、存活率
+- 模拟按键：前后左右、转向指令连续输入，观察响应
+- 长时评估：连续行走 ≥30s，记录指令追踪误差
+
+**达标标准**：
+- Vx/Vy 追踪误差 < 0.1 m/s，存活率 ≥ 95%
+- 侧移时 Vy 追踪 > 0.25 m/s（达标），无串扰
+- 微动平衡：无指令时静止，无持续漂移
+
+### 7.3 任务 2：点足平地行走
+
+**目标效果**：
+- 稳定姿态，微动平衡
+- 指令追踪效果好
+- **抬腿步伐平缓**（抬腿/落腿动作平滑，无猛踢）
+- **机身高度正常**（站立高度 ≈ 自然站姿 0.52m，不过高不过低）
+- **侧向移动**
+
+**评估方式**：
+- 验证脚本：测抬腿高度曲线（平缓度）、机身高度、追踪误差
+- 姿态数据：导出抬腿/落腿过程的关节角度 CSV，检查步伐平缓
+- 长时评估：连续行走 ≥30s
+
+**达标标准**：
+- 抬腿动作平缓（腿部关节角速度变化平滑，无突变）
+- 机身高度 ≈0.52m ±0.05
+- 侧移能力与任务 1 一致
+
+**附加难度（后期可选项）**：可抬腿上台阶（点足与上台阶结合）
+
+### 7.4 任务 3：不平坦地形行走
+
+**目标效果**：
+- 稳定姿态，微动平衡
+- 指令追踪效果好
+- **地形腿长自适应变化**（腿部根据地形高低自动伸缩，保持机身稳定）
+
+**评估方式**：
+- 验证脚本：粗糙地形行走评估，测机身高度稳定性、存活率
+- 姿态数据：导出各腿在不同地形高度的自适应变化曲线
+- 长时评估：连续行走 ≥30s
+
+**达标标准**：
+- 粗糙地形存活率 ≥ 90%
+- 机身高度波动小（腿长自适应生效）
+- 微动平衡保持
+
+### 7.5 任务 4：平地跳跃
+
+**目标效果**（完整跳跃阶段链）：
+- 跳跃前：**稳定站立**（下蹲蓄力姿态正确）
+- 跳跃过程：**下蹲蓄力 → 上跳 → 飞空收腿 → 准备落地**，姿态符合正常跳跃
+- **轮速匹配**（起跳/落地时轮子速度与地面匹配，不空转打滑）
+- **稳定落地**（落地缓冲正确，不倾倒）
+- 落地后：**恢复稳定站立**
+
+**评估方式**：
+- 模拟按键：触发跳跃指令，监控跳跃全过程
+- 姿态数据：导出跳跃前/中/后每步关节角度 CSV（§1.5.1），检查各阶段姿态
+- 长时评估：重复跳跃 ≥10 次，统计成功率
+
+**达标标准**：
+- 跳跃成功率 ≥ 90%（10 次中 ≥9 次完整落地恢复站立）
+- 阶段姿态正确：下蹲蓄力 → 上跳 → 收腿 → 落地，无姿态异常
+- 轮速匹配：落地时轮子不空转打滑
+- 落地后能恢复稳定站立（微动平衡）
+
+**附加难度（后期可选项）**：跳远、跳跃木桩、跳跃间隙地形
+
+### 7.6 任务 5：平地后空翻
+
+**目标效果**：
+- 完整后空翻姿态（翻转 360°，动作正常、不歪斜）
+- 稳定落地，恢复稳定站立
+
+**评估方式**：
+- 验证脚本：后空翻确定性评估，测翻转完成率、落地姿态
+- 模拟按键：触发后空翻，监控翻转全过程姿态
+- 姿态数据：导出翻转过程关节角度 CSV（翻转中躯干朝向、腿部动作）
+- 长时评估：重复 ≥10 次，统计成功率
+
+**达标标准**：
+- 翻转完成率 ≥ 90%（10 次中 ≥9 次完整翻过并站立）
+- 翻转动作正常（不歪斜、不刷旋转）
+- 落地稳定，恢复站立
+
+### 7.7 任务 6：平地单腿平衡（三态）
+
+**三种形态，分别开发与评估**：
+
+**形态 A — 单腿保持**：
+- 从站立姿态 → 单腿平衡 → 保持几秒稳定 → 恢复正常站立
+- 达标：单腿保持 ≥5s 稳定，能恢复站立
+
+**形态 B — 倾斜单腿行走**：
+- 从站立 → 倾斜单腿平衡 → 能够前进、后退、转向
+- 达标：倾斜单腿行走时指令追踪准确（前进/后退/转向）
+
+**形态 C — 独轮姿态控制**：
+- 独轮姿态（单轮支撑）单腿平衡，同样可指令控制
+- 达标：独轮姿态稳定 + 指令追踪
+
+**评估方式**：
+- 模拟按键：三态分别触发 + 指令输入
+- 姿态数据：导出单腿平衡时各腿/轮姿态 CSV（自由轮离地高度、支撑腿姿态）
+- 长时评估：保持类 ≥10s，行走类 ≥30s
+
+**附加难度（后期可选项）**：独木桥地形
+
+### 7.8 任务 7：跌倒恢复
+
+**目标效果**：
+- **任何跌倒姿态**（仰卧/俯卧/左躺/右躺）都能恢复到正常稳定站立
+- 恢复后处于微动平衡，姿态正常（不转圈、不点地、不左右腿一前一后、高度正常）
+
+**评估方式**：
+- 验证脚本：`tools/xqrobotwl/eval_fall_recovery.py` 逐姿态测（`--pose 0-3`）
+- 姿态数据：导出恢复过程关节角度 CSV（倒地→起身→站立全阶段）
+- 长时评估：每姿态 ≥20 episodes，稳定测恢复率
+
+**达标标准**：
+- 4 姿态恢复率 ≥ 80%
+- 恢复后最长连续站立 ≥ 1，0s
+- 恢复后姿态正常（见 §1.3 姿态表格，无异常类别）
+- 恢复后微动平衡（无持续漂移/转圈）
+
+### 7.9 任务 8：抬腿上台阶地形
+
+**目标效果**：
+- **高台阶**：采用**跳跃方式**上台阶
+- **低台阶**：采用**抬腿方式**上台阶（腿抬高跨上，不平缓）
+- **上下台阶稳定**（上台阶后稳定站立，下台阶稳定落地）
+
+**评估方式**：
+- 验证脚本：不同高度台阶的上下评估
+- 姿态数据：导出抬腿跨上/跳跃上台阶的关节角度 CSV（抬腿高度、跨步动作）
+- 模拟按键：指令驱动上下台阶
+- 长时评估：每个台阶高度重复 ≥10 次
+
+**达标标准**：
+- 上台阶成功率 ≥ 90%（各种台阶高度）
+- 高台阶跳跃上、低台阶抬腿上，动作正确
+- 上下台阶后稳定站立
+
+---
+
+## 附录 A：核心指标定义
+
+| 指标 | 定义 | 达标 |
+|---|---|---|
+| 恢复率 | base_z 达 h_cmd2(0.52m) 站立的 episode 比例 | ≥80% |
+| 最长连续站立 | 连续满足 (z>0.45+直立>0.85+双轮着地) 的最长时长 | ≥0.5s |
+| 站立高度 | 站立时 base_z 分布 | ≈0.52m |
+| 水平漂移 | 恢复后 base 水平位移 | <0.5m |
+| yaw 累计 | 站立期 yaw 旋转 | ≈walk 水平(~56°) |
+| \|gyro\| | 站立角速度 | <1 rad/s |
+| 轮速差 | \|wL-wR\| | 小 |
+| 轮子离地率 | 站立时轮离地帧占比 | 0% |
+
+
+## 附录 C：开发检查清单
+
+```
+□ 任务启动前：可行性评估？参考文档？开发框架给负责人审阅？对应 §7 哪个任务？
+□ 代码修改后：开发日志写了？更新 INDEX？
+□ 训练启动：1024 envs？禁辅助力？日志路径？monitor 挂了？
+□ 每 1000 iter：无辅助评估跑了？记录姿态/关节/速度？
+□ 达标后：甜点位确认？渲染视频（视角内）？导出姿态数据 CSV（logs/pose_data/）？版本备份可运行？
+□ 达标判定：对照 §7 该任务的达标标准？长时评估做了？（站立≥10s / 行走≥30s / 动作重复≥10次 / 恢复每姿态≥20ep）
+□ 汇报：进展时间线更新？交付文档？姿态数据 + 视频给负责人审阅？
+```
+
+
+
+你要明白你是一个开发人员，我是公司老板，你需要针对你的开发进行详细的汇报给我，做了什么，实现了什么效果，进展如何，技术问题，如何解决等。一切开发都需要有记录和痕迹。
+该强化学习项目开发：
+1. 开发要有痕：
+- 每次对开发任务修改都需要写开发日志：记录修改了什么，哪些文件，训练后产生了什么效果，参数调整的好与坏
+- 评估测试：每次开启训练进行监控，每一千轮进行评估测试，评估测试包括但不限于姿态，关节角度，功能好坏，例如跳跃任务的评估测试，模拟按键进行跳跃，监控跳跃前的姿态是什么样子的，跳跃过程的姿态，落地后的姿态。
+- 姿态评估：姿态需要监控关节角度，进行推理机器人姿态，常见的站立姿态，下蹲姿态，伸腿姿态，以及一些不好姿态，左右腿一前一后，髋关节外展内收，机器人前倾，后倾，左右倾斜，左右高低腿等，我需要你做一个详细的姿态表格，对应不同关节角度组合成的不同姿态。
+- 线速度和角速度追踪：也是姿态评估，未给定指令时，机器人应该处于站立微动平衡，不可出现，一直前进，后退，转圈等误差问题。
+2. 开发需借鉴，不可盲目开发：
+- 开发新的姿态或则优化任务效果时，不可盲目修改，需要首先详细评估现有问题，例如开发跌落恢复时候，需要首先评估训练好的模型，目前存在的问题，是跌落恢复无法恢复，还是恢复后姿态不是正常站立姿态，机器人会转圈、轮子无法贴合地面一直点地、左右腿一前一后等相关问题，需要基于问题查询网上相关论文和开源项目，进行学习参考，然后评估和制定方案，进行开发测试，监控，记录不同方案带来的效果和劣势问题，对于参考的论文或开源项目，需要写参考文档，参考对象不限于两轮足机器人。
+- 开发新任务需要首先开环评估该机器人是否可以实现，任何新构地形，评估测试，都需要渲染可视化视频，给我进行观察，看看还有是否符合我的要求，渲染的视频，需要保证机器人始终在视角范围内，不可出视角。
+- 开发需要首先查询大量资料进行学习参考，写参考文档，然后制定开发框架，一步一步开发，同时需要把开发框架做好给我看，每次开发都需要更新开发框架，目前开发的位置，每个开发的部分带来的影响和效果，需要做一个开发进展时间线文档给我看，实时更新。
+3. 各个任务之间独立，互不影响：
+- 每个开发的任务需要独立互不影响：例如跳跃任务，后空翻任务，平地行走任务等，互不干涉和影响，做好分离，需要可支持并行开发，训练，评估测试。例如我可以开多个agent进行并行开发，他们之间互不影响干涉。
+4. 项目树需要做好管理和分类：
+- 构建文件不可乱放，需要做好分类和管理，文件命名需要规范，让人一看就懂。
+- 定期清理没用的文件和更新项目树文档说明。
+5. 该项目是需要适配ubuntu系统和mac系统的，需要然他能够自动监测系统属性，然后进行适配。
+6. 对于每个任务训练比较好的都需要做一个版本备份，备份需要可以直接在备份文件中加在模型跑/Users/xiaoq/Library/Mobile Documents/com~apple~CloudDocs/CodeBase/wheel_legged_RL_unilab/backup
+7. 项目开发的目的：八大任务最终需要达到的效果，效果评估以验证脚本，模拟按键输入控制，监控评估，评估时间需要长些，方便稳定测出准确数据。
+- 平地滚动行走：稳定姿态，微动平衡，指令追踪效果好，腿长可调，侧向移动
+- 点足平地行走：稳定姿态，微动平衡，指令追踪效果好，抬腿步伐平缓，机身高度正常，侧向移动。附加难度（可抬腿上台阶，后期开发的可选项）
+- 不平坦地形的行走：稳定姿态，微动平衡，指令追踪效果好，地形腿长自适应变化
+- 平地跳跃：稳定姿态，微动平衡，指令追踪效果好，跳跃前稳定站立，跳跃过程中，姿态符合正常跳跃的下蹲蓄力，上跳，飞空收腿，准备落地，轮速匹配，稳定落地，恢复稳定站立。附加难度（除了跳高，后期可能增加跳远，可以跳跃木桩，间隙地形。
+- 平地后空翻：同跳跃一样，需要一个正常的后空翻姿态。
+- 平地单腿平衡：单腿平衡分成三种，一种从站立姿态变成单腿平衡，只需保持几秒稳定后，恢复正常站立姿态，第二种是，从站立姿态，变成倾斜单腿平衡的行走，能够前进后退转向，第三种是独轮姿态的单腿平衡，同样需要可以指令控制。附加难度（可以通过独木桥地形）
+- 跌倒恢复：任何跌倒姿态都可以恢复到正常的稳定站立，微动平衡。
+- 抬腿上台阶地形：对于高台阶，采用跳跃的方式上去，对于低台阶采用抬腿上台阶，上下台阶能够稳定。
+
+8. 开发这个两轮足机器人的姿态表格：不同关节角度对应的不同姿态
+9. 每次新的开发需要设置checkpoint,用于回退，以防新的开发出现问题或效果更差。

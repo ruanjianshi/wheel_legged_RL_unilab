@@ -44,7 +44,7 @@
 验证之后，如果支持状态发生了变化，刷新生成的支持数据：
 
 ```bash
-uv run scripts/generate_support_matrix.py --write
+uv run tools/generate_support_matrix.py --write
 ```
 
 证据等级的定义参见 {doc}`/glossary`。

@@ -2,7 +2,7 @@
 
 **日期**: 2026-08-10
 **来源**: 用户指出 shell/xqrobotwl/jump 少了两个验证脚本
-**关联**: [[32_shell_reorganize_by_task]]
+**关联**: [[02_shell_reorganize_by_task]]
 
 ---
 

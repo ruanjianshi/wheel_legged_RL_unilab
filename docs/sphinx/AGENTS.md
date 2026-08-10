@@ -183,12 +183,12 @@ ADR files live in `source/adr/` and are shared across languages.
 ## Support Matrix
 
 `source/zh_CN/5-reference/5-support_matrix.md` has a
-generated block owned by `scripts/generate_support_matrix.py`.
+generated block owned by `tools/generate_support_matrix.py`.
 
 After task/backend support changes, run:
 
 ```bash
-uv run scripts/generate_support_matrix.py --write
+uv run tools/generate_support_matrix.py --write
 ```
 
 Do not hand-edit the generated block.

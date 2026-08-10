@@ -4,7 +4,7 @@
 > 集成 PPO / SAC / TD3 / APPO / HIM-PPO / FlashSAC 等主流强化学习算法，
 > 提供 MuJoCo / Motrix 双物理后端。
 >
-> 更新：2026-07-02
+> 更新：2026-08-10
 
 ---
 
@@ -15,12 +15,13 @@ wheel_legged_RL_unilab/
 │
 ├── src/unilab/                   # ★ 核心库
 │   ├── algos/                    # RL 算法实现 (torch + mlx)
-│   │   ├── torch/                #   PPO(rsl-rl), APPO, SAC, TD3, FlashSAC, HORA, HIM-PPO
+│   │   ├── torch/                #   PPO(rsl-rl), CPO, NP3O, APPO, SAC, TD3, FlashSAC, HORA, HIM-PPO
 │   │   ├── mlx/                  #   MLX PPO (Apple Silicon)
 │   │   └── common/               #   网络骨架 (MLP, LayerNormMLP, RunningMeanStd)
 │   │
 │   ├── envs/                     # 环境实现
-│   │   ├── locomotion/           #   移动任务: xqrobotwl, xqrobotV2
+│   │   ├── locomotion/xqrobotwl/ #   ★ 轮腿机器人 xqrobotwl: 8 大任务环境 (每任务一文件)
+│   │   ├── locomotion/xqrobotV2/ #   轮腿机器人 xqrobotV2 (旧版)
 │   │   └── common/               #   共享函数 (rewards, commands, terrain_spawn, height_scan)
 │   │
 │   ├── terrains/                 # 地形生成系统
@@ -28,70 +29,35 @@ wheel_legged_RL_unilab/
 │   │   ├── heightfield_terrains.py # 7 种子地形: 平地/台阶/楼梯/斜坡/波浪/粗糙
 │   │   └── config.py             #   预设配置
 │   │
-│   ├── assets/                   # 机器人模型 + 场景 XML
-│   │   ├── robots/               #   2 种机器人 (xqrobotwl, xqrobotV2)
-│   │   └── scenes/               #   场景 XML
-│   │
-│   ├── base/                     # 核心抽象
-│   │   ├── np_env.py             #   NpEnv 契约 (reset/step/obs 规范)
-│   │   ├── backend/base.py       #   SimBackend 抽象接口 (700+ lines)
-│   │   ├── backend/mujoco/       #   MuJoCo 后端实现
-│   │   ├── backend/motrix/       #   Motrix GPU 后端实现
-│   │   ├── registry.py           #   环境注册工厂 (envcfg / env 装饰器)
-│   │   ├── scene.py              #   场景配置 (模型 + 地形 + fragment)
-│   │   ├── curriculum.py         #   课程学习 (PenaltyCurriculum)
-│   │   └── observations.py       #   观测分组规范
-│   │
-│   ├── dr/                       # 域随机化
-│   │   ├── manager.py            #   DR 管理器 (init/interval/reset 三阶段)
-│   │   ├── provider.py           #   DR 提供者基类
-│   │   └── types.py              #   随机化载荷数据结构
-│   │
-│   ├── training/                 # 训练基础设施
-│   │   ├── experiment.py         #   ExperimentTracker (wandb/tensorboard)
-│   │   ├── run.py                #   checkpoint 解析 + 加载
-│   │   ├── rsl_rl.py             #   RSL-RL 桥接
-│   │   ├── sim2sim.py            #   跨后端契约验证
-│   │   └── reward.py             #   奖励配置提取
-│   │
+│   ├── assets/                   # 机器人模型 + 场景 XML (xqrobotwl / xqrobotV2)
+│   ├── base/                     # 核心抽象 (np_env / backend / registry / scene / curriculum / observations)
+│   ├── dr/                       # 域随机化 (init/reset/interval 三阶段)
+│   ├── training/                 # 训练基础设施 (experiment / run / rsl_rl / sim2sim / reward)
 │   ├── ipc/                      # 进程间通信 (异步训练)
-│   │   ├── async_runner.py       #   异步 runner
-│   │   ├── replay_buffer.py      #   重放缓冲区
-│   │   └── weight_sync.py        #   权重同步
-│   │
 │   ├── visualization/            # 可视化 & 回放
 │   ├── tools/                    # CLI 工具 (export, import, render, viz)
 │   └── cli.py                    # 命令行入口 (train / eval / demo)
 │
-├── conf/                         # ★ Hydra 配置体系
-│   ├── ppo/                      #   基础 + 任务配置
-│   │   ├── config.yaml
-│   │   └── task/
-│   ├── appo/                     #   APPO 配置
-│   ├── offpolicy/                #   SAC/TD3/FlashSAC
-│   │   ├── config.yaml
-│   │   ├── algo/
-│   │   └── task/
-│   ├── ppo_him/                  #   HIM-PPO
-│   └── hora_distill/             #   HORA 蒸馏
+├── conf/<algo>/task/<task>/      # ★ Hydra 任务配置 (按 algo × 任务隔离)
+│   ├── ppo/task/                 #   xqrobotwl_{walk_flat, walk_rough, jump×4, single_leg×3, toe_walk, backflip}
+│   │                             #   + xqrobotV2×4
+│   ├── np3o/task/                #   xqrobotwl_stairs, xqrobotV2_stairs
+│   └── cpo/task/                 #   xqrobotwl_fall_recovery_flat
 │
-├── scripts/training/             # 训练入口脚本 (train_rsl_rl, train_appo, train_offpolicy, ...)
-├── shell/                        # 便利脚本 (train / eval / tensorboard)
-├── assess/                       # ★ 策略评估框架 (独立于 Hydra)
-│   ├── runner.py                 #   CLI 入口
-│   ├── metrics.py                #   22 项评估指标 (5 类)
-│   ├── scenarios.py              #   4 套预设场景
-│   ├── plotter.py / reporter.py  #   图表 + 报告生成
-│   └── results/ plans/ reports/  #   评估输出
-├── _devlog/                      # 开发日志 (AI 自记录)
-├── docs/                         # 文档 (Sphinx)
-├── tools/                        # 外部工具 (mujoco 可视化等)
-├── tests/                        # 测试
-├── backup/                       # 模型备份
-├── notebook/                     # Jupyter 笔记本
-├── CLAUDE.md                     # AI 智能体开发规范
-├── pyproject.toml                # 项目配置 (uv 包管理)
-└── go.sh                         # 一键启动键盘控制评估
+├── tools/xqrobotwl/              # ★ 任务脚本 (eval_* / render_* / *_feasibility / warmstart_* / dump_pose_data / infer_pose_from_csv)
+├── tools/                        # 全仓库工具 (analyze_offpolicy / audit_sim2sim / generate_support_matrix / … + email / mujoco / pinocchio_traj / xqrobotV2)
+├── scripts/training/             # 训练入口 (train_rsl_rl / train_cpo / train_np3o / train_appo / …)
+├── scripts/play/                 # 交互/回放入口 (play_interactive 施力回灌)
+├── shell/xqrobotwl/<task>/       # ★ 启动/评估脚本 (每任务 train_<algo>_<task>.sh + eval_<algo>_<task>.sh)
+├── logs/                         # 训练产物 (git 忽略) — run 目录 + pose_data CSV
+├── video/<task>/                 # 结果视频 (8 任务目录)
+├── _devlog/<robot>/<task>/<algo>/<date>/   # 开发日志 (AI 自记录)
+├── docs/                         # 文档 (references / timeline / sphinx / project_tree)
+├── thesis/                       # 论文开发指导中心 (框架图 / 专家文档 / 调度 / 整合)
+├── backup/<Robot>/<task>_v<N>/   # 版本备份 (开箱即跑)
+├── tests/  benchmark/  picture/  Sim2real/   # 测试 / 平台 / 素材
+├── CLAUDE.md                     # AI 智能体开发规范 (企业级闭环)
+└── pyproject.toml                # 项目配置 (uv 包管理)
 ```
 
 ---
@@ -102,8 +68,28 @@ wheel_legged_RL_unilab/
 
 | 机器人 | 目录 | 类型 | 任务 |
 |--------|------|------|------|
-| **XqRobotWL** | `xqrobotwl/` | 轮腿双足 | flat walk, rough walk, jump flat, SRL/VMC jump, toe walk, stairs |
-| **XqRobotV2** | `xqrobotV2/` | 轮腿双足 | flat walk, rough walk, jump flat, toe walk, stairs |
+| **XqRobotWL** | `xqrobotwl/` | 轮腿双足 | **八大任务** (见下): 平地行走 / 点足行走 / 粗糙地形 / 跳跃 / 后空翻 / 单腿平衡 / 跌倒恢复 / 抬腿上台阶 |
+| **XqRobotV2** | `xqrobotV2/` | 轮腿双足 | walk_flat / walk_rough / jump / toe_walk / stairs (旧版, 已由 XqRobotWL 取代) |
+
+### XqRobotWL 八大任务 (CLAUDE.md §7)
+
+每个任务独立: env 文件 + conf 目录 + shell 启动/评估脚本 + devlog 目录 + video 目录 + 任务脚本,
+**互不共享可变状态**, 支持并行开发 / 训练 / 评估 (详见 CLAUDE.md §3)。
+
+| # | 任务 | env | conf | shell | devlog | video |
+|---|------|-----|------|-------|--------|-------|
+| 1 | 平地滚动行走 | `joystick.py` | `conf/ppo/task/xqrobotwl_walk_flat/` | `shell/xqrobotwl/flat/` | `_devlog/xqrobotwl/walk_flat/ppo/` | `video/walk/` |
+| 2 | 点足平地行走 | `toe_walk.py` | `conf/ppo/task/xqrobotwl_toe_walk_flat/` | `shell/xqrobotwl/toe_walk/` | `_devlog/xqrobotwl/toe_walk/ppo/` | `video/toe_walk/` |
+| 3 | 不平坦地形行走 | `rough.py` | `conf/ppo/task/xqrobotwl_walk_rough/` | `shell/xqrobotwl/rough/` | `_devlog/xqrobotwl/{walk_rough,rough}/ppo/` | `video/rough/` |
+| 4 | 平地跳跃 | `jump*.py` (5 变体) | `conf/ppo/task/xqrobotwl_jump*_flat/` | `shell/xqrobotwl/jump/` | `_devlog/xqrobotwl/jump/ppo/` | `video/jump/` |
+| 5 | 平地后空翻 | `backflip.py` | `conf/ppo/task/xqrobotwl_backflip_flat/` | `shell/xqrobotwl/backflip/` | `_devlog/xqrobotwl/backflip/ppo/` | `video/backflip/` |
+| 6 | 单腿平衡 (三态) | `single_leg*.py` (3) | `conf/ppo/task/xqrobotwl_single_leg*/` | `shell/xqrobotwl/single_leg/` | `_devlog/xqrobotwl/single_leg/ppo/` | `video/single_leg/` |
+| 7 | 跌倒恢复 | `fall_recovery.py` | `conf/cpo/task/xqrobotwl_fall_recovery_flat/` | `shell/xqrobotwl/fall_recovery/` | `_devlog/xqrobotwl/fall_recovery/ppo/` | `video/fall_recovery/` |
+| 8 | 抬腿上台阶 | `stairs.py` | `conf/np3o/task/xqrobotwl_stairs/` | `shell/xqrobotwl/stairs/` | `_devlog/xqrobotwl/stairs/np3o/` | `video/stairs/` |
+
+> **并行 agent 开发**: 8 个 agent 可各自认领一个任务 (独立 env/conf/shell/devlog/video), 并行训练互不干扰
+> (每个 run 独立时间戳目录 `logs/rsl_rl_<algo>/<Task>/<timestamp>/`)。共享只读基座
+> `joystick.py` / `base.py` / 机器人 XML 不得被单个 agent 独占修改 (CLAUDE.md §3.2)。
 
 ---
 
@@ -347,7 +333,7 @@ uv run train --algo ppo --task xqrobotV2_walk_flat --sim motrix
 - `algo.empirical_normalization / obs_normalization` — 归一化
 
 契约验证: `src/unilab/training/sim2sim.py`
-契约审计: `scripts/audit_sim2sim_contracts.py`
+契约审计: `tools/audit_sim2sim_contracts.py`
 
 ---
 
@@ -395,71 +381,49 @@ env = make("XqRobotV2WalkFlat", "mujoco", num_envs=4096)
 
 ---
 
-## 十、策略评估框架 (`assess/`)
+## 十、评估与数据闭环 (CLAUDE.md §1.3/§1.5/§2.4)
 
-独立于训练和 Hydra 的策略评估系统。
+按任务独立评估 (无辅助确定性 rollout)。**数据优先**: 姿态数据 CSV 才是评估依据,
+视频/图只是给负责人看的展示。
 
-### 结构
+### 工具链
 
-```
-assess/
-├── tasks.py                     # 任务+算法注册
-├── runner.py                    # CLI (评估/趋势/比较/列表)
-├── metrics.py                   # 22 项指标 (5 类)
-├── scenarios.py                 # 4 套场景
-├── recorder.py / exporter.py    # 轨迹录制 + CSV 导出
-├── plotter.py / reporter.py     # 图表 + Markdown 报告
-├── results/<task>/<algo>/<session>/
-├── plots/<task>/<algo>/<session>/
-├── reports/<task>/<algo>/<session>/
-└── database/
-```
-
-### 评估场景
-
-| 场景 | 场景数 | 说明 |
-|------|--------|------|
-| `decoupling` | 6 | Vx/Vy 方向解耦测试 (前/后/侧/对角) |
-| `full` | 16 | 全量扫描 (速度 0.1-0.6, 侧向 0.1-0.3, 偏航 0.5-1.0, 后退) |
-| `standing` | 1 | 零指令稳定性测试 |
-| `toe_walk` | (待定) | 脚趾行走 |
+| 阶段 | 工具 | 说明 |
+|------|------|------|
+| 确定性评估 | `tools/xqrobotwl/eval_*.py` | 每任务评估脚本 (eval_fall_recovery / eval_single_leg_move / eval_single_leg_unicycle …) |
+| 姿态数据导出 | `tools/xqrobotwl/dump_pose_data.py` | 每步姿态 CSV (26 列, 数值保留两位小数) → `logs/pose_data/` |
+| 姿态反推统计 | `tools/xqrobotwl/infer_pose_from_csv.py` | 按 §1.3 反推表逐行判姿态 + 各姿态时长/占比 |
+| 渲染视频 | `tools/xqrobotwl/render_*.py` | 相机跟踪 (机器人始终在视角内) → `video/<task>/` |
 
 ### 常用命令
 
 ```bash
-# 单次评估 (默认 flat_walk/ppo)
-uv run assess/runner.py -t flat_walk -a ppo -r <run> -c <ckpt>
+# 确定性评估 (跌倒恢复: --pose 0-3 逐姿态, 每姿态 ≥20 ep)
+uv run mjpython tools/xqrobotwl/eval_fall_recovery.py \
+    --run <run_dir> --ckpt model_4000.pt --num_envs 20
 
-# 全量评估 + 绘图 + CSV + 报告
-uv run assess/runner.py -t flat_walk -a ppo -r <run> -c <ckpt> \
-    -s full --plot --csv --report --record
+# 导出每步姿态数据 CSV (两位小数)
+uv run mjpython tools/xqrobotwl/dump_pose_data.py \
+    --run <run_dir> --ckpt model_4000.pt --pose 0
 
-# 跨 checkpoint 趋势
-uv run assess/runner.py -t flat_walk -a ppo -r <run> \
-    --trend --ckpts 5000,10000,15000,20000
+# 从 CSV 反推姿态 + 统计时长/占比
+uv run tools/xqrobotwl/infer_pose_from_csv.py logs/pose_data/xxx.csv
 
-# 跨模型比较
-uv run assess/runner.py --cmp \
-    results/flat_walk/ppo/<s>/metrics.json \
-    results/rough_walk/ppo/<s>/metrics.json --plot
-
-# 列出已注册任务
-uv run assess/runner.py --list-tasks
+# 渲染视频 (相机跟踪, 不出视角)
+uv run mjpython tools/xqrobotwl/render_recovery_video.py \
+    --run <run_dir> --ckpt model_4000.pt --pose 0
 ```
 
-### 22 项评估指标
+### 达标指标 (详见 CLAUDE.md 附录 A + §7.0)
 
-| 类别 | 指标 | 说明 |
-|------|------|------|
-| **跟踪** | vx/vy/vyaw RMSE, avg_velocity, tracking_ratio | 命令跟踪精度 |
-| **稳定** | base_height_rmse, roll/pitch_std, max_tilt, survival_rate | 姿态稳定性 |
-| **质量** | jerk_xy, jerk_z | 运动平滑度 |
-| **能效** | mean_torque, mean_power, COT | 运输成本 |
-| **步态** | stance_duty_factor, swing_symmetry, step_frequency | 步态特征 |
+恢复率 ≥80% · 站立高度 ≈0.52m · 站立 |gyro| <1 rad/s · 轮子离地率 0%
+**长时评估**: 站立保持 ≥10s / 行走 ≥30s / 动作类 ≥10 次 / 跌倒恢复每姿态 ≥20 episodes
 
 ---
 
 ## 十一、XqRobotV2 专项
+
+> 旧版机器人, 已由 XqRobotWL (八大任务) 取代; 以下技术参数保留供参考。
 
 ### 机器人说明
 
@@ -536,43 +500,54 @@ cd /home/robot/xiaoq/wheel_legged_RL_unilab
 source .venv/bin/activate  # Python 3.13, uv 管理
 ```
 
-### XqRobotV2 训练
+### 训练 (XqRobotWL 八大任务)
+
+每个任务有独立启动脚本 `shell/xqrobotwl/<task>/train_<algo>_<task>.sh` (如 `flat/`→平地滚动行走):
 
 ```bash
-# Flat Walk (GPU 0)
-CUDA_VISIBLE_DEVICES=0 bash shell/train_ppo_flat.sh
+# 平地滚动行走 (GPU 0)
+CUDA_VISIBLE_DEVICES=0 bash shell/xqrobotwl/flat/train_ppo_flat.sh
 
-# Rough Walk (GPU 1)
-CUDA_VISIBLE_DEVICES=1 bash shell/train_ppo_rough.sh
+# 粗糙地形行走 (GPU 1)
+CUDA_VISIBLE_DEVICES=1 bash shell/xqrobotwl/rough/train_ppo_rough.sh
+
+# 8 个任务可并行训练 (不同 GPU / 不同 run 目录, 互不干扰)
+CUDA_VISIBLE_DEVICES=2 bash shell/xqrobotwl/fall_recovery/train_ppo_fall_recovery.sh
 ```
+
+训练日志: `logs/rsl_rl_<algo>/<Task>/<timestamp>/model_<iter>.pt` (每个 run 独立时间戳目录)。
 
 ### 通用训练命令
 
 ```bash
 # PPO
-uv run train --algo ppo --task <task> --sim mujoco
+uv run train --algo ppo --task xqrobotwl_walk_flat --sim mujoco
 
-# SAC (offpolicy)
-uv run train --algo sac --task <task> --sim mujoco
+# CPO (约束策略优化, 跌倒恢复)
+uv run train --algo cpo --task xqrobotwl_fall_recovery_flat --sim mujoco
 
-# APPO (async)
-uv run train --algo appo --task <task> --sim mujoco
+# NP3O (台阶)
+uv run train --algo np3o --task xqrobotwl_stairs --sim mujoco
 ```
 
 ### 评估
 
 ```bash
-# 键盘控制
-bash shell/eval_ppo_flat.sh --keyboard
+# 键盘控制 (交互回放)
+bash shell/xqrobotwl/flat/eval_ppo_flat.sh --keyboard
 
-# 策略评估
-uv run assess/runner.py -t flat_walk -a ppo -r <run> -c <ckpt>
+# 确定性评估 (无辅助)
+uv run mjpython tools/xqrobotwl/eval_fall_recovery.py \
+    --run <run_dir> --ckpt model_4000.pt --pose 0
+
+# 姿态数据 → 反推统计
+uv run tools/xqrobotwl/infer_pose_from_csv.py logs/pose_data/xxx.csv
 ```
 
 ### TensorBoard
 
 ```bash
-uv run tensorboard --logdir logs/rsl_rl_ppo/XqRobotV2WalkFlat
+uv run tensorboard --logdir logs/rsl_rl_ppo/XqRobotWLWalkFlat
 ```
 
 ---
@@ -645,6 +620,7 @@ make test-all     # format + type + test
 - 架构标准: `docs/sphinx/source/zh_CN/4-developer_guide/0-index.md`
 - 协作流程: `docs/sphinx/source/zh_CN/4-developer_guide/5-contributing_workflow.md`
 - 智能体规范: `CLAUDE.md`
-- 贡献指南: `CONTRIBUTING.md`
-- 评估框架: `assess/README.md`
+- 评估与数据闭环: 见本 README 第十章 (tools/xqrobotwl 工具链)
+- 项目结构: `docs/project_tree.md`
+- 开发进展时间线: `docs/timeline/`
 - 开发日志: `_devlog/README.md`

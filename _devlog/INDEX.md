@@ -19,11 +19,15 @@ _devlog/<robot>/<task>/<algo>/<date>/<序号>_<slug>.md
 
 | 机器人 | 任务 | 算法 | 标题 |
 |--------|------|------|------|
-| xqrobotwl | jump | ppo | [仓库瘦身: 移除除 xqrobotwl/xqrobotV2 外所有机器人](xqrobotwl/jump/ppo/2026-08-10/31_strip_repo_to_two_robots.md) |
-| xqrobotwl | jump | ppo | [shell 目录按任务细分重组](xqrobotwl/jump/ppo/2026-08-10/32_shell_reorganize_by_task.md) |
-| xqrobotwl | jump | ppo | [根目录清理: 删 AGENTS.md 只留 CLAUDE.md + 散落文件](xqrobotwl/jump/ppo/2026-08-10/33_cleanup_root_agents_to_claude.md) |
+| xqrobotwl | repo | — | [移植 fall_recovery 分支: 后空翻/单腿平衡/跌倒恢复 + CPO](xqrobotwl/repo/2026-08-10/08_port_fall_recovery_branch.md) |
+| xqrobotwl | repo | — | [thesis/ 按用户架构重构: 分训-整合两阶段 + 7专家 + 调度器](xqrobotwl/repo/2026-08-10/07_thesis_folder_refactor_by_user_arch.md) |
+| xqrobotwl | repo | — | [新建 thesis/ 论文开发指导中心 (框架图 + 开发文档模板)](xqrobotwl/repo/2026-08-10/06_thesis_dev_guide_folder.md) |
+| xqrobotwl | repo | — | [8 训练全部完成 + 8 验证脚本冒烟通过 + 大清理无影响评估](xqrobotwl/repo/2026-08-10/05_verify_8_trained_policies.md) |
+| xqrobotwl | repo | — | [启动 8 个 xqrobotwl 训练 + 修复 shell 路径与 stairs obs 维度 bug](xqrobotwl/repo/2026-08-10/04_launch_8_trainings_and_fix_path_obs_bugs.md) |
+| xqrobotwl | repo | — | [根目录清理: 删 AGENTS.md 只留 CLAUDE.md + 散落文件](xqrobotwl/repo/2026-08-10/03_cleanup_root_agents_to_claude.md) |
+| xqrobotwl | repo | — | [shell 目录按任务细分重组](xqrobotwl/repo/2026-08-10/02_shell_reorganize_by_task.md) |
+| xqrobotwl | repo | — | [仓库瘦身: 移除除 xqrobotwl/xqrobotV2 外所有机器人](xqrobotwl/repo/2026-08-10/01_strip_repo_to_two_robots.md) |
 | xqrobotwl | jump | ppo | [补全 xqrobotwl/jump 缺失的 VMC 验证脚本](xqrobotwl/jump/ppo/2026-08-10/34_add_jump_vmc_eval_scripts.md) |
-| xqrobotwl | jump | ppo | [启动 8 个 xqrobotwl 训练 + 修复 shell 路径与 stairs obs 维度 bug](xqrobotwl/jump/ppo/2026-08-10/35_launch_8_trainings_and_fix_path_obs_bugs.md) |
 
 ### 2026-08-09
 

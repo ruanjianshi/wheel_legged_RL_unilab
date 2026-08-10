@@ -1,6 +1,6 @@
 """xqrobotwl 后空翻环境 — FSM前馈引导 + PPO 强化
 
-基于 P1 开环验证(scripts/xqrobotwl/backflip_feasibility.py)固化的 7 状态 FSM:
+基于 P1 开环验证(tools/xqrobotwl/backflip_feasibility.py)固化的 7 状态 FSM:
   -1站立 → 0蹲 → 1蹬 → 2飞(收腿) → 3展 → 4缓冲 → 5恢复 → 回到 -1
 
 核心设计:
@@ -17,6 +17,7 @@ Joint order (policy): [L_hip_roll, L_hip_pitch, L_knee, R_hip_roll, R_hip_pitch,
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Any
 
 import numpy as np
 
@@ -150,6 +151,7 @@ def _reward_launch_thrust(ctx: RewardContext) -> np.ndarray:
 
 def _reward_upright_landing(ctx: RewardContext) -> np.ndarray:
     """落地直立: 状态 4/5 奖重力对齐 body z"""
+    assert ctx.gravity is not None
     fsm = ctx.info["fsm_state"]
     active = np.isin(fsm, [4, 5]).astype(np.float64)
     return np.clip(ctx.gravity[:, 2], 0.0, 1.0) * active
@@ -194,6 +196,7 @@ def _reward_posture_stand(ctx: RewardContext) -> np.ndarray:
 
 def _reward_stand_balance(ctx: RewardContext) -> np.ndarray:
     """站住不倒: 状态 -1/4/5 温和奖励直立 (up=cos tilt), 不罚倾角 — 只需不倒, 不要求完美平衡"""
+    assert ctx.gravity is not None
     fsm = ctx.info["fsm_state"]
     active = np.isin(fsm, [-1, 4, 5]).astype(np.float64)
     up = np.clip(ctx.gravity[:, 2], 0.0, 1.0)  # 直立度, 45°→0.7, 60°→0.5
@@ -221,6 +224,7 @@ def _reward_ff_tracking(ctx: RewardContext) -> np.ndarray:
 def _reward_flip_complete(ctx: RewardContext) -> np.ndarray:
     """翻转完成奖励(锁存): 旋转已完成(_flip_completed) 且之后站起来(z>0.25) 且不摔 (up>0.6)
     先转完(可在低处), 之后站起来即算成功 — 匹配"后空翻后不倒"需求"""
+    assert ctx.gravity is not None
     flip_done = ctx.info.get("flip_completed", np.zeros(ctx.num_envs, dtype=bool))
     up = ctx.gravity[:, 2]
     not_fallen = ctx.base_height > 0.25  # 轮子撑住, 不折叠贴地
@@ -269,15 +273,15 @@ class XqRobotWLBackflipRewardConfig:
 @registry.envcfg("XqRobotWLBackflipFlat")
 @dataclass
 class XqRobotWLBackflipFlatCfg(XqRobotWLJumpSRLFlatCfg):
-    commands: XqRobotWLBackflipCommands = field(default_factory=XqRobotWLBackflipCommands)
-    reward_config: XqRobotWLBackflipRewardConfig | None = None
+    commands: XqRobotWLBackflipCommands = field(default_factory=XqRobotWLBackflipCommands)  # type: ignore[assignment]
+    reward_config: XqRobotWLBackflipRewardConfig | None = None  # type: ignore[assignment]
     max_episode_seconds: float = 4.0
 
 
 class XqRobotWLBackflipDRProvider(XqRobotWLJumpDRProvider):
     """采样命令: 站立/翻转混合 (flip_trigger∈{0,1})"""
 
-    def _sample_commands(self, env: object, num_reset: int) -> np.ndarray:
+    def _sample_commands(self, env: Any, num_reset: int) -> np.ndarray:
         cmds = np.zeros((num_reset, 5), dtype=get_global_dtype())
         prob = getattr(env._cfg.reward_config, "flip_trigger_prob", 0.7)
         flip = np.random.uniform(0.0, 1.0, num_reset) < prob
@@ -290,15 +294,18 @@ class XqRobotWLBackflipFlatEnv(XqRobotWLJumpSRLFlatEnv):
     """xqrobotwl 后空翻环境 — FSM前馈 + flip_progress + 相位门控奖励"""
 
     _cfg: XqRobotWLBackflipFlatCfg
+    _jump_cfg: XqRobotWLBackflipRewardConfig  # type: ignore[assignment]  # 收窄基类奖励配置类型
 
     def __init__(self, cfg: XqRobotWLBackflipFlatCfg, num_envs=1, backend_type="mujoco"):
+        if cfg.reward_config is None:
+            raise ValueError("reward_config must be provided via Hydra configuration")
         self._jump_cfg = cfg.reward_config
         self._total_env_steps = 0
         self._warmup_progress = 0.0
         self._ff_gain = cfg.reward_config.ff_gain
         self._flip_warmup_env_steps = cfg.reward_config.flip_warmup_iters * 24 * num_envs
         super().__init__(cfg, num_envs=num_envs, backend_type=backend_type)
-        self._dr_manager._provider = XqRobotWLBackflipDRProvider()
+        self._dr_manager._provider = XqRobotWLBackflipDRProvider()  # type: ignore[union-attr]
         # 后空翻专用状态
         self._fsm_state = -np.ones(num_envs, dtype=np.int32)
         self._fsm_timer = np.zeros(num_envs, dtype=np.float64)
@@ -348,6 +355,7 @@ class XqRobotWLBackflipFlatEnv(XqRobotWLJumpSRLFlatEnv):
     # ── reset: 硬重置翻转状态 (一次性动作必须干净开始) ──
 
     def _reset_done_envs(self) -> None:
+        assert self._state is not None
         done = self._state.terminated | self._state.truncated
         idx = np.flatnonzero(done).astype(np.int32)
         super()._reset_done_envs()

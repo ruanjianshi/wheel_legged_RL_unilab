@@ -77,6 +77,8 @@ def _reward_swing_lift(ctx: RewardContext) -> np.ndarray:
 
 def _reward_wheel_balance(ctx: RewardContext) -> np.ndarray:
     """轮子用于维持平衡, 不用于前进。奖: 轮速小 + 机身直立"""
+    assert ctx.dof_vel is not None
+    assert ctx.gravity is not None
     wheel_vel = ctx.dof_vel[:, -NUM_WHEEL_ACTIONS:]
     speed = np.sqrt(np.sum(np.square(wheel_vel), axis=1))
     # 轮子稍转可(平衡), 转太快扣分
@@ -91,7 +93,7 @@ def _reward_wheel_balance(ctx: RewardContext) -> np.ndarray:
 @dataclass
 class XqRobotV2ToeWalkFlatCfg(XqRobotV2WalkFlatCfg):
     commands: XqRobotToeWalkCommands = field(default_factory=XqRobotToeWalkCommands)
-    reward_config: XqRobotToeWalkRewardConfig | None = None
+    reward_config: XqRobotToeWalkRewardConfig | None = None  # type: ignore[assignment]
     curriculum: XqRobotCurriculumConfig = field(
         default_factory=lambda: XqRobotCurriculumConfig(enabled=False)
     )
@@ -115,11 +117,14 @@ class XqRobotToeWalkDRProvider(XqRobotDRProvider):
 @registry.env("XqRobotV2ToeWalkFlat", sim_backend="mujoco")
 class XqRobotV2ToeWalkFlatEnv(XqRobotV2WalkFlatEnv):
     _cfg: XqRobotV2ToeWalkFlatCfg
+    _toe_cfg: XqRobotToeWalkRewardConfig  # type: ignore[assignment]  # 收窄基类奖励配置类型
 
     def __init__(self, cfg: XqRobotV2ToeWalkFlatCfg, num_envs=1, backend_type="mujoco"):
+        if cfg.reward_config is None:
+            raise ValueError("reward_config must be provided via Hydra configuration")
         self._toe_cfg = cfg.reward_config
         super().__init__(cfg, num_envs=num_envs, backend_type=backend_type)
-        self._dr_manager._provider = XqRobotToeWalkDRProvider()
+        self._dr_manager._provider = XqRobotToeWalkDRProvider()  # type: ignore[union-attr]
         # Phase clock: random offset so half envs start with left leading, half with right
         self._phase_offset = np.random.uniform(0, 2 * np.pi, (num_envs,)).astype(np.float64)
         self._ref_dof_pos = np.zeros((num_envs, NUM_LEG_ACTIONS), dtype=np.float64)

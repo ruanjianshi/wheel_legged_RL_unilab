@@ -19,5 +19,9 @@
 | jump | PPO | [→](jump/ppo/INDEX.md) |
 | backflip | PPO | [→](backflip/ppo/INDEX.md) |
 | fall_recovery | PPO | [→](fall_recovery/ppo/INDEX.md) |
+| single_leg | PPO | [→](single_leg/ppo/INDEX.md) |
 | toe_walk | PPO | [→](toe_walk/ppo/INDEX.md) |
+| rough | PPO | [→](rough/ppo/INDEX.md) |
+| common | — | [→](common/INDEX.md) |
+| repo | — | [→](repo/INDEX.md) |
 

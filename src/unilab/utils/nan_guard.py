@@ -11,6 +11,10 @@ from pathlib import Path
 import numpy as np
 
 logger = logging.getLogger(__name__)
+# nan_guard 无自带 handler, 必须依赖向上传播 (root handler) 才能被捕获/显示.
+# 某些环境 (如 ROS2 的 launch 包导入后 setLoggerClass(LaunchLogger)) 会把新 logger
+# 默认设为 propagate=False, 导致 NaN 警告静默消失 — 显式强制传播恢复标准语义.
+logger.propagate = True
 
 
 @dataclass

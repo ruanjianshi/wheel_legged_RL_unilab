@@ -353,7 +353,7 @@ def check_generated_support_matrix(content: str, doc_path: Path, root: Path) -> 
     if expected != content:
         errors.append(
             f"{doc_path}: Generated support matrix is stale; run "
-            "`uv run scripts/generate_support_matrix.py --write`"
+            "`uv run tools/generate_support_matrix.py --write`"
         )
     return errors
 

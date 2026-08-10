@@ -1,226 +1,94 @@
-# XqRobotV2 策略评估框架 (Assess)
+# 八任务评估体系 (Assess)
 
-面向 XqRobotV2 轮腿机器人强化学习策略的标准化评估系统。支持**多任务 × 多算法 × 多版本**的定量对比。
+> 按 CLAUDE.md 开发规范构建的完整评估体系 —— **数据优先 (CSV 是评估依据) + 达标判定 (✅/❌) + 姿态反推**。
+> 覆盖八任务 §7.0 通用评估 / §7.x 各任务达标标准 / §1.5 数据优先 / 附录 A 核心指标。
 
 ## 快速开始
 
 ```bash
-# 列出任务和算法
-uv run assess/runner.py --list-tasks
+# 列出八任务
+uv run python _devlog/assess/runner.py --list-tasks
 
-# 平地步态 PPO 评估
-uv run assess/runner.py -t flat_walk -a ppo -r <run> -c 16200
+# 平地滚动行走评估 (默认 decoupling 套件 + 达标判定)
+uv run python _devlog/assess/runner.py -t walk_flat -r <run> -c model_9999.pt
 
-# 全量：评估 + 绘图 + CSV + 报告 + 轨迹
-uv run assess/runner.py -t flat_walk -a ppo -r <run> -c <ckpt> \
-    -s full --plot --csv --report --record
+# 完整评估 + 姿态数据 + 报告
+uv run python _devlog/assess/runner.py -t walk_flat -r <run> -c model_9999.pt \
+    -s full --dump-pose --report
 
-# 跨版本趋势
-uv run assess/runner.py -t flat_walk -a ppo -r <run> \
-    --trend --ckpts 5000,10000,15000,20000
+# 跌倒恢复 (固定倒地姿态 0=仰卧, 20 episodes)
+uv run python _devlog/assess/runner.py -t fall_recovery -r <run> --pose 0 --num_envs 20
 
-# PPO vs SAC 对比（训练完成后）
-uv run assess/runner.py --cmp \
-    results/flat_walk/ppo/<session>/metrics.json \
-    results/flat_walk/sac/<session>/metrics.json --plot
+# 跳过达标判定 (只出指标)
+uv run python _devlog/assess/runner.py -t jump -r <run> -c model_9999.pt --no-verify
 ```
 
-## 目录结构
-
-```
-assess/
-├── README.md
-├── tasks.py               # 任务 + 算法注册表
-├── runner.py              # CLI 入口
-├── metrics.py             # 22 项论文标准指标
-├── scenarios.py           # 测试场景定义
-├── recorder.py            # 全轨迹录制
-├── plotter.py             # 6 种图表
-├── exporter.py            # CSV / JSON 数据库
-├── reporter.py            # Markdown 分析报告
-│
-├── results/               # <task>/<algo>/<session>/
-├── plots/                 # <task>/<algo>/<session>/
-├── reports/               # <task>/<algo>/<session>/
-├── database/              # 累积历史库
-└── configs/               # 自定义场景 YAML
-```
-
-## 已注册任务与算法
-
-### 任务
-
-| 任务 ID | 名称 | 机器人 | 默认场景 |
-|---------|------|--------|---------|
-| `flat_walk` | 平坦地面行走 | XqRobotV2 | full |
-| `toe_walk` | 点足行走 | XqRobotV2 | toe_walk |
-
-### 算法
-
-| 算法 ID | 名称 | 类型 | 说明 |
-|---------|------|------|------|
-| `ppo` | PPO | On-policy | Proximal Policy Optimization (RSL-RL) |
-| `sac` | SAC | Off-policy | Soft Actor-Critic |
-| `appo` | APPO | On-policy | Asynchronous PPO |
-| `td3` | TD3 | Off-policy | Twin Delayed DDPG |
-
-### 已训练的组合
-
-| 组合 | 日志路径 |
-|------|---------|
-| `flat_walk/ppo` | `logs/rsl_rl_ppo/XqRobotV2WalkFlat` |
-| `toe_walk/ppo` | `logs/rsl_rl_ppo/XqRobotV2ToeWalkFlat` |
-
-添加新组合：在 `tasks.py` 中调用 `register("task", "algo")`。
-
-## 命令行参数
-
-| 名称 | 场景数 | 说明 |
-|------|--------|------|
-| `decoupling` | 6 | Vx/Vy 解耦快速测试 |
-| `full` | 16 | 全速度扫频（vx/vy/vyaw/后退/组合）|
-| `standing` | 1 | 静止站立稳定性 |
+> 注: 评估走 MuJoCo 离屏后端, 普通 `uv run python` 即可; 需要渲染视频时用
+> `uv run mjpython` + `tools/xqrobotwl/render_*.py`。
 
 ## CLI 参数
 
 | 参数 | 说明 |
-|------|------|
-| `-t, --task` | 任务名（默认 `flat_walk`）|
-| `-a, --algo` | 算法名（默认 `ppo`）|
-| `-r, --run` | 训练运行名 |
-| `-c, --ckpt` | checkpoint 迭代数（不填取最新）|
-| `-s, --suite` | 场景集（不填用任务默认）|
-| `--plot` | 生成图表 PNG |
-| `--csv` | 导出 CSV |
-| `--report` | 生成 Markdown 分析报告 |
-| `--record` | 录制全轨迹时间序列 |
-| `--trend` | 跨 checkpoint 趋势分析 |
-| `--ckpts` | 趋势分析的 checkpoint 列表（逗号分隔）|
-| `--cmp` | 对比多个评估结果 JSON |
-| `--list-tasks` | 列出已注册任务+算法组合 |
+|---|---|
+| `-t, --task` | 任务 key: walk_flat / toe_walk / walk_rough / jump / backflip / single_leg / fall_recovery / stairs |
+| `-r, --run` | run 目录名 (在任务 log_root 下, 如 `2026-08-10_xx_mujoco`) |
+| `-c, --ckpt` | checkpoint 文件名 (默认最新 model_*.pt) |
+| `-s, --suite` | 行走类场景套件: decoupling / full / standing |
+| `--num_envs` | 并行 env / episode 数 (跌倒恢复建议 20) |
+| `--max_steps` | 每 episode 最大步数 |
+| `--pose` | 跌倒恢复固定倒地姿态 0-3 (-1 随机) |
+| `--jump_every` | 跳跃/后空翻触发周期 (步) |
+| `--dump-pose` | 导出姿态数据 CSV → `logs/pose_data/` |
+| `--report` | 生成 Markdown 评估报告 + JSON |
+| `--no-verify` | 跳过 §7.x 达标判定 |
 
-## 评估指标
+## 八任务注册 (tasks.py)
 
-参考论文：RMA (2021)、ANYmal (2019)、Cassie (2020)、IsaacGym (2022)、DreamWaQ (2023)。
+| 任务 | env 注册名 | conf | algo | §7.x 达标 |
+|---|---|---|---|---|
+| walk_flat | XqRobotWLWalkFlat | ppo/xqrobotwl_walk_flat | ppo | 追踪<0.1, 存活≥95%, 侧移 Vy>0.25, 微动平衡 |
+| toe_walk | XqRobotWLToeWalkFlat | ppo/xqrobotwl_toe_walk_flat | ppo | 高度≈0.52±0.05, 抬腿平缓, 追踪 |
+| walk_rough | XqRobotWLWalkRough | ppo/xqrobotwl_walk_rough | ppo | 存活≥90%, 高度波动小 |
+| jump | XqRobotWLJumpFlat | ppo/xqrobotwl_jump_flat | ppo | 成功率≥90%, 跳出高度, 有腾空 |
+| backflip | XqRobotWLBackflipFlat | ppo/xqrobotwl_backflip_flat | ppo | 翻转完成率≥90%, 落地站立 |
+| single_leg | XqRobotWLSingleLegFlat | ppo/xqrobotwl_single_leg_flat | ppo | 单腿保持≥5s, 倾斜行走追踪 |
+| fall_recovery | XqRobotWLFallRecoveryFlat | cpo/xqrobotwl_fall_recovery_flat | cpo | 恢复率≥80%, 最长站立≥0.5s, 漂移<0.5m |
+| stairs | XqRobotWLStairs | np3o/xqrobotwl_stairs | np3o | 上台阶成功率≥90% |
 
-### 指令跟踪 (Command Tracking)
-
-| 指标 | 说明 | 参考 |
-|------|------|------|
-| `vx_tracking_rmse` | 前向速度 RMSE | RMA, ANYmal |
-| `vy_tracking_rmse` | 横向速度 RMSE | RMA |
-| `vyaw_tracking_rmse` | 偏航角速度 RMSE | ANYmal |
-| `avg_vx` / `avg_vy` | 实际平均速度 | — |
-| `vel_tracking_ratio` | 速度跟踪比（实际/指令） | — |
-| `vel_coupling` | Vx/Vy 串扰量 | XqRobotV2 |
-
-### 稳定性 (Stability)
-
-| 指标 | 说明 |
-|------|------|
-| `base_height_mean` | 基座平均高度 |
-| `base_height_std` | 高度波动（越小越稳） |
-| `orientation_rmse_deg` | 姿态角 RMSE（度） |
-| `yaw_stability` | 偏航角速度标准差 |
-
-### 运动质量 (Motion Quality)
-
-| 指标 | 说明 |
-|------|------|
-| `action_smoothness` | 相邻帧动作变化量 |
-| `joint_velocity_mean` | 平均关节速度 |
-| `gait_symmetry` | 左右腿运动对称性 |
-
-### 能效 (Energy Efficiency)
-
-| 指标 | 说明 |
-|------|------|
-| `mean_torque` | 平均关节力矩 |
-| `cost_of_transport` | 运输能耗 CoT = P/(mgv) |
-
-### 步态特征 (Gait Characteristics)
-
-| 指标 | 说明 |
-|------|------|
-| `step_frequency` | 步频（FFT 主频） |
-| `leg_workspace_utilization` | 关节运动范围 |
-
-## 输出示例
-
-### 运行摘要
+## 组件
 
 ```
-Task:  Flat Ground Walking (XqRobotV2, PPO)
-Model: 2026-07-01_13-55-35_mujoco @ iter 16200
-Suite: decoupling (6 scenarios)
-Output: assess/results/flat_walk/<session>/
-
-=====================================================================================
-RESULTS — 2026-07-01_13-55-35_mujoco iter=16200  [flat_walk]
-=====================================================================================
-Scenario                    vx      vy  vx_rmse vy_xtalk  base_h
--------------------------------------------------------------------------------------
-fwd_vx=0.6               0.119   0.007    0.525    0.007   0.525
-fwd_vx=0.3               0.331   0.016    0.040    0.016   0.537
-fwd_vx=-0.3             -0.032  -0.009    0.269    0.009   0.510
-lat_vy=+0.3              0.170   0.019    0.170    0.170   0.524
-lat_vy=-0.3              0.174  -0.018    0.177    0.174   0.532
-fwd+lat                  0.332   0.005    0.042    0.000   0.533
+assess/
+├── tasks.py       # 八任务注册表 + §7.x 达标阈值
+├── engine.py      # 通用确定性 rollout 引擎 (建env/加载policy/跑episodes/逐行采集)
+├── metrics.py     # 附录 A 核心指标 + 追踪/稳定/运动质量 (StepSample/Trace 载体)
+├── scenarios.py   # 场景模型 + 行走套件 (decoupling/full/standing)
+├── verify.py      # §7.x 达标判定 → 逐项 ✅/❌ + 总体
+├── report.py      # 输出: stdout 摘要 + results/<task>/<session>/metrics.json + reports/<task>/eval.md
+├── pose.py        # 姿态数据 CSV 导出 (§1.5.1, 26 列, 两位小数) → logs/pose_data/
+├── infer.py       # 姿态反推统计 (§1.3/§1.5.2, 复用 infer_pose_from_csv 判定)
+├── runner.py      # 统一 CLI
+└── eval/          # 八任务评估模块 (各实现 §7.x)
 ```
 
-### 生成文件
+## 数据优先闭环 (§1.5)
 
 ```
-JSON:   results/flat_walk/<session>/metrics.json
-Traj:   results/flat_walk/<session>/trajectory.json
-CSV:    results/flat_walk/<session>/metrics.csv
-Plots:  plots/flat_walk/<session>/{velocity,stability,gait,metric_bars}.png
-Report: reports/flat_walk/<session>/analysis.md
+runner 评估 → engine.collect_step 逐行采集 (26 列)
+  ├─ metrics.py   → 附录 A 指标 + §7.x 判定
+  ├─ pose.py      → logs/pose_data/<task>_<ckpt>.csv (两位小数)
+  └─ infer.py     → 姿态分布 (站立/下蹲/前倾/转圈/… 帧数+时长+占比)
 ```
 
-## 自定义场景
+报告时 **数据优先**: 附 CSV 路径 + 关键指标, 视频作补充 (CLAUDE.md §1.5.3)。
 
-在 `configs/<task>/` 下创建 YAML：
+## 与既有工具的关系
 
-```yaml
-name: my_suite
-description: "Custom evaluation"
-ctrl_dt: 0.01
-scenarios:
-  - name: "fast"
-    cmd: [0.8, 0.0, 0.0, 0.0, 0.65]
-    duration: 5.0
-    warmup: 2.0
-    description: "High speed"
-```
+- 复用 `tools/xqrobotwl/verify_jump.load_actor` (策略加载) / `infer_pose_from_csv` (姿态判定)
+- `tools/xqrobotwl/eval_fall_recovery.py` 仍是独立的跌倒恢复评估入口 (runner 用同一套 rollout 模式)
+- 训练监控 `shell/xqrobotwl/tools/monitor_training.sh` 每 1000 iter 提醒跑本 runner (§1.2)
 
-```bash
-uv run assess/runner.py -t flat_walk -r <run> -c <ckpt> --suite-file configs/flat_walk/my_suite.yaml
-```
+## 达标判定依据
 
-## 工作流
-
-```
-训练 PPO  → 定时评估 checkpoint → 趋势图
-训练 SAC  → 定时评估 checkpoint → 趋势图
-         ↓
-PPO vs SAC → 同场景对比报告 → 雷达图 + 柱状图
-```
-
-添加新算法时，只需在 `tasks.py` 中注册组合：
-
-```python
-# 例如：SAC 训练完成后
-register("flat_walk", "sac", log_subdir="offpolicy/XqRobotV2WalkFlat")
-```
-
-## 参考文献
-
-1. Kumar, A., et al. "RMA: Rapid Motor Adaptation for Legged Robots." RSS, 2021.
-2. Hwangbo, J., et al. "Learning Agile and Dynamic Motor Skills for Legged Robots." Science Robotics, 2019.
-3. Xie, Z., et al. "Learning Locomotion Skills for Cassie." ICRA, 2020.
-4. Rudin, N., et al. "Learning to Walk in Minutes Using Massively Parallel Deep RL." CoRL, 2022.
-5. Nahrendra, I., et al. "DreamWaQ: Learning Robust Quadrupedal Locomotion with Implicit Terrain Imagination." RAL, 2023.
-6. Miki, T., et al. "Learning Robust Perceptive Locomotion for Quadrupedal Robots in the Wild." Science Robotics, 2022.
-
-
+- 阈值来源: CLAUDE.md §7.2-7.9 各任务达标标准 + 附录 A 核心指标 + §1.4 微动平衡
+- 长时评估 (§7.0): 站立≥10s / 行走≥30s / 动作≥10 次 / 恢复每姿态≥20ep 在 eval 模块参数化

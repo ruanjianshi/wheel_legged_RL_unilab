@@ -1,21 +1,10 @@
-"""Task + Algorithm registry for multi-method evaluation.
+"""八任务评估注册表 (CLAUDE.md §3.1 / §7.1).
 
-Hierarchy:
-    task (e.g., flat_walk) → algorithm (e.g., PPO, SAC, APPO)
+每个任务映射: env 注册名 / conf 配置路径 / 训练日志根 / algo / ctrl_dt /
+actor 观测维度 / §7.x 达标阈值 (verify.py 判定依据)。
 
-Each (task, algo) pair maps to:
-    - Log root directory
-    - Default evaluation suite
-    - Algorithm metadata for reporting
-
-Usage:
-    # Register a task-algorithm combination
-    register("flat_walk", "ppo", ...)
-
-    # Query
-    get_task("flat_walk")
-    get_algo("ppo")
-    get_pair("flat_walk", "ppo")
+- 8 个 xqrobotwl 任务, 任务间完全独立 (各自 env/conf/shell/devlog/video), 支持并行评估。
+- 阈值来自 CLAUDE.md §7.2-7.9 + 附录 A; 指标名与 eval/<task>.py 产出对齐。
 """
 
 from __future__ import annotations
@@ -23,249 +12,206 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
-ROOT = Path(__file__).parent.parent
-
-# Manually derived: task → known log subdirectory patterns
-# Extended when new algorithms are trained
-_LOG_PATTERNS = {
-    ("flat_walk", "ppo"): "rsl_rl_ppo/XqRobotV2WalkFlat",
-    ("toe_walk", "ppo"): "rsl_rl_ppo/XqRobotV2ToeWalkFlat",
-    ("rough_walk", "ppo"): "rsl_rl_ppo/XqRobotV2WalkRough",
-    ("stairs", "np3o"): "rsl_rl_np3o/XqRobotV2Stairs",
-    ("jump", "ppo"): "rsl_rl_ppo/XqRobotV2JumpFlat",
-}
+ROOT = Path(__file__).resolve().parent.parent.parent  # 仓库根
 
 
-# ── Task definitions ───────────────────────────────────────────────────────
+@dataclass(frozen=True)
+class Threshold:
+    """达标阈值: 指标 op 值 (如 tracking_rmse < 0.1)."""
+
+    op: str  # "<" / "<=" / ">" / ">=" / "==" / "≈"
+    value: float
+    unit: str = ""
 
 
 @dataclass
 class TaskDef:
-    """A locomotion task (problem)."""
+    """一个评估任务定义."""
 
-    key: str  # e.g., "flat_walk"
-    name: str  # e.g., "Flat Ground Walking"
-    robot: str  # e.g., "XqRobotV2"
-    default_suite: str = "full"
-    cmd_dim: int = 5  # command vector dimension
-
-
-@dataclass
-class AlgoDef:
-    """A reinforcement learning algorithm."""
-
-    key: str  # e.g., "ppo"
-    name: str  # e.g., "PPO"
-    description: str = ""
-    # Typical hyperparameters for reference
-    defaults: dict = field(default_factory=dict)
+    key: str  # 任务 key, 如 "walk_flat"
+    name: str  # 中文名
+    env_name: str  # registry env 注册名
+    cfg_path: str  # conf mujoco.yaml 相对路径
+    log_root: str  # logs 根 (logs/rsl_rl_<algo>/<TaskName>)
+    algo: str  # 训练算法 (ppo/cpo/np3o)
+    ctrl_dt: float  # 控制周期
+    obs_dim: int | None  # actor 观测维度 (None → 运行时从 env 取)
+    num_actions: int = 8
+    long_eval: str = ""  # §7.0 长时评估要求
+    thresholds: dict[str, Threshold] = field(default_factory=dict)
 
 
-@dataclass
-class TaskAlgoPair:
-    """A trained (task, algorithm) combination ready for evaluation."""
-
-    task: TaskDef
-    algo: AlgoDef
-    log_root: Path
-    default_suite: str
-
-    @property
-    def key(self) -> str:
-        return f"{self.task.key}/{self.algo.key}"
-
-    @property
-    def display(self) -> str:
-        return f"{self.task.name} ({self.algo.name})"
+_TASKS: dict[str, TaskDef] = {}
 
 
-# ── Registries ─────────────────────────────────────────────────────────────
-
-_tasks: dict[str, TaskDef] = {}
-_algos: dict[str, AlgoDef] = {}
-_pairs: dict[tuple[str, str], TaskAlgoPair] = {}
+def register(task: TaskDef) -> None:
+    _TASKS[task.key] = task
 
 
-def register_task(task: TaskDef):
-    _tasks[task.key] = task
-
-
-def register_algo(algo: AlgoDef):
-    _algos[algo.key] = algo
-
-
-def register(
-    task_key: str, algo_key: str, log_subdir: str | None = None, default_suite: str | None = None
-):
-    """Register a trained task+algo combination for evaluation."""
-    t = _tasks.get(task_key)
-    a = _algos.get(algo_key)
-    if t is None:
-        raise KeyError(f"Unknown task: {task_key}. Available: {list(_tasks.keys())}")
-    if a is None:
-        raise KeyError(f"Unknown algorithm: {algo_key}. Available: {list(_algos.keys())}")
-
-    log_path = (
-        ROOT
-        / "logs"
-        / (log_subdir or _LOG_PATTERNS.get((task_key, algo_key), f"unknown/{task_key}"))
-    )
-    suite = default_suite or t.default_suite
-
-    pair = TaskAlgoPair(task=t, algo=a, log_root=log_path, default_suite=suite)
-    _pairs[(task_key, algo_key)] = pair
-
-
-def get_task(key: str) -> TaskDef:
-    if key not in _tasks:
-        raise KeyError(f"Unknown task: {key}")
-    return _tasks[key]
-
-
-def get_algo(key: str) -> AlgoDef:
-    if key not in _algos:
-        raise KeyError(f"Unknown algorithm: {key}")
-    return _algos[key]
-
-
-def get_pair(task_key: str, algo_key: str) -> TaskAlgoPair:
-    k = (task_key, algo_key)
-    if k not in _pairs:
-        # Try default lookup
-        register(task_key, algo_key)
-    if k not in _pairs:
-        raise KeyError(f"No evaluation registered for {task_key}/{algo_key}. Use register() first.")
-    return _pairs[k]
+def get(key: str) -> TaskDef:
+    if key not in _TASKS:
+        raise KeyError(f"未知任务: {key}, 可选: {list(_TASKS)}")
+    return _TASKS[key]
 
 
 def list_tasks() -> dict[str, TaskDef]:
-    return dict(_tasks)
+    return dict(_TASKS)
 
 
-def list_algos() -> dict[str, AlgoDef]:
-    return dict(_algos)
+# ── 八任务注册 (阈值按 CLAUDE.md §7.x + 附录 A) ──────────────────────────────
 
-
-def list_pairs() -> list[TaskAlgoPair]:
-    return list(_pairs.values())
-
-
-# ── Built-in tasks ─────────────────────────────────────────────────────────
-
-register_task(
+register(
     TaskDef(
-        key="flat_walk",
-        name="Flat Ground Walking",
-        robot="XqRobotV2",
-        default_suite="full",
-        cmd_dim=5,
+        key="walk_flat",
+        name="平地滚动行走",
+        env_name="XqRobotWLWalkFlat",
+        cfg_path="conf/ppo/task/xqrobotwl_walk_flat/mujoco.yaml",
+        log_root="logs/rsl_rl_ppo/XqRobotWLWalkFlat",
+        algo="ppo",
+        ctrl_dt=0.01,
+        obs_dim=297,
+        long_eval="行走 ≥30s",
+        thresholds={
+            "vx_tracking_rmse": Threshold("<", 0.1, "m/s"),
+            "vy_tracking_rmse": Threshold("<", 0.1, "m/s"),
+            "survival_rate": Threshold(">=", 0.95, ""),
+            "side_vy": Threshold(">=", 0.25, "m/s"),  # §7.2 侧移能力
+            "stand_linvel_xy": Threshold("<", 0.2, "m/s"),  # §1.4 微动平衡
+            "stand_gyro": Threshold("<", 1.0, "rad/s"),
+        },
     )
 )
 
-register_task(
+register(
     TaskDef(
         key="toe_walk",
-        name="Toe Walking",
-        robot="XqRobotV2",
-        default_suite="toe_walk",
-        cmd_dim=5,
+        name="点足平地行走",
+        env_name="XqRobotWLToeWalkFlat",
+        cfg_path="conf/ppo/task/xqrobotwl_toe_walk_flat/mujoco.yaml",
+        log_root="logs/rsl_rl_ppo/XqRobotWLToeWalkFlat",
+        algo="ppo",
+        ctrl_dt=0.01,
+        obs_dim=306,
+        long_eval="行走 ≥30s",
+        thresholds={
+            "base_height_err": Threshold("<", 0.05, "m"),  # §7.3 机身高度≈0.52±0.05
+            "leg_jerk": Threshold("<", 3.0, "rad/s³"),  # §7.3 抬腿平缓
+            "vx_tracking_rmse": Threshold("<", 0.15, "m/s"),
+            "survival_rate": Threshold(">=", 0.90, ""),
+        },
     )
 )
 
-register_task(
+register(
     TaskDef(
-        key="rough_walk",
-        name="Rough Terrain Walking",
-        robot="XqRobotV2",
-        default_suite="full",
-        cmd_dim=5,
+        key="walk_rough",
+        name="不平坦地形行走",
+        env_name="XqRobotWLWalkRough",
+        cfg_path="conf/ppo/task/xqrobotwl_walk_rough/mujoco.yaml",
+        log_root="logs/rsl_rl_ppo/XqRobotWLWalkRough",
+        algo="ppo",
+        ctrl_dt=0.01,
+        obs_dim=288,
+        long_eval="行走 ≥30s",
+        thresholds={
+            "survival_rate": Threshold(">=", 0.90, ""),  # §7.4 粗糙地形存活率
+            "base_height_std": Threshold("<", 0.06, "m"),  # 机身高度波动小
+            "stand_linvel_xy": Threshold("<", 0.25, "m/s"),
+            "stand_gyro": Threshold("<", 1.2, "rad/s"),
+        },
     )
 )
 
-register_task(
-    TaskDef(
-        key="stairs",
-        name="Stairs Climbing",
-        robot="XqRobotV2",
-        default_suite="decoupling",
-        cmd_dim=5,
-    )
-)
-
-register_task(
+register(
     TaskDef(
         key="jump",
-        name="Jump Flat",
-        robot="XqRobotV2",
-        default_suite="standing",
-        cmd_dim=5,
-    )
-)
-
-
-# ── Built-in algorithms ────────────────────────────────────────────────────
-
-register_algo(
-    AlgoDef(
-        key="ppo",
-        name="PPO",
-        description="Proximal Policy Optimization (RSL-RL)",
-        defaults={
-            "entropy_coef": 0.002,
-            "learning_rate": 1e-4,
-            "clip_param": 0.2,
-            "gamma": 0.99,
-            "lam": 0.95,
+        name="平地跳跃",
+        env_name="XqRobotWLJumpFlat",
+        cfg_path="conf/ppo/task/xqrobotwl_jump_flat/mujoco.yaml",
+        log_root="logs/rsl_rl_ppo/XqRobotWLJumpFlat",
+        algo="ppo",
+        ctrl_dt=0.01,
+        obs_dim=297,
+        long_eval="重复跳跃 ≥10 次",
+        thresholds={
+            "success_rate": Threshold(">=", 0.90, ""),  # §7.5 跳跃成功率≥90%
+            "jump_height": Threshold(">", 0.20, "m"),  # 跳出明显高度
+            "air_frac": Threshold(">", 0.05, ""),  # 有腾空
         },
     )
 )
 
-register_algo(
-    AlgoDef(
-        key="sac",
-        name="SAC",
-        description="Soft Actor-Critic (off-policy)",
-        defaults={
-            "learning_rate": 3e-4,
-            "gamma": 0.99,
-            "tau": 0.005,
+register(
+    TaskDef(
+        key="backflip",
+        name="平地后空翻",
+        env_name="XqRobotWLBackflipFlat",
+        cfg_path="conf/ppo/task/xqrobotwl_backflip_flat/mujoco.yaml",
+        log_root="logs/rsl_rl_ppo/XqRobotWLBackflipFlat",
+        algo="ppo",
+        ctrl_dt=0.005,
+        obs_dim=324,
+        long_eval="重复 ≥10 次",
+        thresholds={
+            "flip_rate": Threshold(">=", 0.90, ""),  # §7.6 翻转完成率≥90%
+            "land_survival": Threshold(">=", 0.90, ""),  # 落地后稳定站立
         },
     )
 )
 
-register_algo(
-    AlgoDef(
-        key="appo",
-        name="APPO",
-        description="Asynchronous PPO",
-        defaults={
-            "entropy_coef": 0.01,
-            "learning_rate": 1e-3,
-            "gamma": 0.99,
+register(
+    TaskDef(
+        key="single_leg",
+        name="平地单腿平衡 (三态)",
+        env_name="XqRobotWLSingleLegFlat",
+        cfg_path="conf/ppo/task/xqrobotwl_single_leg_flat/mujoco.yaml",
+        log_root="logs/rsl_rl_ppo/XqRobotWLSingleLegFlat",
+        algo="ppo",
+        ctrl_dt=0.01,
+        obs_dim=333,
+        long_eval="保持 ≥10s / 行走 ≥30s",
+        thresholds={
+            "hold_time": Threshold(">=", 5.0, "s"),  # §7.7-A 单腿保持≥5s
+            "vx_tracking_rmse": Threshold("<", 0.2, "m/s"),  # §7.7-B 倾斜行走追踪
         },
     )
 )
 
-register_algo(
-    AlgoDef(
-        key="np3o",
-        name="NP3O",
-        description="Neural PPO with Constraints (cost critic + viol_loss)",
-        defaults={
-            "entropy_coef": 0.01,
-            "learning_rate": 1e-3,
-            "clip_param": 0.2,
-            "gamma": 0.99,
-            "lam": 0.95,
+register(
+    TaskDef(
+        key="fall_recovery",
+        name="跌倒恢复",
+        env_name="XqRobotWLFallRecoveryFlat",
+        cfg_path="conf/cpo/task/xqrobotwl_fall_recovery_flat/mujoco.yaml",
+        log_root="logs/rsl_rl_cpo/XqRobotWLFallRecoveryFlat",
+        algo="cpo",
+        ctrl_dt=0.01,
+        obs_dim=297,
+        long_eval="每姿态 ≥20 episodes",
+        thresholds={
+            "recovery_rate": Threshold(">=", 0.80, ""),  # §7.8 恢复率≥80%
+            "longest_stand": Threshold(">=", 0.5, "s"),  # 附录A 最长连续站立≥0.5s
+            "drift": Threshold("<", 0.5, "m"),  # 附录A 水平漂移<0.5m
+            "stand_gyro": Threshold("<", 1.0, "rad/s"),
+            "wheel_off_rate": Threshold("<", 0.01, ""),  # 站立期轮子离地率≈0
         },
     )
 )
 
-
-# ── Built-in task+algo pairs (trained models) ──────────────────────────────
-
-register("flat_walk", "ppo")
-register("toe_walk", "ppo")
-register("rough_walk", "ppo", log_subdir="rsl_rl_ppo/XqRobotV2WalkRough")
-register("stairs", "np3o", log_subdir="rsl_rl_np3o/XqRobotV2Stairs")
-register("jump", "ppo", log_subdir="rsl_rl_ppo/XqRobotV2JumpFlat")
+register(
+    TaskDef(
+        key="stairs",
+        name="抬腿上台阶",
+        env_name="XqRobotWLStairs",
+        cfg_path="conf/np3o/task/xqrobotwl_stairs/mujoco.yaml",
+        log_root="logs/rsl_rl_np3o/XqRobotWLStairs",
+        algo="np3o",
+        ctrl_dt=0.01,
+        obs_dim=297,
+        long_eval="每高度 ≥10 次",
+        thresholds={
+            "success_rate": Threshold(">=", 0.90, ""),  # §7.9 上台阶成功率≥90%
+            "survival_rate": Threshold(">=", 0.90, ""),
+        },
+    )
+)

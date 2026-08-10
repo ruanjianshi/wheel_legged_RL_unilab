@@ -98,6 +98,7 @@ class XqRobotWLSingleLegMoveCfg(XqRobotWLWalkFlatCfg):
 
 def _reward_balance_upright(ctx: RewardContext, lean_rad: float) -> np.ndarray:
     """机身对齐平衡参考 (22° 侧压): dot = gravity·up_ref, 锐化点积。"""
+    assert ctx.gravity is not None
     up_ref = np.array([0.0, np.sin(lean_rad), np.cos(lean_rad)])
     dot = ctx.gravity[: ctx.num_envs] @ up_ref
     r = np.clip((dot - 0.85) / 0.15, 0.0, 1.0)
@@ -175,7 +176,7 @@ def _reward_wheel_action_rate(ctx: RewardContext) -> np.ndarray:
 class XqRobotWLSingleLegMoveDRProvider(XqRobotWLDRProvider):
     """reset 置 22° 侧压平衡位 (start_in_balance), 命令只 vx。"""
 
-    def _sample_commands(self, env: object, num_reset: int) -> np.ndarray:
+    def _sample_commands(self, env: Any, num_reset: int) -> np.ndarray:
         low = np.asarray(env._cfg.commands.vel_limit[0], dtype=get_global_dtype())
         high = np.asarray(env._cfg.commands.vel_limit[1], dtype=get_global_dtype())
         cmds = np.zeros((num_reset, _NUM_CMD_DIM), dtype=get_global_dtype())
@@ -235,7 +236,7 @@ class XqRobotWLSingleLegMoveEnv(XqRobotWLWalkFlatEnv):
 
     def __init__(self, cfg: XqRobotWLSingleLegMoveCfg, num_envs=1, backend_type="mujoco"):
         super().__init__(cfg, num_envs=num_envs, backend_type=backend_type)
-        self._dr_manager._provider = XqRobotWLSingleLegMoveDRProvider()
+        self._dr_manager._provider = XqRobotWLSingleLegMoveDRProvider()  # type: ignore[union-attr]
         self._lean_rad = _ROLL_REF_RAD
         # 单轮平衡持续计数 (防两轮作弊: 自由轮离地+平衡+高度连续 hold 才给奖)
         self._single_leg_hold = np.zeros(num_envs, dtype=np.float64)
@@ -248,6 +249,7 @@ class XqRobotWLSingleLegMoveEnv(XqRobotWLWalkFlatEnv):
         self._lqr_wheel_vel = np.zeros(num_envs, dtype=np.float64)
 
     def _reset_done_envs(self) -> None:
+        assert self._state is not None
         done = self._state.terminated | self._state.truncated
         idx = np.flatnonzero(done).astype(np.int32)
         super()._reset_done_envs()

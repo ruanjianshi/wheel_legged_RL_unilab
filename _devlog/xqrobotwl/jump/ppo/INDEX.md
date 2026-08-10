@@ -41,11 +41,9 @@ XqRobotWL 跳跃训练 — PPO 算法 + phase-gated 奖励 / Wheeled-SRL。
 
 | 序号 | 标题 | 文件 |
 |------|------|------|
-| 31 | 仓库瘦身: 移除除 xqrobotwl/xqrobotV2 外所有机器人 | [→](2026-08-10/31_strip_repo_to_two_robots.md) |
-| 32 | shell 目录按任务细分重组 | [→](2026-08-10/32_shell_reorganize_by_task.md) |
-| 33 | 根目录清理: 删 AGENTS.md 只留 CLAUDE.md + 散落文件 | [→](2026-08-10/33_cleanup_root_agents_to_claude.md) |
 | 34 | 补全 xqrobotwl/jump 缺失的 VMC 验证脚本 | [→](2026-08-10/34_add_jump_vmc_eval_scripts.md) |
-| 35 | 启动 8 个 xqrobotwl 训练 + 修复 shell 路径与 stairs obs 维度 bug | [→](2026-08-10/35_launch_8_trainings_and_fix_path_obs_bugs.md) |
+
+> 仓库管理类日志 (瘦身/shell/清理/批量训练) 见 [`../repo/INDEX.md`](../repo/INDEX.md)
 
 ## 2026-07-25
 

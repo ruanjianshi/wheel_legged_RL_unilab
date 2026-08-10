@@ -97,6 +97,7 @@ def _reward_swing_contact_penalty(ctx: RewardContext) -> np.ndarray:
 
 def _reward_feet_regulation(ctx: RewardContext) -> np.ndarray:
     """支撑相罚轮子滑移 (tron1) — 只罚支撑侧"""
+    assert ctx.dof_vel is not None
     wheel_vel = ctx.dof_vel[:, -NUM_WHEEL_ACTIONS:]
     phase = ctx.info.get("phase", np.zeros((ctx.num_envs, 1)))
     sin_p = np.sin(2 * np.pi * phase)[:, 0] if phase.ndim == 2 else np.zeros(ctx.num_envs)
@@ -124,6 +125,8 @@ def _reward_soft_landing(ctx: RewardContext) -> np.ndarray:
 
 def _reward_wheel_balance(ctx: RewardContext) -> np.ndarray:
     """轮子用于维持平衡, 不用于前进。奖: 轮速小 + 机身直立"""
+    assert ctx.dof_vel is not None
+    assert ctx.gravity is not None
     wheel_vel = ctx.dof_vel[:, -NUM_WHEEL_ACTIONS:]
     speed = np.sqrt(np.sum(np.square(wheel_vel), axis=1))
     wheel_ok = 1.0 / (1.0 + speed * 3.0)
@@ -185,7 +188,7 @@ def _reward_phase_stance_penalty(ctx: RewardContext) -> np.ndarray:
 @dataclass
 class XqRobotWLToeWalkFlatCfg(XqRobotWLWalkFlatCfg):
     commands: XqRobotToeWalkCommands = field(default_factory=XqRobotToeWalkCommands)
-    reward_config: XqRobotToeWalkRewardConfig | None = None
+    reward_config: XqRobotToeWalkRewardConfig | None = None  # type: ignore[assignment]
     curriculum: XqRobotWLCurriculumConfig = field(
         default_factory=lambda: XqRobotWLCurriculumConfig(enabled=False)
     )
@@ -209,11 +212,14 @@ class XqRobotToeWalkDRProvider(XqRobotWLDRProvider):
 @registry.env("XqRobotWLToeWalkFlat", sim_backend="mujoco")
 class XqRobotWLToeWalkFlatEnv(XqRobotWLWalkFlatEnv):
     _cfg: XqRobotWLToeWalkFlatCfg
+    _toe_cfg: XqRobotToeWalkRewardConfig  # type: ignore[assignment]  # 收窄基类奖励配置类型
 
     def __init__(self, cfg: XqRobotWLToeWalkFlatCfg, num_envs=1, backend_type="mujoco"):
+        if cfg.reward_config is None:
+            raise ValueError("reward_config must be provided via Hydra configuration")
         self._toe_cfg = cfg.reward_config
         super().__init__(cfg, num_envs=num_envs, backend_type=backend_type)
-        self._dr_manager._provider = XqRobotToeWalkDRProvider()
+        self._dr_manager._provider = XqRobotToeWalkDRProvider()  # type: ignore[union-attr]
         # Phase clock: random offset so half envs start with left leading, half with right
         self._phase_offset = np.random.uniform(0, 2 * np.pi, (num_envs,)).astype(np.float64)
         self._ref_dof_pos = np.zeros((num_envs, NUM_LEG_ACTIONS), dtype=np.float64)
@@ -254,7 +260,7 @@ class XqRobotWLToeWalkFlatEnv(XqRobotWLWalkFlatEnv):
             }
         else:
             # ★ 相位门控模式: 不跟踪参考, 用相位定义行为目标
-            self._reward_fns: dict[str, Any] = {
+            self._reward_fns = {
                 "tracking_lin_vel": rewards.tracking_lin_vel,
                 "tracking_ang_vel": rewards.tracking_ang_vel,
                 "lin_vel_z": rewards.lin_vel_z,

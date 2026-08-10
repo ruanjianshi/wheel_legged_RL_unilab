@@ -296,8 +296,8 @@ class XqRobotWLWalkFlatEnv(XqRobotWLBaseEnv):
                 scale = float(np.random.uniform(low, high))
                 for name in leg_names:
                     geom_id = backend.get_geom_id(name)
-                    backend._model.geom_size[geom_id] = (
-                        backend._model.geom_size[geom_id].copy() * scale
+                    backend._model.geom_size[geom_id] = (  # type: ignore[attr-defined]  # mujoco 后端特有, 已 hasattr 守卫
+                        backend._model.geom_size[geom_id].copy() * scale  # type: ignore[attr-defined]
                     )
 
         import mujoco as _mj

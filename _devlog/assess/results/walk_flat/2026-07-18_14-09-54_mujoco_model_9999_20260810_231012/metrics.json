@@ -1,0 +1,19 @@
+{
+  "meta": {
+    "task": "walk_flat",
+    "run": "2026-07-18_14-09-54_mujoco",
+    "ckpt": "model_9999.pt",
+    "suite": "decoupling"
+  },
+  "metrics": {
+    "survival_rate": 1.0,
+    "vx_tracking_rmse": 0.2644565475335007,
+    "vy_tracking_rmse": 0.24378896371444095,
+    "side_vy": 0.08918714468124996,
+    "stand_linvel_xy": 0.17856125593162814,
+    "stand_gyro": 3.0577744068402573,
+    "yaw_accum": 9.564338885325702,
+    "wheel_off_rate": NaN,
+    "stand_height": 0.6007309860674439
+  }
+}

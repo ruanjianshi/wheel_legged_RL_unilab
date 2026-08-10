@@ -75,4 +75,4 @@ class XqRobotV2StairsCfg(XqRobotV2WalkFlatCfg):
 
 @registry.env("XqRobotV2Stairs", sim_backend="mujoco")
 class XqRobotV2StairsEnv(XqRobotV2WalkRoughEnv):
-    _cfg: XqRobotV2StairsCfg
+    _cfg: XqRobotV2StairsCfg  # type: ignore[assignment]  # stairs cfg 继承 walk_flat, 基类 env 需 walk_rough cfg (运行时兼容)

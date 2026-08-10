@@ -65,7 +65,7 @@ env:
     random_com: false
     randomize_leg_length: false
   vmc:
-    # 虚拟腿运动学 (标定自 scripts/calibrate_xqrobotwl_vmc.py)
+    # 虚拟腿运动学 (标定自 tools/xqrobotwl/calibrate_xqrobotwl_vmc.py)
     l1: 0.30053
     l2: 0.30070
     offset: -0.00003

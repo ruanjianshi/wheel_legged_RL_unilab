@@ -1,8 +1,8 @@
-# [35] 启动 8 个 xqrobotwl 训练 + 修复 shell 路径与 stairs obs 维度 bug
+# [04] 启动 8 个 xqrobotwl 训练 + 修复 shell 路径与 stairs obs 维度 bug
 
 **日期**: 2026-08-10
 **来源**: 用户要求启动 shell/xqrobotwl 下全部训练 (8 个脚本)
-**关联**: [[32_shell_reorganize_by_task]], [[34_add_jump_vmc_eval_scripts]]
+**关联**: [[02_shell_reorganize_by_task]], [[34_add_jump_vmc_eval_scripts]]
 
 ---
 

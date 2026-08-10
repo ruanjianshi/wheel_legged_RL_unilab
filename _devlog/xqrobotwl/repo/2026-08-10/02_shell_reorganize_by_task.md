@@ -1,8 +1,8 @@
-# [32] shell 目录按任务细分重组
+# [02] shell 目录按任务细分重组
 
 **日期**: 2026-08-10
 **来源**: 用户要求 "shell 整理, 让分类更加细一点"; 经 AskUserQuestion 确认按任务维度分类
-**关联**: [[31_strip_repo_to_two_robots]]
+**关联**: [[01_strip_repo_to_two_robots]]
 
 ---
 
