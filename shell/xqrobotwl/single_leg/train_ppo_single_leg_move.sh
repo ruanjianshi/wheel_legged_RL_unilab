@@ -2,10 +2,10 @@
 # ============================================================
 # XqRobotWL 可移动单轮平衡 PPO (独立 task, 从零训练)
 # 用法:
-#   bash shell/xqrobotwl/launch_ppo_single_leg_move.sh           # 全量 10000 iter
-#   bash shell/xqrobotwl/launch_ppo_single_leg_move.sh quick      # 快速验证 500 iter
-#   bash shell/xqrobotwl/launch_ppo_single_leg_move.sh 1000       # 指定迭代数
-#   bash shell/xqrobotwl/launch_ppo_single_leg_move.sh resume     # 续训最新
+#   bash shell/xqrobotwl/train_ppo_single_leg_move.sh           # 全量 10000 iter
+#   bash shell/xqrobotwl/train_ppo_single_leg_move.sh quick      # 快速验证 500 iter
+#   bash shell/xqrobotwl/train_ppo_single_leg_move.sh 1000       # 指定迭代数
+#   bash shell/xqrobotwl/train_ppo_single_leg_move.sh resume     # 续训最新
 # ============================================================
 set -e
 

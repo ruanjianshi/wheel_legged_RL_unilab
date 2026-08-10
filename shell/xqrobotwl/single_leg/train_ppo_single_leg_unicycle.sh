@@ -4,10 +4,10 @@
 # 结构 (devlog 20/21): 横躺 up=[0,-1,0], 左腿近直支撑, 右腿伸直配重,
 #   腿 kp=300 + 轮扭矩源 (env init 运行时设置). RL 控 [配重roll, 轮pitch].
 # 用法:
-#   bash shell/xqrobotwl/launch_ppo_single_leg_unicycle.sh           # 全量 20000 iter
-#   bash shell/xqrobotwl/launch_ppo_single_leg_unicycle.sh quick      # 快速验证 500 iter
-#   bash shell/xqrobotwl/launch_ppo_single_leg_unicycle.sh 1000       # 指定迭代数
-#   bash shell/xqrobotwl/launch_ppo_single_leg_unicycle.sh resume     # 续训最新
+#   bash shell/xqrobotwl/train_ppo_single_leg_unicycle.sh           # 全量 20000 iter
+#   bash shell/xqrobotwl/train_ppo_single_leg_unicycle.sh quick      # 快速验证 500 iter
+#   bash shell/xqrobotwl/train_ppo_single_leg_unicycle.sh 1000       # 指定迭代数
+#   bash shell/xqrobotwl/train_ppo_single_leg_unicycle.sh resume     # 续训最新
 # 注意: PPO 后期会回退 (model_3000/4000 达 8s, model_4999 退化) —
 #   部署用 eval 验证选 checkpoint, 不要用最后一个.
 # ============================================================

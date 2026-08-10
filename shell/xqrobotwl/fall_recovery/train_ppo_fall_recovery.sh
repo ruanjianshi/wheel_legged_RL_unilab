@@ -2,11 +2,11 @@
 # ============================================================
 # XqRobotWL CPO 跌倒恢复 (前台运行, 输出实时可见) — FTSR 力引导 + 分阶段奖励
 # 用法:
-#   bash shell/xqrobotwl/launch_ppo_fall_recovery.sh              # 全量 10000 iter
-#   bash shell/xqrobotwl/launch_ppo_fall_recovery.sh quick         # 快速验证 500 iter
-#   bash shell/xqrobotwl/launch_ppo_fall_recovery.sh 1000          # 指定迭代数
-#   bash shell/xqrobotwl/launch_ppo_fall_recovery.sh warmstart     # 热启动 walk 平衡
-#   bash shell/xqrobotwl/launch_ppo_fall_recovery.sh resume        # 续训最新
+#   bash shell/xqrobotwl/train_ppo_fall_recovery.sh              # 全量 10000 iter
+#   bash shell/xqrobotwl/train_ppo_fall_recovery.sh quick         # 快速验证 500 iter
+#   bash shell/xqrobotwl/train_ppo_fall_recovery.sh 1000          # 指定迭代数
+#   bash shell/xqrobotwl/train_ppo_fall_recovery.sh warmstart     # 热启动 walk 平衡
+#   bash shell/xqrobotwl/train_ppo_fall_recovery.sh resume        # 续训最新
 # ============================================================
 set -e
 
