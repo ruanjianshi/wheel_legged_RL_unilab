@@ -88,9 +88,7 @@ class XqRobotWLSingleLegMoveRewardConfig(XqRobotWLRewardConfig):
 @registry.envcfg("XqRobotWLSingleLegMove")
 @dataclass
 class XqRobotWLSingleLegMoveCfg(XqRobotWLWalkFlatCfg):
-    commands: XqRobotWLSingleLegMoveCommands = field(
-        default_factory=XqRobotWLSingleLegMoveCommands
-    )
+    commands: XqRobotWLSingleLegMoveCommands = field(default_factory=XqRobotWLSingleLegMoveCommands)
     reward_config: XqRobotWLSingleLegMoveRewardConfig | None = None
     max_episode_seconds: float = 8.0
 
@@ -192,9 +190,21 @@ class XqRobotWLSingleLegMoveDRProvider(XqRobotWLDRProvider):
         qpos = np.tile(
             np.array(
                 [
-                    0.0, 0.0, 0.55, c, s, 0.0, 0.0,
-                    _FREE_LEG_ROLL_INIT, _FOLD_PITCH, _FOLD_KNEE, 0.0,
-                    -0.1, 0.0, 0.0, 0.0,
+                    0.0,
+                    0.0,
+                    0.55,
+                    c,
+                    s,
+                    0.0,
+                    0.0,
+                    _FREE_LEG_ROLL_INIT,
+                    _FOLD_PITCH,
+                    _FOLD_KNEE,
+                    0.0,
+                    -0.1,
+                    0.0,
+                    0.0,
+                    0.0,
                 ],
                 dtype=get_global_dtype(),
             ),
@@ -255,9 +265,10 @@ class XqRobotWLSingleLegMoveEnv(XqRobotWLWalkFlatEnv):
         free_off = dof_pos[:, 0] < -0.25
         # 自由腿收回计时 (两轮=死路)
         self._free_down = np.where(dof_pos[:, 0] > -0.1, self._free_down + self._cfg.ctrl_dt, 0.0)
-        upright = (gravity[: self._num_envs] @ np.array(
-            [0.0, np.sin(self._lean_rad), np.cos(self._lean_rad)]
-        )) > 0.9
+        upright = (
+            gravity[: self._num_envs]
+            @ np.array([0.0, np.sin(self._lean_rad), np.cos(self._lean_rad)])
+        ) > 0.9
         height_ok = base_z > 0.40
         held = free_off & upright & height_ok
         self._single_leg_hold = np.where(held, self._single_leg_hold + self._cfg.ctrl_dt, 0.0)
@@ -291,8 +302,10 @@ class XqRobotWLSingleLegMoveEnv(XqRobotWLWalkFlatEnv):
 
     @property
     def obs_groups_spec(self) -> dict[str, int]:
-        return {"obs": self._obs_frame_dim * self._hist_len,
-                "critic": self._critic_frame_dim * self._hist_len}
+        return {
+            "obs": self._obs_frame_dim * self._hist_len,
+            "critic": self._critic_frame_dim * self._hist_len,
+        }
 
     def _init_reward_functions(self) -> None:
         self._reward_fns: dict[str, Any] = {

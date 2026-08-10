@@ -243,7 +243,9 @@ def _reward_stand_still(ctx: RewardContext) -> np.ndarray:
     h_cmd = ctx.info.get("h_cmd", 0.55)
     height_ok = np.clip(1.0 - np.abs(h - h_cmd) / 0.15, 0.0, 1.0)
     up_ok = np.clip(np.asarray(ctx.gravity, dtype=get_global_dtype())[:, 2], 0.0, 1.0)
-    vxy = np.linalg.norm(np.asarray(ctx.linvel, dtype=get_global_dtype())[: ctx.num_envs, :2], axis=1)
+    vxy = np.linalg.norm(
+        np.asarray(ctx.linvel, dtype=get_global_dtype())[: ctx.num_envs, :2], axis=1
+    )
     still_h = 1.0 - np.clip(vxy / 0.5, 0.0, 1.0)
     return (height_ok * up_ok * still_h).astype(get_global_dtype())
 
@@ -310,8 +312,8 @@ class XqRobotWLFallRecoveryRewardConfig:
     stage_fraction: float = 2.0 / 3.0  # 超过阈值代理比例达到该值才切阶段
     # 恢复里程碑 (阶梯): rise 中间小目标 → recover_complete 最终大奖
     recover_height: float = 0.45  # 最终站立高度阈值 (base_z)
-    rise_height: float = 0.35     # 中间里程碑高度 (桥接半撑→站立梯度死区)
-    rise_hold: float = 0.3        # 中间里程碑保持时间 (s)
+    rise_height: float = 0.35  # 中间里程碑高度 (桥接半撑→站立梯度死区)
+    rise_hold: float = 0.3  # 中间里程碑保持时间 (s)
     rise_vel_height_cap: float = 0.45  # rise_vel 仅在此高度以下生效 (顶部不鼓励推)
     # ★ 自然站姿 (dof_pos 目标): walk 模型实测站立腿角 [L_roll,L_pitch,L_knee,R_roll,R_pitch,R_knee]
     #   → base_z≈0.518 (与 h_cmd2=0.52 兼容)。DEFAULT_LEG_ANGLES 膝盖符号相反 (0.474m),
@@ -436,9 +438,7 @@ class XqRobotWLFallRecoveryFlatEnv(XqRobotWLJumpSRLFlatEnv):
         # ★ step_counter 是批次步 (np_env.step 每次所有 env 同步 +1, 每 iter 共 24 次),
         #   不是 env 步数 — 若乘 num_envs 力将永不衰减 (需 num_envs× 倍 iter).
         #   全局撤除步数 = iters × 每 iter 批次数 (24)
-        self._force_end_steps = int(
-            getattr(self._jump_cfg, "force_end_iters", 3000) * 24
-        )
+        self._force_end_steps = int(getattr(self._jump_cfg, "force_end_iters", 3000) * 24)
         # base_link body id (冷路径解析)
         self._base_body_id = self._resolve_base_body_id()
 
@@ -622,9 +622,9 @@ class XqRobotWLFallRecoveryFlatEnv(XqRobotWLJumpSRLFlatEnv):
         dbz = base_z - self._prev_base_z
         self._prev_base_z = base_z.copy()
         vz = dbz / self._cfg.ctrl_dt
-        wheel_on_mask = np.min(
-            state.info.get("wheel_contact", np.ones((self._num_envs, 2))), axis=1
-        ) > 0.5
+        wheel_on_mask = (
+            np.min(state.info.get("wheel_contact", np.ones((self._num_envs, 2))), axis=1) > 0.5
+        )
         state.info["rise_vel"] = (
             np.clip(vz, 0.0, 1.0)
             * wheel_on_mask
@@ -639,19 +639,15 @@ class XqRobotWLFallRecoveryFlatEnv(XqRobotWLJumpSRLFlatEnv):
         self._idle_time[~lying] = 0.0
         self._has_recovered |= base_z > self._jump_cfg.h_cmd1
         # 中间里程碑: base_z>rise_height + 直立>0.80 + 双轮着地 保持 rise_hold 锁存
-        wheel_on = np.min(
-            state.info.get("wheel_contact", np.ones((self._num_envs, 2))), axis=1
-        ) > 0.5
+        wheel_on = (
+            np.min(state.info.get("wheel_contact", np.ones((self._num_envs, 2))), axis=1) > 0.5
+        )
         rising = (base_z > self._jump_cfg.rise_height) & (gravity[:, 2] > 0.80) & wheel_on
         self._rise_hold[rising] += self._cfg.ctrl_dt
         self._rise_hold[~rising] = 0.0
         self._rise_completed |= self._rise_hold >= self._jump_cfg.rise_hold
         # 恢复完成: 站立 (base_z>recover_height + 直立>0.85 + 双轮着地) 连续保持 0.5s 锁存
-        standing = (
-            (base_z > self._jump_cfg.recover_height)
-            & (gravity[:, 2] > 0.85)
-            & wheel_on
-        )
+        standing = (base_z > self._jump_cfg.recover_height) & (gravity[:, 2] > 0.85) & wheel_on
         self._recover_hold[standing] += self._cfg.ctrl_dt
         self._recover_hold[~standing] = 0.0
         self._recover_completed |= self._recover_hold >= 0.5

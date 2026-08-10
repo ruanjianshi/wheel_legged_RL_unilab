@@ -61,6 +61,10 @@ uv run scripts/generate_support_matrix.py --write
 | PPO (torch) | `xqrobotV2_walk_rough` (XqRobotV2 walk rough) | Tested | - |
 | PPO (torch) | `xqrobotV2_jump_flat` (XqRobotV2 jump flat) | Tested | - |
 | PPO (torch) | `xqrobotV2_toe_walk_flat` (XqRobotV2 toe-walk flat) | Tested | - |
+| PPO (torch) | `xqrobotwl_backflip_flat` (xqrobotwl backflip flat) | Tested | - |
+| PPO (torch) | `xqrobotwl_single_leg_flat` (xqrobotwl single leg flat) | Tested | - |
+| PPO (torch) | `xqrobotwl_single_leg_move` (xqrobotwl single leg move) | Tested | - |
+| PPO (torch) | `xqrobotwl_single_leg_unicycle` (xqrobotwl single leg unicycle) | Tested | - |
 | PPO (mlx) | `xqrobotwl_walk_flat` (XqRobotWL walk flat) | Tested | Registered |
 | PPO (mlx) | `xqrobotwl_walk_rough` (XqRobotWL walk rough) | Configured | - |
 | PPO (mlx) | `xqrobotwl_jump_flat` (XqRobotWL jump flat) | Configured | - |
@@ -72,6 +76,10 @@ uv run scripts/generate_support_matrix.py --write
 | PPO (mlx) | `xqrobotV2_walk_rough` (XqRobotV2 walk rough) | Configured | - |
 | PPO (mlx) | `xqrobotV2_jump_flat` (XqRobotV2 jump flat) | Configured | - |
 | PPO (mlx) | `xqrobotV2_toe_walk_flat` (XqRobotV2 toe-walk flat) | Configured | - |
+| PPO (mlx) | `xqrobotwl_backflip_flat` (xqrobotwl backflip flat) | Configured | - |
+| PPO (mlx) | `xqrobotwl_single_leg_flat` (xqrobotwl single leg flat) | Configured | - |
+| PPO (mlx) | `xqrobotwl_single_leg_move` (xqrobotwl single leg move) | Configured | - |
+| PPO (mlx) | `xqrobotwl_single_leg_unicycle` (xqrobotwl single leg unicycle) | Configured | - |
 
 ### Source Index
 
