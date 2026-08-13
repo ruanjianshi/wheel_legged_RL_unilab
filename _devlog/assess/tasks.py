@@ -194,6 +194,10 @@ register(
             "drift": Threshold("<", 0.5, "m"),  # 附录A 水平漂移<0.5m
             "stand_gyro": Threshold("<", 1.0, "rad/s"),
             "wheel_off_rate": Threshold("<", 0.01, ""),  # 站立期轮子离地率≈0
+            # ★ 转圈: 站立期 yaw 累计 (附录A ≈walk 水平~56°=0.98rad; v7 实测63°判为≈walk, 异常线放宽到 1.2rad≈69°)
+            "yaw_accum": Threshold("<", 1.2, "rad"),
+            # ★ 轮速差 (附录A 小; v7 达标判据 <5 rad/s)
+            "wheel_speed_diff": Threshold("<", 5.0, "rad/s"),
         },
     )
 )

@@ -147,11 +147,7 @@ def _reward_stand_pose(ctx: RewardContext) -> np.ndarray:
         dtype=get_global_dtype(),
     )[:NUM_LEG_ACTIONS]
     err = np.sum(np.square(ctx.dof_pos - nominal), axis=1)
-    # ★ v8.10: exp(-err/2σ²) (σ=0.25) 在深蹲 (err≈2, 膝 0.88/髋前 0.9) 时 ≈1e-7 梯度≈0
-    #   → 拉不出蹲姿。蹲姿产生持续 yaw 力矩 → 恢复后转圈 (v7 记录同因)。
-    #   改有理函数 1/(1+err/2): err 0→1, 2→0.5, 4→0.33 — 全程梯度 (err2→1 增 2.5 分),
-    #   把恢复后蹲姿拉回自然站姿 (膝 -0.079/髋 0.083) → 稳定 → 不转圈.
-    pose_ok = 1.0 / (1.0 + err / 2.0)
+    pose_ok = np.exp(-err / (2.0 * 0.25**2))
     return (height_ok * up_ok * pose_ok).astype(get_global_dtype())
 
 
@@ -232,16 +228,8 @@ def _reward_settle(ctx: RewardContext) -> np.ndarray:
     still_v = 1.0 - np.clip(np.abs(avz) / 1.0, 0.0, 1.0)
     # 角速度静止: exp(-|gyro|/2.0) — 指数衰减给全程梯度 (0.5 硬门是"全有或全无",
     # gyro 6→3→1 全程 0 分学不到; 指数型 gyro=0→1, 2→0.37, 4→0.14, 6→0.05, 持续压低摇摆)
-    # ★ v8.6: /2.0 → /8.0 — v8.5 实测 model_3000-4000 站立 gyro 高达 12-16 rad/s (剧烈摇摆/
-    #   旋转), exp(-gyro/2) 在 gyro>6 时值<0.05 且梯度≈0 (exp(-12/2)=0.002, 梯度 -0.001),
-    #   政策在高速旋转吸引子内"感觉不到"收敛信号 → settle 恒 0 学不会站稳。
-    #   exp(-gyro/8): 逃出高速吸引子 (model_5000 gyro 降到 2.5-4.8).
-    # ⚠ v8.7 (有理函数 /2.5, 已废弃): 更紧的瞬时惩罚让政策回避站立 (无技能硬压就崩),
-    #   model_7000 恢复率 20/100/45/85 崩, gyro 反而 6.3-9.4。转圈是净 yaw 累积,
-    #   罚瞬时 yaw 破坏平衡微调 → 转由 stand_anchor (v8.8 提前锁存) 专管净旋转.
-    # ★ v8.8: 回退 /8 (平衡最好状态), 低速宽松保平衡自由度 (v7 教训).
     gyro = np.linalg.norm(np.asarray(ctx.gyro, dtype=get_global_dtype())[: ctx.num_envs], axis=1)
-    still_g = np.exp(-gyro / 8.0)
+    still_g = np.exp(-gyro / 2.0)
     return (height_ok * up_ok * still_v * still_g).astype(get_global_dtype())
 
 
@@ -277,11 +265,7 @@ def _reward_no_yaw(ctx: RewardContext) -> np.ndarray:
     up_ok = np.clip(np.asarray(ctx.gravity, dtype=get_global_dtype())[:, 2], 0.0, 1.0)
     gyro_z = np.abs(np.asarray(ctx.gyro, dtype=get_global_dtype())[: ctx.num_envs, 2])
     dead = ctx.info.get("no_yaw_deadzone", 1.0)
-    # ★ v8.6: /0.8 → /8.0 — 逃出高速旋转吸引子 (model_5000 yaw 降到 0.34-2.9).
-    # ⚠ v8.7 (有理函数 /2.5, 已废弃): 罚瞬时 yaw 破坏平衡微调 → 恢复崩。转圈由
-    #   stand_anchor (v8.8 提前锁存) 专管净旋转, no_yaw 只保平衡自由度 + 拦极端打转.
-    # ★ v8.8: 回退 /8 + 死区 (|gyro_z|<1 免费).
-    still_yaw = np.exp(-np.clip(gyro_z - dead, 0.0, None) / 8.0)
+    still_yaw = np.exp(-np.clip(gyro_z - dead, 0.0, None) / 0.8)
     return (height_ok * up_ok * still_yaw).astype(get_global_dtype())
 
 
@@ -302,10 +286,7 @@ def _reward_wheel_symmetry(ctx: RewardContext) -> np.ndarray:
 def _reward_wheel_speed(ctx: RewardContext) -> np.ndarray:
     """轮速过大 (防空转): exp(-(|wL|+|wR|)/100) — 轮速小则 1, 狂转则 0.
 
-    站立应几乎静止 (轮速≈0); 空转不打转也不产生推进, 纯浪费.
-    ⚠ v8.9 (门控+陡化 /40, 已废弃): 门控 (height_ok×up_ok) 在翻转过渡期 (z>0.4) 也命中
-    → 打翻转用的轮速 → 恢复率崩 (俯卧 100→50)。且蹲姿 (v7 记录) 才是持续转圈主因,
-    转由 stand_pose (v8.10 有理梯度) 治根。回退原 /100 (弱罚, 不干扰恢复)."""
+    站立应几乎静止 (轮速≈0); 空转不打转也不产生推进, 纯浪费."""
     wv = ctx.info.get("wheel_vel", np.zeros((ctx.num_envs, 2), dtype=get_global_dtype()))
     speed = np.abs(wv[:, 0]) + np.abs(wv[:, 1])
     return np.exp(-speed / 100.0)
@@ -365,8 +346,6 @@ class XqRobotWLFallRecoveryRewardConfig:
     rise_hold: float = 0.3  # 中间里程碑保持时间 (s)
     rise_vel_height_cap: float = 0.45  # rise_vel 仅在此高度以下生效 (顶部不鼓励推)
     rise_vel_up_gate: float = 0.35  # ★ v8.1: rise_vel 按躯干直立度门控 (up/0.35, 躺着推=0)
-    #   ★ v8.5: 门控 = clip(up) ∪ clip(d(up)/dt) — 已直立 或 正在转正 (v8.4 |up| 失败已废弃,
-    #   实测破坏正常姿态学习, 倾斜态刷分; v8.5 保留"必须转正才推"+ 给仰卧翻转期奖励)
     no_yaw_deadzone: float = (
         1.0  # ★ v8.2: no_yaw 死区 (|gyro_z|<1rad/s 免费, 保平衡微调; 超出重罚持续打转)
     )
@@ -386,9 +365,6 @@ class XqRobotWLFallRecoveryRewardConfig:
     #   评估口径 = episode 内 max 水平位移 <0.5m (附录A), 故 σ_xy 取 0.25 给足梯度
     stand_anchor_sigma_xy: float = 0.25  # 净水平位移 σ (m)
     stand_anchor_sigma_yaw: float = 0.35  # 净 yaw 旋转 σ (rad)
-    # ★ v8.8: 锚点提前锁存 hold 时长 (s) — 稳定站立达此即激活锚点 (不等 recover 0.5s),
-    #   治"恢复后转圈" (净 yaw 累积) 无约束的根因 (原锚点恒休眠)
-    stand_anchor_hold: float = 0.2
     # 终止
     idle_ground_time: float = 6.0  # 贴地超过即终止 (防死点; < max_episode 10s)
 
@@ -412,8 +388,6 @@ class XqRobotWLFallRecoveryDRProvider(XqRobotWLJumpDRProvider):
     def build_reset_plan(self, env: Any, env_ids: np.ndarray) -> ResetPlan:
         num_reset = len(env_ids)
         rng = np.random.default_rng()
-        # ★ v8.3 曾试姿态加权采样 p=[0.4,0.2,0.2,0.2] (攻仰卧) — 顾此失彼, 其他姿态恢复崩, 已回退.
-        #   v8.5 门控 (已直立 ∪ 正在转正) 给仰卧翻转期奖励后应自然恢复, 保持均匀采样.
         pose = rng.integers(0, 4, size=num_reset)
         base_z = np.full(num_reset, _LYING_Z, dtype=get_global_dtype())
         base_z += rng.uniform(-0.02, 0.02, size=num_reset)
@@ -500,16 +474,12 @@ class XqRobotWLFallRecoveryFlatEnv(XqRobotWLJumpSRLFlatEnv):
         self._rise_hold = np.zeros(num_envs, dtype=np.float64)  # 中间里程碑保持计时
         self._rise_completed = np.zeros(num_envs, dtype=bool)  # 中间里程碑锁存
         self._prev_base_z = np.zeros(num_envs, dtype=np.float64)  # 上一帧 base_z (rise_vel 用)
-        # ★ v8.5: 上一帧直立度 up (rise_vel 转正门控用 — du = d(up)/dt 判"正在转正")
-        self._prev_up_z = np.zeros(num_envs, dtype=np.float64)
         self._constraint_costs = np.zeros((num_envs, 2), dtype=get_global_dtype())  # [F_mag, T_mag]
         self._robot_mass = 18.65
         # ★ v8 锚点站立: 恢复锁存上升沿锁存站立点 (位置+yaw), 之后罚净漂移/净旋转
         self._anchor_xy = np.zeros((num_envs, 2), dtype=np.float64)
         self._anchor_yaw = np.zeros(num_envs, dtype=np.float64)
         self._anchor_latched = np.zeros(num_envs, dtype=bool)
-        # ★ v8.8: 锚点提前锁存计时 (稳定站立 hold 达 stand_anchor_hold 即激活, 不等 recover 0.5s)
-        self._anchor_hold = np.zeros(num_envs, dtype=np.float64)
         # ★ step_counter 是批次步 (np_env.step 每次所有 env 同步 +1, 每 iter 共 24 次),
         #   不是 env 步数 — 若乘 num_envs 力将永不衰减 (需 num_envs× 倍 iter).
         #   全局撤除步数 = iters × 每 iter 批次数 (24)
@@ -571,15 +541,6 @@ class XqRobotWLFallRecoveryFlatEnv(XqRobotWLJumpSRLFlatEnv):
         except Exception:
             pass
 
-    def _sync_prev_up_z(self, idx: np.ndarray) -> None:
-        try:
-            self._prev_up_z[idx] = np.asarray(
-                self._backend.get_sensor_data(self._cfg.sensor.upvector),
-                dtype=get_global_dtype(),
-            )[:, 2][idx]
-        except Exception:
-            pass
-
     def reset(self, env_indices):
         out = super().reset(env_indices)
         idx = np.asarray(env_indices, dtype=np.int64)
@@ -593,9 +554,7 @@ class XqRobotWLFallRecoveryFlatEnv(XqRobotWLJumpSRLFlatEnv):
         self._anchor_xy[idx] = 0.0
         self._anchor_yaw[idx] = 0.0
         self._anchor_latched[idx] = False
-        self._anchor_hold[idx] = 0.0
         self._sync_prev_base_z(idx)
-        self._sync_prev_up_z(idx)
         self._stage = 0
         return out
 
@@ -614,9 +573,7 @@ class XqRobotWLFallRecoveryFlatEnv(XqRobotWLJumpSRLFlatEnv):
         self._anchor_xy[idx] = 0.0
         self._anchor_yaw[idx] = 0.0
         self._anchor_latched[idx] = False
-        self._anchor_hold[idx] = 0.0
         self._sync_prev_base_z(idx)
-        self._sync_prev_up_z(idx)
 
     # ── step: 先施加力引导 wrench, 再走物理 ──
 
@@ -722,30 +679,14 @@ class XqRobotWLFallRecoveryFlatEnv(XqRobotWLJumpSRLFlatEnv):
         #   (v8 诊断: 策略撑起骨盆到 0.30m 但躯干躺平 up≈0, 靠 rise_vel 无限刷分,
         #   永远够不到 rise 里程碑 0.35m+直立0.80, 4000 iter 从未恢复)。门控后躺着推=0,
         #   只有边转正边推才计分, 逼策略学会"边转正边自举".
-        #   ★ 交付态 (v8.2 model_7000): 训练时为 clip(up/0.35)。
-        # ⚠ v8.4 (|up| 门控, 已废弃): 从零重训实测在 iter 3000-3700 rise=0, upright≈0.08-0.18,
-        #   而 v8.1 clip(up) 同迭代 rise=16-25, upright≈4.5。|up| 让倾斜状态 (up≈0.15 且不转正
-        #   du≈0) 也能刷 rise_vel → 策略困在"倾斜推举"局部最优, 永远够不到 rise 里程碑
-        #   (rise_vel 同样 ~6.6, 但 v8.1 把推力转化为转正+到里程碑, v8.4 只倾斜推不转正)。
-        # ★ v8.5 (本次从零重训基态): 门控 = clip(up) ∪ clip(d(up)/dt) — "已直立 或 正在转正"
-        #   - clip(up/0.35): 保留 v8.1 的"必须转正才推"压力 (正常姿态学习不受损)
-        #   - clip(du/0.35): 仰卧翻转期 (up<0 但 du>0, 边翻转边升) 拿推举奖励 → 修仰卧 0%
-        #   - 倾斜刷分 (up 静止 du≈0) / 桥式 (up≈0 du≈0) 两者皆 0 → 全堵死
-        #   轮着地条件 (wheel_on_mask) 仍要求双轮着地, 防悬空刷分。
         dbz = base_z - self._prev_base_z
         self._prev_base_z = base_z.copy()
         vz = dbz / self._cfg.ctrl_dt
-        up_z = gravity[:, 2]
-        du = (up_z - self._prev_up_z) / self._cfg.ctrl_dt  # 直立度变化率 (正=正在转正)
-        self._prev_up_z = up_z.copy()
         wheel_on_mask = (
             np.min(state.info.get("wheel_contact", np.ones((self._num_envs, 2))), axis=1) > 0.5
         )
-        # ★ v8.5: 已直立 (clip up) OR 正在转正 (clip du) — 见上方注释
-        _gate = getattr(self._jump_cfg, "rise_vel_up_gate", 0.35)
-        up_gate = np.maximum(
-            np.clip(up_z / _gate, 0.0, 1.0),
-            np.clip(du / _gate, 0.0, 1.0),
+        up_gate = np.clip(
+            gravity[:, 2] / getattr(self._jump_cfg, "rise_vel_up_gate", 0.35), 0.0, 1.0
         )
         state.info["rise_vel"] = (
             np.clip(vz, 0.0, 1.0)
@@ -774,22 +715,13 @@ class XqRobotWLFallRecoveryFlatEnv(XqRobotWLJumpSRLFlatEnv):
         self._recover_hold[standing] += self._cfg.ctrl_dt
         self._recover_hold[~standing] = 0.0
         self._recover_completed |= self._recover_hold >= 0.5
-        # ★ v8 锚点站立: 锁存站立点 (base_xy + yaw), 之后罚净漂移/净旋转
-        # ★ v8.8: 锚点提前锁存 — 原只在 recover_completed (0.5s 稳定站) 上升沿激活,
-        #   但政策最长只能站 0.35s → 锚点恒休眠 → 转圈 (净 yaw 累积) 无约束。
-        #   改为稳定站立 hold 达 stand_anchor_hold (0.2s) 即锁存, 直接对净 yaw 给梯度,
-        #   允许平衡所需小幅 yaw 振荡 (罚净累积而非瞬时), 治转圈且不破坏平衡。
+        # ★ v8 锚点站立: 恢复锁存上升沿锁存站立点 (base_xy + yaw), 之后罚净漂移/净旋转
         base_quat = np.asarray(self._backend.get_base_quat(), dtype=get_global_dtype())[
             : self._num_envs
         ]
         _qw, _qx, _qy, _qz = base_quat[:, 0], base_quat[:, 1], base_quat[:, 2], base_quat[:, 3]
         base_yaw = np.arctan2(2.0 * (_qw * _qz + _qx * _qy), 1.0 - 2.0 * (_qy * _qy + _qz * _qz))
-        anchor_cond = standing
-        self._anchor_hold[anchor_cond] += self._cfg.ctrl_dt
-        self._anchor_hold[~anchor_cond] = 0.0
-        anchor_hold_req = getattr(self._jump_cfg, "stand_anchor_hold", 0.2)
-        anchor_armed = self._anchor_hold >= anchor_hold_req
-        just = (self._recover_completed | anchor_armed) & ~self._anchor_latched
+        just = self._recover_completed & ~self._anchor_latched
         self._anchor_xy[just] = base_pos[just, :2]
         self._anchor_yaw[just] = base_yaw[just]
         self._anchor_latched[just] = True

@@ -49,9 +49,7 @@ else
 fi
 
 CMD="$PYTHON scripts/play/play_interactive.py"
-# ★ 修复: fall_recovery 用 CPO (配置在 conf/cpo, 日志根 rsl_rl_cpo) — 此前误用 --algo ppo
-#   导致 play 到 conf/ppo 找任务配置报 MissingConfigException
-CMD="$CMD --algo cpo --task xqrobotwl_fall_recovery_flat --sim mujoco"
+CMD="$CMD --algo ppo --task xqrobotwl_fall_recovery_flat --sim mujoco"
 CMD="$CMD interactive.action_mode=${ACTION_MODE}"
 if [ -n "$KEYBOARD" ]; then
     # 命令 5D [vx,vy,vyaw,tsk,h], 跳过速度命令 obs 检查 (与其它 5D 命令任务一致)

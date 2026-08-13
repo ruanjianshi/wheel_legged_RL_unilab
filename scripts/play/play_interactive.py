@@ -191,9 +191,10 @@ def _algo_config_dict(cfg: DictConfig | None) -> dict[str, Any]:
     return cast(dict[str, Any], train_cfg_raw)
 
 
-SUPPORTED_INTERACTIVE_ALGOS = ("ppo", "appo", "sac", "flashsac", "hora_distill", "np3o")
+SUPPORTED_INTERACTIVE_ALGOS = ("ppo", "cpo", "appo", "sac", "flashsac", "hora_distill", "np3o")
 _CONFIG_ROOT_BY_ALGO = {
     "ppo": "ppo",
+    "cpo": "cpo",  # ★ fall_recovery 用 CPO (conf/cpo), 此前缺失导致 play 报 MissingConfigException
     "appo": "appo",
     "sac": "offpolicy",
     "flashsac": "offpolicy",
@@ -1132,7 +1133,8 @@ def play_interactive(args, cfg: DictConfig | None = None, *, algo: str | None = 
 
     try:
         playback_cfg = _build_playback_config(args, num_envs=1)
-        if algo in ("ppo", "np3o"):
+        # ★ cpo 继承 ppo, 同用 OnPolicyRunner/RslRlVecEnvWrapper 回放会话
+        if algo in ("ppo", "cpo", "np3o"):
             wrapper_cls = RslRlVecEnvWrapper
             if cfg is not None:
                 from unilab.algos.torch.rsl_rl_runtime import resolve_rsl_rl_ppo_runtime

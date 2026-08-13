@@ -1,0 +1,422 @@
+--- git commit ---
+a08b9b625fe328788f206dc9bbb1102ebc29d2ac
+
+
+--- git status ---
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   _devlog/assess/eval/fall_recovery.py
+	modified:   _devlog/assess/tasks.py
+	modified:   _devlog/xqrobotwl/jump/ppo/INDEX.md
+	modified:   conf/cpo/task/xqrobotwl_fall_recovery_flat/mujoco.yaml
+	modified:   src/unilab/envs/locomotion/xqrobotwl/fall_recovery.py
+	modified:   tools/make_paper_figures.py
+	modified:   tools/xqrobotwl/plot_jump_trajectory.py
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	_devlog/xqrobotwl/fall_recovery/ppo/2026-08-12/
+	_devlog/xqrobotwl/jump/ppo/2026-08-11/
+	latex/
+	tools/make_framework_figure.py
+	tools/render_robot_static.py
+
+no changes added to commit (use "git add" and/or "git commit -a") 
+
+
+--- git diff ---
+diff --git a/_devlog/assess/eval/fall_recovery.py b/_devlog/assess/eval/fall_recovery.py
+index 1006749..cac2e6a 100644
+--- a/_devlog/assess/eval/fall_recovery.py
++++ b/_devlog/assess/eval/fall_recovery.py
+@@ -1,6 +1,7 @@
+ """跌倒恢复评估 (CLAUDE.md §7.8 + 附录 A).
+ 
+ 4 姿态恢复率≥80% · 最长连续站立≥0.5s · 水平漂移<0.5m · 站立 |gyro|<1 · 轮子离地率 0
++· 转圈 (yaw 累计≈walk 水平~56°) · 轮速差小 (附录A)
+ 复用 eval_fall_recovery 的固定倒地姿态 provider (runner 建 env 时按 --pose 注入)。
+ """
+ 
+@@ -35,6 +36,8 @@ def evaluate(env, policy, args) -> dict[str, float]:
+         "drift": _agg(M.drift),
+         "stand_gyro": _agg(M.mean_gyro),
+         "wheel_off_rate": _agg(M.wheel_off_rate),
++        "yaw_accum": _agg(M.yaw_accum),  # ★ 转圈: 站立期 yaw 累计 (≈walk 56°=0.98rad)
++        "wheel_speed_diff": _agg(M.wheel_speed_diff),  # ★ 左右轮速差 (附录A 小)
+         "mean_max_z": _agg(M.mean_max_z),
+         "mean_max_up": _agg(M.mean_max_up),
+         "double_wheel_on": _agg(M.double_wheel_on_rate),
+diff --git a/_devlog/assess/tasks.py b/_devlog/assess/tasks.py
+index 743d734..a66801f 100644
+--- a/_devlog/assess/tasks.py
++++ b/_devlog/assess/tasks.py
+@@ -194,6 +194,10 @@ register(
+             "drift": Threshold("<", 0.5, "m"),  # 附录A 水平漂移<0.5m
+             "stand_gyro": Threshold("<", 1.0, "rad/s"),
+             "wheel_off_rate": Threshold("<", 0.01, ""),  # 站立期轮子离地率≈0
++            # ★ 转圈: 站立期 yaw 累计 (附录A ≈walk 水平~56°=0.98rad; v7 实测63°判为≈walk, 异常线放宽到 1.2rad≈69°)
++            "yaw_accum": Threshold("<", 1.2, "rad"),
++            # ★ 轮速差 (附录A 小; v7 达标判据 <5 rad/s)
++            "wheel_speed_diff": Threshold("<", 5.0, "rad/s"),
+         },
+     )
+ )
+diff --git a/_devlog/xqrobotwl/jump/ppo/INDEX.md b/_devlog/xqrobotwl/jump/ppo/INDEX.md
+index ee5a3b5..1c629b1 100644
+--- a/_devlog/xqrobotwl/jump/ppo/INDEX.md
++++ b/_devlog/xqrobotwl/jump/ppo/INDEX.md
+@@ -37,6 +37,12 @@ XqRobotWL 跳跃训练 — PPO 算法 + phase-gated 奖励 / Wheeled-SRL。
+ | 29 | 论文图重出: 训练曲线 0.8 EMA 平滑 + 参考风格高度曲线 (2x2 + FSM 相位) | [→](2026-08-09/29_paper_figs_smooth_single_view.md) |
+ | 30 | 论文图 nature/dataviz 规范重出: 新增图4.1 训练指标 (2x3) + 全图统一风格 | [→](2026-08-09/30_paper_figs_nature_style.md) |
+ 
++## 2026-08-11
++
++| 序号 | 标题 | 文件 |
++|------|------|------|
++| 35 | 小论文重构: 单方法占位稿 → 四算法 2×2 对照研究 (真实数据+图件+参考文献) | [→](2026-08-11/35_rewrite_small_paper_4algo.md) |
++
+ ## 2026-08-10
+ 
+ | 序号 | 标题 | 文件 |
+diff --git a/conf/cpo/task/xqrobotwl_fall_recovery_flat/mujoco.yaml b/conf/cpo/task/xqrobotwl_fall_recovery_flat/mujoco.yaml
+index 41e9e52..bcad6e3 100644
+--- a/conf/cpo/task/xqrobotwl_fall_recovery_flat/mujoco.yaml
++++ b/conf/cpo/task/xqrobotwl_fall_recovery_flat/mujoco.yaml
+@@ -101,9 +101,14 @@ reward:
+   rise_height: 0.35      # 中间里程碑: base_z>0.35 + 直立>0.80 + 双轮 保持 0.3s → rise 分
+   rise_hold: 0.3
+   rise_vel_height_cap: 0.45  # rise_vel 仅在此高度以下生效 (到站立后不再奖推, 防顶部跳动)
++  rise_vel_up_gate: 0.35  # ★ v8.1: rise_vel 按躯干直立度门控 (up/0.35, 躺着推=0, 堵桥式半撑)
++  no_yaw_deadzone: 1.0  # ★ v8.2: no_yaw 死区 (|gyro_z|<1rad/s 免费保平衡微调; 超出重罚持续打转)
+   # ★ 自然站姿 (dof_pos 目标): walk 模型实测站立腿角 → base_z≈0.518
+   #   (DEFAULT_LEG_ANGLES 膝盖符号相反 → 0.474m, 会拉向错误姿态)
+   standing_angles: [0.1021, 0.0828, -0.0789, 0.0127, -0.1083, 0.0188]
++  # ★ v8 锚点站立 (stand_anchor): 恢复锁存后罚净位移/净 yaw 旋转
++  stand_anchor_sigma_xy: 0.25    # 净水平位移 σ (m; 评估口径漂移<0.5m)
++  stand_anchor_sigma_yaw: 0.35   # 净 yaw 旋转 σ (rad)
+   # ── 力引导 (CPO 约束) ──
+   force_assist_enabled: true
+   force_max: 160.0   # 向上辅助力上限 N (加大: 给真实提升, 帮跨起身坎)
+@@ -118,15 +123,16 @@ reward:
+   scales_ru:
+     orient: -2.6
+     base_height: 8.0
+-    upright: 2.0
++    upright: 5.0   # ★ v8.1: 2→5 强化躯干转正梯度 (堵桥式: 躺着 up≈0 无分)
+     rise: 30.0
+     rise_vel: 15.0
+     settle: 20.0   # ★ v3: 加角速度静止项后提高 — 罚摇摆 (站立时 |gyro| 实测 6-9 rad/s)
+-    stand_still: 10.0   # 水平静止: 防恢复后一直后退 (独立项, 不乘死 settle)
+-    no_yaw: 8.0   # ★ v4: 朝向静止 — 防以右腿为圆心转圈
+-    wheel_symmetry: 5.0   # ★ v6/v7: 轮速对称 (差速转圈治本, v7 收紧阈值)
++    stand_still: 5.0   # ★ v8: 10→5 放松 (锚点项管净漂移, 还给平衡微调速度自由)
++    no_yaw: 8.0   # ★ v8.2: 5→8 回紧 + 死区 (|gyro_z|<1 免费; 转圈 350° 回归, 专打持续打转)
++    wheel_symmetry: 5.0   # ★ v6/v7: 轮速对称 (差速转圈治本; v8 τ /5→/12 在代码里)
+     wheel_speed: 3.0   # ★ v6: 防轮子狂转空转
+     stand_pose: 15.0   # ★ v7: 门控站姿正奖励 (治蹲姿, 只站立期激活)
++    stand_anchor: 15.0   # ★ v8: 锚点站立 — 恢复锁存后罚净位移/净旋转 (漂移<0.5m)
+     recover_complete: 100.0
+     act_rate: -0.06
+     dof_pos: -0.06
+@@ -138,15 +144,16 @@ reward:
+   scales_rs:
+     orient: -2.8
+     base_height: 12.0
+-    upright: 2.0
++    upright: 5.0   # ★ v8.1: 2→5 强化躯干转正梯度 (堵桥式: 躺着 up≈0 无分)
+     rise: 30.0
+     rise_vel: 15.0
+     settle: 20.0   # ★ v3: 加角速度静止项后提高
+-    stand_still: 10.0
+-    no_yaw: 8.0   # ★ v4: 朝向静止 (防转圈)
+-    wheel_symmetry: 5.0   # ★ v6/v7: 轮速对称 (差速转圈治本)
++    stand_still: 5.0   # ★ v8: 10→5 放松
++    no_yaw: 8.0   # ★ v8.2: 5→8 回紧 + 死区
++    wheel_symmetry: 5.0   # ★ v6/v7: 轮速对称 (差速转圈治本; v8 τ /5→/12 在代码里)
+     wheel_speed: 3.0   # ★ v6: 防轮子狂转空转
+     stand_pose: 15.0   # ★ v7: 门控站姿正奖励 (治蹲姿)
++    stand_anchor: 15.0   # ★ v8: 锚点站立 — 恢复锁存后罚净位移/净旋转
+     recover_complete: 100.0
+     act_rate: -0.02
+     dof_pos: -0.5   # ★ v5: 温和拉回自然站姿 (standing_angles)。v4 -2.0 太强压坏起身→保持 0.3s
+diff --git a/src/unilab/envs/locomotion/xqrobotwl/fall_recovery.py b/src/unilab/envs/locomotion/xqrobotwl/fall_recovery.py
+index 5c2b657..5a83b89 100644
+--- a/src/unilab/envs/locomotion/xqrobotwl/fall_recovery.py
++++ b/src/unilab/envs/locomotion/xqrobotwl/fall_recovery.py
+@@ -254,26 +254,33 @@ def _reward_no_yaw(ctx: RewardContext) -> np.ndarray:
+     """朝向静止 (防转圈): 直立 × 接近站立高度 × yaw 角速度小 = 满分.
+ 
+     针对用户反馈"以右腿为圆心转圈" (实测站立时 yaw 累计旋转 260°).
+-    gyro z 分量 = 本地 yaw 角速度, 指数衰减给全程梯度 (转越快分越低)."""
++    gyro z 分量 = 本地 yaw 角速度, 指数衰减给全程梯度 (转越快分越低).
++    ★ v8.2: 加死区 — |gyro_z| < no_yaw_deadzone(1.0) 免费, 超出才罚.
++    倒立摆平衡需要小幅 yaw 微调, 直接罚 yaw 角速度会杀平衡自由度 (v7 站立 0.63s 教训);
++    但完全放松又让持续打转回归 (v8 转圈 350°/resume 6000-7000 400-680°).
++    死区 = 允许平衡微调, 专打持续转圈 (>1 rad/s 重罚)."""
+     h = ctx.base_height[: ctx.num_envs]
+     h_cmd = ctx.info.get("h_cmd", 0.55)
+     height_ok = np.clip(1.0 - np.abs(h - h_cmd) / 0.15, 0.0, 1.0)
+     up_ok = np.clip(np.asarray(ctx.gravity, dtype=get_global_dtype())[:, 2], 0.0, 1.0)
+     gyro_z = np.abs(np.asarray(ctx.gyro, dtype=get_global_dtype())[: ctx.num_envs, 2])
+-    still_yaw = np.exp(-gyro_z / 0.8)
++    dead = ctx.info.get("no_yaw_deadzone", 1.0)
++    still_yaw = np.exp(-np.clip(gyro_z - dead, 0.0, None) / 0.8)
+     return (height_ok * up_ok * still_yaw).astype(get_global_dtype())
+ 
+ 
+ def _reward_wheel_symmetry(ctx: RewardContext) -> np.ndarray:
+-    """轮速对称 (治差速转圈): exp(-|wL-wR|/5) — 轮速差小则 1, 差大则 0.
++    """轮速对称 (治差速转圈): exp(-|wL-wR|/12) — 轮速差小则 1, 差大则 0.
+ 
+     ★ v6 决定性根因: 站立时右轮 -565 rad/s 狂转、左轮 -91 rad/s, 差速 474 rad/s →
+     机器人以右轮为轴空转打转。v6 用 /20 阈值抓到狂转 (474→3.9), 但**残留小差速
+-    (L恒+1.2, 方向恒定) 累积成转圈 yaw 299°**。收紧到 /5: 差速 1.4 时得 0.76 (有梯度),
+-    抓"小而恒定"的差速。"""
++    (L恒+1.2, 方向恒定) 累积成转圈 yaw 299°** → 收紧到 /5 抓"小而恒定"差速。
++    ★ v8 回松到 /12: 倒立摆平衡**本质需要轮子差速微调**, /5 把平衡自由度一起罚掉
++    → v7 站立塌到 0.63-0.81s。净旋转改由 _reward_stand_anchor (yaw 锚点) 专管,
++    此处只拦狂转/明显差速, 不再抓平衡用的小差速。"""
+     wv = ctx.info.get("wheel_vel", np.zeros((ctx.num_envs, 2), dtype=get_global_dtype()))
+     diff = np.abs(wv[:, 0] - wv[:, 1])
+-    return np.exp(-diff / 5.0)
++    return np.exp(-diff / 12.0)
+ 
+ 
+ def _reward_wheel_speed(ctx: RewardContext) -> np.ndarray:
+@@ -285,6 +292,29 @@ def _reward_wheel_speed(ctx: RewardContext) -> np.ndarray:
+     return np.exp(-speed / 100.0)
+ 
+ 
++def _reward_stand_anchor(ctx: RewardContext) -> np.ndarray:
++    """锚点站立 (净位移/净旋转): 恢复锁存后, 罚离开站立点的净水平位移与净 yaw 旋转.
++
++    ★ v8: 解耦"平衡微调"与"净漂移"。v7 用 wheel_symmetry/5 + no_yaw + stand_still
++    同时罚掉倒立摆平衡必需的轮子微调 (前后来回/差速/小幅 yaw) → 站立时长塌到 0.63-0.81s;
++    而这些瞬时项又只罚速度不罚净位移 → 慢漂仍超 0.5m (评估口径 max|x−x₀|, 附录A <0.5m)。
++    锚点项直接对净位移/净旋转: 轮子可自由微调平衡, 但 base 离开恢复点净位移
++    >σ_xy 或净 yaw 旋转 >σ_yaw 则失分。只在恢复锁存后激活 (起身期≈0 不影响恢复)。"""
++    h = ctx.base_height[: ctx.num_envs]
++    h_cmd = ctx.info.get("h_cmd", 0.55)
++    height_ok = np.clip(1.0 - np.abs(h - h_cmd) / 0.15, 0.0, 1.0)
++    up_ok = np.clip(np.asarray(ctx.gravity, dtype=get_global_dtype())[:, 2], 0.0, 1.0)
++    anchored = ctx.info.get("anchor_active", np.zeros(ctx.num_envs, dtype=bool))
++    sig_xy = ctx.info.get("stand_anchor_sigma_xy", 0.25)
++    sig_yaw = ctx.info.get("stand_anchor_sigma_yaw", 0.35)
++    dx = ctx.info.get("anchor_dx", np.zeros(ctx.num_envs, dtype=get_global_dtype()))
++    dy = ctx.info.get("anchor_dy", np.zeros(ctx.num_envs, dtype=get_global_dtype()))
++    dyaw = ctx.info.get("anchor_dyaw", np.zeros(ctx.num_envs, dtype=get_global_dtype()))
++    d2 = (dx**2 + dy**2) / sig_xy**2 + (dyaw**2) / sig_yaw**2
++    anchored_ok = np.exp(-d2)
++    return (height_ok * up_ok * anchored * anchored_ok).astype(get_global_dtype())
++
++
+ # ========== 配置 ==========
+ 
+ 
+@@ -315,6 +345,10 @@ class XqRobotWLFallRecoveryRewardConfig:
+     rise_height: float = 0.35  # 中间里程碑高度 (桥接半撑→站立梯度死区)
+     rise_hold: float = 0.3  # 中间里程碑保持时间 (s)
+     rise_vel_height_cap: float = 0.45  # rise_vel 仅在此高度以下生效 (顶部不鼓励推)
++    rise_vel_up_gate: float = 0.35  # ★ v8.1: rise_vel 按躯干直立度门控 (up/0.35, 躺着推=0)
++    no_yaw_deadzone: float = (
++        1.0  # ★ v8.2: no_yaw 死区 (|gyro_z|<1rad/s 免费, 保平衡微调; 超出重罚持续打转)
++    )
+     # ★ 自然站姿 (dof_pos 目标): walk 模型实测站立腿角 [L_roll,L_pitch,L_knee,R_roll,R_pitch,R_knee]
+     #   → base_z≈0.518 (与 h_cmd2=0.52 兼容)。DEFAULT_LEG_ANGLES 膝盖符号相反 (0.474m),
+     #   若用它做 dof_pos 目标会把腿拉向错误姿态 (一前一后/别扭)。
+@@ -327,6 +361,10 @@ class XqRobotWLFallRecoveryRewardConfig:
+     torque_max: float = 15.0  # Tmax (Nm, 对齐直立)
+     mu: float = 6.0  # 高度系数
+     force_end_iters: int = 3000  # 辅助力全局撤除的训练 iter
++    # ★ v8 锚点站立 (净位移/净旋转): 恢复锁存后罚离开站立点的净漂移/净转圈
++    #   评估口径 = episode 内 max 水平位移 <0.5m (附录A), 故 σ_xy 取 0.25 给足梯度
++    stand_anchor_sigma_xy: float = 0.25  # 净水平位移 σ (m)
++    stand_anchor_sigma_yaw: float = 0.35  # 净 yaw 旋转 σ (rad)
+     # 终止
+     idle_ground_time: float = 6.0  # 贴地超过即终止 (防死点; < max_episode 10s)
+ 
+@@ -438,6 +476,10 @@ class XqRobotWLFallRecoveryFlatEnv(XqRobotWLJumpSRLFlatEnv):
+         self._prev_base_z = np.zeros(num_envs, dtype=np.float64)  # 上一帧 base_z (rise_vel 用)
+         self._constraint_costs = np.zeros((num_envs, 2), dtype=get_global_dtype())  # [F_mag, T_mag]
+         self._robot_mass = 18.65
++        # ★ v8 锚点站立: 恢复锁存上升沿锁存站立点 (位置+yaw), 之后罚净漂移/净旋转
++        self._anchor_xy = np.zeros((num_envs, 2), dtype=np.float64)
++        self._anchor_yaw = np.zeros(num_envs, dtype=np.float64)
++        self._anchor_latched = np.zeros(num_envs, dtype=bool)
+         # ★ step_counter 是批次步 (np_env.step 每次所有 env 同步 +1, 每 iter 共 24 次),
+         #   不是 env 步数 — 若乘 num_envs 力将永不衰减 (需 num_envs× 倍 iter).
+         #   全局撤除步数 = iters × 每 iter 批次数 (24)
+@@ -479,6 +521,7 @@ class XqRobotWLFallRecoveryFlatEnv(XqRobotWLJumpSRLFlatEnv):
+             "no_yaw": _reward_no_yaw,
+             "wheel_symmetry": _reward_wheel_symmetry,
+             "wheel_speed": _reward_wheel_speed,
++            "stand_anchor": _reward_stand_anchor,
+             "act_rate": _reward_act_rate,
+             "dof_pos": _reward_dof_pos,
+             "stand_pose": _reward_stand_pose,
+@@ -508,6 +551,9 @@ class XqRobotWLFallRecoveryFlatEnv(XqRobotWLJumpSRLFlatEnv):
+         self._rise_hold[idx] = 0.0
+         self._rise_completed[idx] = False
+         self._constraint_costs[idx] = 0.0
++        self._anchor_xy[idx] = 0.0
++        self._anchor_yaw[idx] = 0.0
++        self._anchor_latched[idx] = False
+         self._sync_prev_base_z(idx)
+         self._stage = 0
+         return out
+@@ -524,6 +570,9 @@ class XqRobotWLFallRecoveryFlatEnv(XqRobotWLJumpSRLFlatEnv):
+         self._rise_hold[idx] = 0.0
+         self._rise_completed[idx] = False
+         self._constraint_costs[idx] = 0.0
++        self._anchor_xy[idx] = 0.0
++        self._anchor_yaw[idx] = 0.0
++        self._anchor_latched[idx] = False
+         self._sync_prev_base_z(idx)
+ 
+     # ── step: 先施加力引导 wrench, 再走物理 ──
+@@ -596,7 +645,10 @@ class XqRobotWLFallRecoveryFlatEnv(XqRobotWLJumpSRLFlatEnv):
+         gravity = self._backend.get_sensor_data(self._cfg.sensor.upvector)
+         dof_pos = self.get_dof_pos()
+         dof_vel = self.get_dof_vel()
+-        base_z = np.asarray(self._backend.get_base_pos(), dtype=get_global_dtype())[:, 2]
++        base_pos = np.asarray(self._backend.get_base_pos(), dtype=get_global_dtype())[
++            : self._num_envs
++        ]
++        base_z = base_pos[:, 2]
+ 
+         # 阶段 (批次高度统计): |S1| > 2/3 N → rs — 仅切换次要奖励权重集.
+         # 高度命令/奖励不随阶段走 (恒 h_cmd2), 否则阶段门控卡死会连高度目标一起卡死.
+@@ -623,15 +675,23 @@ class XqRobotWLFallRecoveryFlatEnv(XqRobotWLJumpSRLFlatEnv):
+ 
+         # 上升速度奖励信号: 向上 base_z 速度, 双轮着地时生效 (防跳起刷分),
+         # 且仅在起身过渡期 (base_z < rise_vel_height_cap) — 到站立高度后不再奖推, 防顶部跳动
++        # ★ v8.1: 乘躯干直立门控 clip(up/rise_vel_up_gate,0,1) — 堵"桥式半撑"局部最优
++        #   (v8 诊断: 策略撑起骨盆到 0.30m 但躯干躺平 up≈0, 靠 rise_vel 无限刷分,
++        #   永远够不到 rise 里程碑 0.35m+直立0.80, 4000 iter 从未恢复)。门控后躺着推=0,
++        #   只有边转正边推才计分, 逼策略学会"边转正边自举".
+         dbz = base_z - self._prev_base_z
+         self._prev_base_z = base_z.copy()
+         vz = dbz / self._cfg.ctrl_dt
+         wheel_on_mask = (
+             np.min(state.info.get("wheel_contact", np.ones((self._num_envs, 2))), axis=1) > 0.5
+         )
++        up_gate = np.clip(
++            gravity[:, 2] / getattr(self._jump_cfg, "rise_vel_up_gate", 0.35), 0.0, 1.0
++        )
+         state.info["rise_vel"] = (
+             np.clip(vz, 0.0, 1.0)
+             * wheel_on_mask
++            * up_gate
+             * (base_z < getattr(self._jump_cfg, "rise_vel_height_cap", 0.45))
+         ).astype(get_global_dtype())
+         # settle 用: 垂直速度绝对值 + 水平速度 (教"站稳不动")
+@@ -655,6 +715,31 @@ class XqRobotWLFallRecoveryFlatEnv(XqRobotWLJumpSRLFlatEnv):
+         self._recover_hold[standing] += self._cfg.ctrl_dt
+         self._recover_hold[~standing] = 0.0
+         self._recover_completed |= self._recover_hold >= 0.5
++        # ★ v8 锚点站立: 恢复锁存上升沿锁存站立点 (base_xy + yaw), 之后罚净漂移/净旋转
++        base_quat = np.asarray(self._backend.get_base_quat(), dtype=get_global_dtype())[
++            : self._num_envs
++        ]
++        _qw, _qx, _qy, _qz = base_quat[:, 0], base_quat[:, 1], base_quat[:, 2], base_quat[:, 3]
++        base_yaw = np.arctan2(2.0 * (_qw * _qz + _qx * _qy), 1.0 - 2.0 * (_qy * _qy + _qz * _qz))
++        just = self._recover_completed & ~self._anchor_latched
++        self._anchor_xy[just] = base_pos[just, :2]
++        self._anchor_yaw[just] = base_yaw[just]
++        self._anchor_latched[just] = True
++        state.info["anchor_active"] = self._anchor_latched.copy()
++        state.info["anchor_dx"] = (base_pos[:, 0] - self._anchor_xy[:, 0]).astype(
++            get_global_dtype()
++        )
++        state.info["anchor_dy"] = (base_pos[:, 1] - self._anchor_xy[:, 1]).astype(
++            get_global_dtype()
++        )
++        state.info["anchor_dyaw"] = np.arctan2(
++            np.sin(base_yaw - self._anchor_yaw), np.cos(base_yaw - self._anchor_yaw)
++        ).astype(get_global_dtype())
++        state.info["stand_anchor_sigma_xy"] = getattr(self._jump_cfg, "stand_anchor_sigma_xy", 0.25)
++        state.info["stand_anchor_sigma_yaw"] = getattr(
++            self._jump_cfg, "stand_anchor_sigma_yaw", 0.35
++        )
++        state.info["no_yaw_deadzone"] = getattr(self._jump_cfg, "no_yaw_deadzone", 1.0)
+         state.info["idle_time"] = self._idle_time.copy()
+         state.info["has_recovered"] = self._has_recovered.copy()
+         state.info["recover_completed"] = self._recover_completed.copy()
+diff --git a/tools/make_paper_figures.py b/tools/make_paper_figures.py
+index 7b26b18..b06946a 100644
+--- a/tools/make_paper_figures.py
++++ b/tools/make_paper_figures.py
+@@ -39,7 +39,7 @@ from tensorboard.backend.event_processing.event_accumulator import (  # noqa: E4
+     EventAccumulator,
+ )
+ 
+-ROOT = Path(__file__).resolve().parent.parent.parent
++ROOT = Path(__file__).resolve().parent.parent  # 仓库根 (本文件位于 tools/)
+ if str(ROOT) not in sys.path:
+     sys.path.insert(0, str(ROOT))
+ 
+@@ -211,7 +211,7 @@ def fig_training_metrics(dirs: dict[str, str], out_path: Path, smooth: float = 0
+ 
+ def fig_validation(out_path: Path) -> None:
+     """Figure 2: 单张对比图 — 腾空 + 存活, 四种算法同色并排 (高度曲线见 paper_fig_trajectory)."""
+-    compare_json = ROOT / "jump_management" / "results" / "four_algo_comparison.json"
++    compare_json = ROOT / "latex" / "Wheeled-SRL-Jumping" / "data" / "four_algo_comparison.json"
+     if compare_json.exists():
+         data = json.load(open(compare_json))["results"]
+         algos = [
+@@ -249,7 +249,9 @@ def fig_validation(out_path: Path) -> None:
+ 
+ def main() -> int:
+     parser = argparse.ArgumentParser()
+-    parser.add_argument("--out-dir", default=str(ROOT / "jump_management" / "results"))
++    parser.add_argument(
++        "--out-dir", default=str(ROOT / "latex" / "Wheeled-SRL-Jumping" / "figures")
++    )
+     parser.add_argument(
+         "--smooth", type=float, default=0.8, help="EMA 平滑系数 (TensorBoard 风格, 默认 0.8)"
+     )
+diff --git a/tools/xqrobotwl/plot_jump_trajectory.py b/tools/xqrobotwl/plot_jump_trajectory.py
+index 9594eb4..06edede 100644
+--- a/tools/xqrobotwl/plot_jump_trajectory.py
++++ b/tools/xqrobotwl/plot_jump_trajectory.py
+@@ -28,7 +28,8 @@ ROOT = Path(__file__).resolve().parent.parent.parent
+ if str(ROOT) not in sys.path:
+     sys.path.insert(0, str(ROOT))
+ 
+-RESULTS = ROOT / "jump_management" / "results"
++DATA = ROOT / "latex" / "Wheeled-SRL-Jumping" / "data"  # jump_traj_*.npz
++FIG = ROOT / "latex" / "Wheeled-SRL-Jumping" / "figures"  # paper_fig_*.png/pdf
+ 
+ # Okabe-Ito colourblind-safe palette (order matches ALGOS)
+ COLORS = {
+@@ -59,7 +60,7 @@ PHASE_COLORS = {
+ 
+ 
+ def load_traj(name: str) -> dict:
+-    d = np.load(RESULTS / f"{name}.npz", allow_pickle=True)
++    d = np.load(DATA / f"{name}.npz", allow_pickle=True)
+     return {k: d[k] for k in d.files}
+ 
+ 
+@@ -124,7 +125,7 @@ def fig_height() -> None:
+         ax.set_ylabel("Base Height (m)", fontsize=8)
+     for ax in axes[1, :]:
+         ax.set_xlabel("Time (s)", fontsize=8)
+-    out = RESULTS / "paper_fig_trajectory"
++    out = FIG / "paper_fig_trajectory"
+     fig.savefig(out.with_suffix(".png"), dpi=300, bbox_inches="tight")
+     fig.savefig(out.with_suffix(".pdf"), bbox_inches="tight")
+     plt.close(fig)
+@@ -152,7 +153,7 @@ def fig_joints() -> None:
+     axes[0, 0].legend(
+         fontsize=7, ncol=4, loc="upper center", bbox_to_anchor=(1.0, 1.42), frameon=False
+     )
+-    out = RESULTS / "paper_fig_jump_joints"
++    out = FIG / "paper_fig_jump_joints"
+     fig.savefig(out.with_suffix(".png"), dpi=300, bbox_inches="tight")
+     fig.savefig(out.with_suffix(".pdf"), bbox_inches="tight")
+     plt.close(fig)

@@ -210,16 +210,23 @@ def main() -> None:
         wc = st.info.get("wheel_contact", np.zeros((env.num_envs, 2)))[0]
         recovered = st.info.get("recover_completed", np.zeros(env.num_envs, dtype=bool))[0]
 
+        # ★ 关节序: [L_roll, L_pitch, L_knee, L_wheel, R_roll, R_pitch, R_knee, R_wheel]
+        #   腿部 6 关节 = dof[[0,1,2,4,5,6]] (跳过 index 3 的 L_wheel);
+        #   轮速 = dof_vel[[3,7]] (L_wheel, R_wheel)。
+        #   (曾误用 dof_pos[0:6] → "R_hip_roll" 列读到 L_wheel 大数值, 假阳性"髋外展"问题, 已修复)
+        legs_pos = dof_pos[[0, 1, 2, 4, 5, 6]]
+        wheel_vel = dof_vel[[3, 7]]
+
         rows.append(
             [
                 step,
                 round(step * dt, 6),
-                *dof_pos[0:6].tolist(),
+                *legs_pos.tolist(),
                 *euler.tolist(),
                 *np.asarray(backend.get_base_pos(), dtype=np.float64)[0].tolist(),
                 *linvel.tolist(),
                 *gyro.tolist(),
-                *dof_vel[6:8].tolist(),
+                *wheel_vel.tolist(),
                 up_z,
                 int(wc[0]),
                 int(wc[1]),

@@ -1,0 +1,2 @@
+a08b9b625fe328788f206dc9bbb1102ebc29d2ac
+a08b9b6 按 CLAUDE.md 规范重构仓库 + 构建八任务完整评估体系

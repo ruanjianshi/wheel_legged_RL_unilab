@@ -5,6 +5,12 @@
 
 | 日期 | 序号 | 标题 |
 |------|------|------|
+| 2026-08-13 | 28 | [通宵迭代交付: v8.5→v8.10 恢复率突破 + 嫁接稳定平衡 (§7.8 未全达标, 如实)](2026-08-13/28_overnight_v810_delivery.md) |
+| 2026-08-12 | 27 | [v8.4 从零重训: \|up\| 门控修仰卧 0% 根因 (目标 4 姿态恢复率≥80%)](2026-08-12/27_v84_scratch_recovery_goal.md) |
+| 2026-08-12 | 26 | [修复: 姿态 CSV 关节列映射错位 (R 腿读到 L_wheel, 假阳性髋外展)](2026-08-12/26_fix_pose_csv_joint_mapping.md) |
+| 2026-08-12 | 25 | [修复: fall_recovery 键盘回放报错 (play 支持 cpo)](2026-08-12/25_fix_cpo_play_support.md) |
+| 2026-08-12 | 24 | [通宵迭代 v8→v8.4: 站立/转圈根治 + 交付 model_7000 (仰卧未达, 如实)](2026-08-12/24_overnight_v8_v82_delivery.md) |
+| 2026-08-12 | ref | [参考文档: FTSR 跌倒恢复 + 两轮倒立摆平衡文献](2026-08-12/ref_fsr_balance_literature.md) |
 | 2026-08-09 | 23 | [交付 — v7 model_4000: 4 姿态恢复 + yaw≈walk](2026-08-09/23_delivery_v7_4pose.md) |
 | 2026-08-09 | 22 | [残留转圈+蹲姿 → 收紧 wheel_symmetry + 门控站姿奖励](2026-08-09/22_v7_tight_wheel_symmetry_stand_pose.md) |
 | 2026-08-09 | 21 | [转圈更明显 → 轮速约束 wheel_symmetry + wheel_speed](2026-08-09/21_v6_wheel_symmetry.md) |

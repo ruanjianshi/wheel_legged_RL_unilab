@@ -177,15 +177,20 @@ def collect_step(env, st, step: int, env_idx: int, ctrl_dt: float = 0.01) -> Ste
     wc = st.info.get("wheel_contact", np.zeros((env.num_envs, 2)))[env_idx]
     recovered = st.info.get("recover_completed", np.zeros(env.num_envs, dtype=bool))[env_idx]
     cmd = st.info.get("commands", np.zeros((env.num_envs, 5), dtype=np.float64))[env_idx]
+    # ★ 关节序 [L_roll,L_pitch,L_knee,L_wheel,R_roll,R_pitch,R_knee,R_wheel]:
+    #   腿部 6 关节 = dof[[0,1,2,4,5,6]], 轮速 = dof_vel[[3,7]] (曾误用 [0:6]/[6:8],
+    #   导致 R 腿关节读到 L_wheel, 站姿分析假阳性"髋外展", 已修复)
+    legs_pos = dof_pos[[0, 1, 2, 4, 5, 6]]
+    wheel_vel = dof_vel[[3, 7]]
     return StepSample(
         step=step,
         time_s=step * ctrl_dt,
-        dof_pos=dof_pos[0:6].copy(),
+        dof_pos=legs_pos.copy(),
         euler=euler,
         base_pos=base_pos,
         linvel=linvel,
         gyro=gyro,
-        wheel_vel=dof_vel[6:8].copy(),
+        wheel_vel=wheel_vel.copy(),
         up_z=up_z,
         wheel_contact=wc.astype(np.float64).copy(),
         recover_completed=float(recovered),
