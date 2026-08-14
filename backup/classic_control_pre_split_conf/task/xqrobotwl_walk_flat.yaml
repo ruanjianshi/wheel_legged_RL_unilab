@@ -1,0 +1,55 @@
+# @package _global_
+# =============================================================================
+# XqRobotWL 两轮腿机器人 — 经典控制任务常数 (walk_flat)
+# 供 scripts/classic_control 复用 RL env (只读, 不修改任何 RL 文件)
+# =============================================================================
+env:
+  task_name: XqRobotWLWalkFlat
+  task_key: walk_flat
+  command_dim: 5
+  mujoco_yaml: conf/ppo/task/xqrobotwl_walk_flat/mujoco.yaml
+
+robot:
+  wheel_r: 0.11  # 轮半径 (m), 见 xqrobotwl.xml wheel cylinder
+
+  # ★ 镜像对称站姿 (左腿=右腿镜像; 原 RL 测得站姿左右不对称, 已对称化)
+  #   验证: 对称站姿下左右轮世界 |y| 完全相等 (±0.171)
+  standing_angles: [0.0, 0.1083, -0.0188, 0.0, -0.1083, 0.0188]
+  default_leg_angles: [0.1, 0.15, 0.15, -0.1, -0.15, -0.15]
+
+  # ★ kp=60 下垂补偿后的腿伺服目标 (左右镜像对称):
+  #   命令 [L_roll≈0, L_pitch+0.18, L_knee-0.28, R_roll≈0, R_pitch-0.18, R_knee+0.28]
+  #   → 实际关节 ≈ standing_angles (膝下垂 ~0.22 rad; hip_pitch 下垂 ~0.03-0.05)。
+  #   hip_pitch 命令加大 margin: env 终止条件 thigh_collapsed (L_pitch<0.02/R_pitch>-0.02),
+  #   平衡动态下下垂会触发终止 → 命令 ±0.18 保实际 >0.05 安全区。
+  leg_targets_compensated: [0.0, 0.18, -0.28, 0.0, -0.18, 0.28]
+
+  # ★ 双轮着地 base_z (0.518 让右轮离地 13mm → 视频"飞起来")
+  standing_base_z: 0.512
+
+  # 髋 pivot 相对 base 原点的垂直偏移 (标定: 站立时 wheel_z≈0.11)
+  #   wheel_z = base_z + HIP_Z_OFFSET − L0·cos(theta0);  standing: 0.512+off−0.416=0.11 → off=+0.014
+  hip_z_offset: 0.014
+
+  # 关节限位 (XML): hip_roll L∈[0,π] R∈[-π,0]; hip_pitch L∈[-1.047,2.094] R∈[-2.094,1.047]; knee ±0.873
+  joint_limits:
+    L_hip_pitch: [-1.047, 2.094]
+    R_hip_pitch: [-2.094, 1.047]
+    L_knee: [-0.873, 0.873]
+    R_knee: [-0.873, 0.873]
+  # IK 留 margin 防触发 env 终止 (大腿塌陷 L_pitch<0.02 / R_pitch>-0.02, |knee|>0.85)
+  ik_margin: 0.05
+
+  # VMC 标定运动学常数 (src/unilab/envs/locomotion/xqrobotwl/vmc.py:44-57)
+  vmc:
+    l1: 0.30053
+    l2: 0.30070
+    offset: 0.0
+    theta0_offset: 0.0747
+    l0_offset: 0.3669
+    l0_min: 0.2047
+    l0_max: 0.5231
+    hip_sign: [1, -1]
+    knee_sign: [-1, 1]
+    c1: 2.4103
+    c2: -1.6790

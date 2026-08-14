@@ -1,0 +1,163 @@
+<mxfile host="Electron">
+  <diagram id="wheeled-srl-framework" name="Page-1">
+    <mxGraphModel dx="1053" dy="652" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" background="#ffffff" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=16;fontStyle=1;" value="Wheeled-SRL 控制框架" vertex="1">
+          <mxGeometry height="30" width="320" x="240" y="10" as="geometry" />
+        </mxCell>
+        <mxCell id="slip-zone" parent="1" style="rounded=1;dashed=1;dashPattern=6 4;fillColor=#eef2ff;strokeColor=#6366f1;fontSize=11;fontStyle=1;verticalAlign=top;align=left;spacingTop=4;spacingLeft=6;fontColor=#66FFFF;fontFamily=Times New Roman;" value="前馈路径：扩展 SLIP 模型" vertex="1">
+          <mxGeometry height="200" width="340" x="20" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="fsm" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eef2ff;strokeColor=#6366f1;fontSize=11;fontStyle=1;align=center;verticalAlign=top;fontColor=light-dark(default, #7582a9);" value="六状态 FSM" vertex="1">
+          <mxGeometry height="70" width="110" x="35" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="fsm-sub" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=top;fontSize=9;fontColor=#4338ca;" value="-1 初始化 → 0 压缩&#xa;→ 1 起跳 → 2 飞行&#xa;→ 3 着陆 → 4 恢复" vertex="1">
+          <mxGeometry height="50" width="110" x="35" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="slip-dyn" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eef2ff;strokeColor=#6366f1;fontSize=11;fontStyle=1;align=center;verticalAlign=top;fontColor=light-dark(default, #3f3134);" value="扩展 SLIP 动力学" vertex="1">
+          <mxGeometry height="70" width="120" x="225" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="slip-dyn-sub" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=top;fontSize=9;fontColor=#4338ca;" value="F = -kΔL - cv&#xa;τ = Jω̇ + bω + rF&#xa;ω_ff = (ẋ/r)·σ(t)" vertex="1">
+          <mxGeometry height="50" width="120" x="225" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="a1" edge="1" parent="1" source="fsm" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#6366f1;strokeWidth=1.5;endArrow=block;endFill=1;" target="slip-dyn" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="MAvl6fo-jykOdWPLjQII-3" edge="1" parent="1" source="ik" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="wheel-plan">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ik" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e0f2fe;strokeColor=#0284c7;fontSize=10;fontStyle=1;fontColor=#0369a1;" value="逆运动学 θ" vertex="1">
+          <mxGeometry height="30" width="85" x="35" y="170" as="geometry" />
+        </mxCell>
+        <mxCell id="a2" edge="1" parent="1" source="fsm" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#475569;endArrow=block;endFill=1;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="90" y="157" />
+              <mxPoint x="90" y="157" />
+            </Array>
+            <mxPoint x="90" y="169" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="MAvl6fo-jykOdWPLjQII-4" edge="1" parent="1" source="wheel-plan" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="ref-cmds">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="wheel-plan" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e0f2fe;strokeColor=#0284c7;fontSize=10;fontStyle=1;fontColor=#0369a1;" value="飞行轮速规划" vertex="1">
+          <mxGeometry height="30" width="90" x="145" y="170" as="geometry" />
+        </mxCell>
+        <mxCell id="ref-cmds" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e0f2fe;strokeColor=#0284c7;fontSize=10;fontStyle=1;fontColor=#0369a1;" value="参考指令&#xa;（关节角度+轮速）" vertex="1">
+          <mxGeometry height="30" width="90" x="255" y="170" as="geometry" />
+        </mxCell>
+        <mxCell id="rl-zone" parent="1" style="rounded=1;dashed=1;dashPattern=6 4;fillColor=#f0fdf4;strokeColor=#059669;fontSize=11;fontStyle=1;verticalAlign=top;align=left;spacingTop=4;spacingLeft=6;fontColor=#5AAA72;fontFamily=Times New Roman;" value="反馈路径：PPO 强化学习" vertex="1">
+          <mxGeometry height="200" width="340" x="440" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="obs" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0fdf4;strokeColor=#059669;fontSize=10;fontStyle=1;fontColor=#065f46;" value="观测 O_t（35维）" vertex="1">
+          <mxGeometry height="30" width="100" x="452" y="82" as="geometry" />
+        </mxCell>
+        <mxCell id="actor" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0fdf4;strokeColor=#059669;fontSize=10;fontStyle=1;fontColor=#065f46;" value="Actor 网络" vertex="1">
+          <mxGeometry height="30" width="100" x="452" y="131" as="geometry" />
+        </mxCell>
+        <mxCell id="a4" edge="1" parent="1" source="obs" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#475569;endArrow=block;endFill=1;" target="actor" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="corr" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0fdf4;strokeColor=#059669;fontSize=10;fontStyle=1;fontColor=#065f46;" value="修正输出 a_fb" vertex="1">
+          <mxGeometry height="30" width="100" x="452" y="180" as="geometry" />
+        </mxCell>
+        <mxCell id="a5" edge="1" parent="1" source="actor" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#475569;endArrow=block;endFill=1;" target="corr" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="reward" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef3c7;strokeColor=#d97706;fontSize=10;fontStyle=1;fontColor=#92400e;" value="奖励函数 r_total&#xa;r_live + w₁·r_ori + w₂·r_vel&#xa;+ w₃·r_sync + w₄·r_pos + w₅·r_wheel" vertex="1">
+          <mxGeometry height="65" width="190" x="575" y="82" as="geometry" />
+        </mxCell>
+        <mxCell id="wheel-match" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef2f2;strokeColor=#dc2626;fontSize=10;fontStyle=1;fontColor=#b91c1c;strokeWidth=1.5;" value="★ 轮地速度匹配惩罚&#xa;r_wheel = -k_w·‖rω − v‖·𝟙_td" vertex="1">
+          <mxGeometry height="36" width="190" x="575" y="170" as="geometry" />
+        </mxCell>
+        <mxCell id="a-ff" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#6366f1;strokeWidth=2;endArrow=block;endFill=1;fontSize=10;fontStyle=1;fontColor=#6366f1;" value="a_ff">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="300" y="270" />
+            </Array>
+            <mxPoint x="300" y="200" as="sourcePoint" />
+            <mxPoint x="366" y="270" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="a-fb" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#059669;strokeWidth=2;endArrow=block;endFill=1;fontSize=10;fontStyle=1;fontColor=#059669;" value="a_fb">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="502" y="271" />
+            </Array>
+            <mxPoint x="502" y="210" as="sourcePoint" />
+            <mxPoint x="440" y="271" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fusion" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#f3e8ff;strokeColor=#6366f1;fontSize=11;fontStyle=1;fontColor=#3730a3;" value="加权融合&#xa;a = a_ff + k_b·a_fb" vertex="1">
+          <mxGeometry height="36" width="100" x="427" y="289" as="geometry" />
+        </mxCell>
+        <mxCell id="pd" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1f5f9;strokeColor=#64748b;fontSize=10;fontStyle=1;fontColor=#334155;" value="PD 控制器" vertex="1">
+          <mxGeometry height="26" width="70" x="370" y="258" as="geometry" />
+        </mxCell>
+        <mxCell id="robot" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff7ed;strokeColor=#d97706;fontSize=11;fontStyle=1;fontColor=#9a3412;" value="xqrobotwl&#xa;两轮足机器人（MuJoCo）" vertex="1">
+          <mxGeometry height="36" width="100" x="355" y="334" as="geometry" />
+        </mxCell>
+        <mxCell id="a7" edge="1" parent="1" source="pd" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#475569;endArrow=block;endFill=1;fontSize=9;fontColor=#475569;" target="robot" value="力矩指令">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fb1" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#059669;strokeWidth=1.5;dashed=1;endArrow=block;endFill=1;fontSize=9;fontColor=#059669;" target="reward" value="状态观测（35维）">
+          <mxGeometry relative="1" x="-0.0847" y="-2" as="geometry">
+            <mxPoint as="offset" />
+            <Array as="points">
+              <mxPoint x="564" y="350" />
+              <mxPoint x="564" y="115" />
+            </Array>
+            <mxPoint x="456" y="350" as="sourcePoint" />
+            <mxPoint x="629" y="87" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fb2" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#dc2626;strokeWidth=1.5;dashed=1;endArrow=block;endFill=1;fontSize=9;fontColor=#dc2626;" value="状态量 → 奖励计算">
+          <mxGeometry relative="1" x="-0.0705" y="15" as="geometry">
+            <mxPoint as="offset" />
+            <Array as="points">
+              <mxPoint x="670" y="353" />
+            </Array>
+            <mxPoint x="455" y="353" as="sourcePoint" />
+            <mxPoint x="670" y="208" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="legend-box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8fafc;strokeColor=#cbd5e1;fontSize=10;" value="" vertex="1">
+          <mxGeometry height="70" width="300" x="20" y="280" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-title" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;fontSize=11;fontStyle=1;fontColor=#475569;" value="图例" vertex="1">
+          <mxGeometry height="20" width="60" x="28" y="280" as="geometry" />
+        </mxCell>
+        <mxCell id="leg1-box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eef2ff;strokeColor=#6366f1;fontSize=8;" value="" vertex="1">
+          <mxGeometry height="10" width="14" x="30" y="300" as="geometry" />
+        </mxCell>
+        <mxCell id="leg1-text" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=9;fontColor=#334155;" value="前馈路径（SLIP）" vertex="1">
+          <mxGeometry height="14" width="100" x="50" y="298" as="geometry" />
+        </mxCell>
+        <mxCell id="leg2-box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0fdf4;strokeColor=#059669;fontSize=8;" value="" vertex="1">
+          <mxGeometry height="10" width="14" x="140" y="300" as="geometry" />
+        </mxCell>
+        <mxCell id="leg2-text" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=9;fontColor=#334155;" value="反馈路径（PPO）" vertex="1">
+          <mxGeometry height="14" width="100" x="160" y="298" as="geometry" />
+        </mxCell>
+        <mxCell id="leg3-box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef2f2;strokeColor=#dc2626;strokeWidth=1.5;fontSize=8;" value="" vertex="1">
+          <mxGeometry height="10" width="14" x="30" y="322" as="geometry" />
+        </mxCell>
+        <mxCell id="leg3-text" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=9;fontColor=#334155;" value="★ 轮腿平台特有设计" vertex="1">
+          <mxGeometry height="14" width="120" x="50" y="320" as="geometry" />
+        </mxCell>
+        <mxCell id="leg4-box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff7ed;strokeColor=#d97706;fontSize=8;" value="" vertex="1">
+          <mxGeometry height="10" width="14" x="140" y="322" as="geometry" />
+        </mxCell>
+        <mxCell id="leg4-text" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=9;fontColor=#334155;" value="仿真环境" vertex="1">
+          <mxGeometry height="14" width="80" x="160" y="320" as="geometry" />
+        </mxCell>
+        <mxCell id="MAvl6fo-jykOdWPLjQII-5" edge="1" parent="1" source="slip-dyn-sub" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.327;entryY=-0.024;entryDx=0;entryDy=0;entryPerimeter=0;" target="ref-cmds">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

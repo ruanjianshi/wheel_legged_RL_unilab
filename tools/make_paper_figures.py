@@ -39,7 +39,7 @@ from tensorboard.backend.event_processing.event_accumulator import (  # noqa: E4
     EventAccumulator,
 )
 
-ROOT = Path(__file__).resolve().parent.parent.parent
+ROOT = Path(__file__).resolve().parent.parent  # 仓库根 (本文件位于 tools/)
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
@@ -211,7 +211,7 @@ def fig_training_metrics(dirs: dict[str, str], out_path: Path, smooth: float = 0
 
 def fig_validation(out_path: Path) -> None:
     """Figure 2: 单张对比图 — 腾空 + 存活, 四种算法同色并排 (高度曲线见 paper_fig_trajectory)."""
-    compare_json = ROOT / "jump_management" / "results" / "four_algo_comparison.json"
+    compare_json = ROOT / "latex" / "Wheeled-SRL-Jumping" / "data" / "four_algo_comparison.json"
     if compare_json.exists():
         data = json.load(open(compare_json))["results"]
         algos = [
@@ -249,7 +249,9 @@ def fig_validation(out_path: Path) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--out-dir", default=str(ROOT / "jump_management" / "results"))
+    parser.add_argument(
+        "--out-dir", default=str(ROOT / "latex" / "Wheeled-SRL-Jumping" / "figures")
+    )
     parser.add_argument(
         "--smooth", type=float, default=0.8, help="EMA 平滑系数 (TensorBoard 风格, 默认 0.8)"
     )

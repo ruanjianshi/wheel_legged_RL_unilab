@@ -1,0 +1,5 @@
+env:
+  task_name: XqRobotWLWalkFlat
+  task_key: walk_flat
+  command_dim: 5
+  mujoco_yaml: conf/ppo/task/xqrobotwl_walk_flat/mujoco.yaml

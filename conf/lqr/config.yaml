@@ -1,0 +1,7 @@
+sagittal:
+  q_theta: 100.0
+  q_theta_dot: 20.0
+  q_v: 80.0
+  q_x: 30.0
+  q_z: 8.0
+  r: 1.0

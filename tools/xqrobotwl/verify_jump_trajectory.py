@@ -11,7 +11,10 @@ record_jump_trajectory.py (plus standing_z / terminated):
     t          : time (s), from step 0
     base_z     : base link height (m)
     hip_pitch  : [L, R] hip pitch joint angles (rad)
+    hip_roll   : [L, R] hip roll joint angles (rad)      [v2 added]
     knee       : [L, R] knee joint angles (rad)
+    base_euler : [roll, pitch, yaw] base ZYX euler (rad) [v2 added]
+    linvel     : base local linear velocity (m/s)        [v2 added]
     phase      : SLIP-FSM phase id (jump_srl envs only; -1 = none)
     standing_z : median grounded base_z with trigger off (m)
     terminated : whether the episode terminated before the window ended
@@ -23,6 +26,7 @@ Fed by scripts/plot_jump_trajectory.py for the reference-style paper figure.
 
 from __future__ import annotations
 
+import math
 import sys
 from pathlib import Path
 
@@ -33,6 +37,10 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from tools.xqrobotwl.dump_pose_data import (  # noqa: E402
+    _quat_to_euler,
+    _world_to_local,
+)
 from tools.xqrobotwl.verify_jump import (  # noqa: E402
     _DR,
     _REWARD,
@@ -70,7 +78,7 @@ ON = 160  # trigger-on steps (crouch + thrust + flight)
 TAIL = 170  # trailing trigger-off steps (landing + recover)
 HIDDEN = [512, 512, 256, 128]
 CTRL_DT = 0.01  # xqrobotwl base.py default; overwritten from env at runtime
-DOF = {"hip": [1, 4], "knee": [2, 5]}  # [L, R] indices in dof order
+DOF = {"hip_roll": [0, 3], "hip": [1, 4], "knee": [2, 5]}  # [L, R] indices in dof order
 
 
 def main() -> int:
@@ -105,7 +113,10 @@ def main() -> int:
             t: list[float] = []
             base_z: list[float] = []
             hip: list[list[float]] = []
+            hip_roll: list[list[float]] = []
             knee: list[list[float]] = []
+            euler: list[list[float]] = []
+            linvel: list[list[float]] = []
             phase: list[float] = []
             stand_samples: list[float] = []
             terminated = False
@@ -122,7 +133,13 @@ def main() -> int:
                     t.append(step * dt)
                     base_z.append(float(np.asarray(env._backend.get_base_pos())[0, 2]))
                     hip.append([float(dof_pos[0, i]) for i in DOF["hip"]])
+                    hip_roll.append([float(dof_pos[0, i]) for i in DOF["hip_roll"]])
                     knee.append([float(dof_pos[0, i]) for i in DOF["knee"]])
+                    quat = np.asarray(env._backend.get_base_quat())[0]
+                    euler.append(_quat_to_euler(quat).tolist())
+                    # 本地系前向速度 (x 为机身前向)
+                    lv = _world_to_local(quat[None, :], np.asarray(env._backend.get_base_lin_vel()))
+                    linvel.append(lv[0].tolist())
                     phase.append(float(getattr(env, "_fsm_state", np.array([-1.0]))[0]))
                     wc = state.info.get("wheel_contact", np.zeros((1, 2)))
                     if trigger == 0.0 and np.mean(wc) > 0.99:
@@ -138,7 +155,10 @@ def main() -> int:
                 t=np.asarray(t),
                 base_z=np.asarray(base_z),
                 hip_pitch=np.asarray(hip),
+                hip_roll=np.asarray(hip_roll),
                 knee=np.asarray(knee),
+                base_euler=np.asarray(euler),
+                linvel=np.asarray(linvel),
                 phase=np.asarray(phase),
                 standing_z=np.asarray([standing_z]),
                 terminated=np.asarray([terminated]),

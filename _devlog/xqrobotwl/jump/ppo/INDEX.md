@@ -37,6 +37,19 @@ XqRobotWL 跳跃训练 — PPO 算法 + phase-gated 奖励 / Wheeled-SRL。
 | 29 | 论文图重出: 训练曲线 0.8 EMA 平滑 + 参考风格高度曲线 (2x2 + FSM 相位) | [→](2026-08-09/29_paper_figs_smooth_single_view.md) |
 | 30 | 论文图 nature/dataviz 规范重出: 新增图4.1 训练指标 (2x3) + 全图统一风格 | [→](2026-08-09/30_paper_figs_nature_style.md) |
 
+## 2026-08-14
+
+| 序号 | 标题 | 文件 |
+|------|------|------|
+| 36 | 论文图 v2.0 重出: 严格遵循 nature-draw.md (IBM 配色/EMA 0.02/PDF+PNG600) | [→](2026-08-14/36_paper_figs_v2_nature_draw.md) |
+| 37 | 论文补充图 5 张 (训练全景/最终性能/轨迹+速度/关节2×3/奖励分项) + 图片归档规范 picture/paper | [→](2026-08-14/37_paper_supp_figs_and_archive.md) |
+
+## 2026-08-11
+
+| 序号 | 标题 | 文件 |
+|------|------|------|
+| 35 | 小论文重构: 单方法占位稿 → 四算法 2×2 对照研究 (真实数据+图件+参考文献) | [→](2026-08-11/35_rewrite_small_paper_4algo.md) |
+
 ## 2026-08-10
 
 | 序号 | 标题 | 文件 |

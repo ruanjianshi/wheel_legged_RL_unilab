@@ -24,4 +24,6 @@
 | rough | PPO | [→](rough/ppo/INDEX.md) |
 | common | — | [→](common/INDEX.md) |
 | repo | — | [→](repo/INDEX.md) |
+| classic_lqr | LQR 经典平衡 (独立任务轨) | [→](classic_lqr/INDEX.md) |
+| classic_mpc | MPC 经典平衡 (独立任务轨) | [→](classic_mpc/INDEX.md) |
 

@@ -1,0 +1,148 @@
+\begin{thebibliography}{10}
+
+\bibitem{raibert1986}
+Raibert M.~H.
+\newblock Legged Robots that Balance.
+\newblock Cambridge, MA: MIT Press, 1986.
+
+\bibitem{klemm2019}
+Klemm V, Morra A, Salzmann C, et~al.
+\newblock Ascento: A Two-Wheeled Jumping Robot.
+\newblock in: IEEE International Conference on Robotics and Automation (ICRA), 2019:7515--7521.
+
+\bibitem{kober2013}
+Kober J, Bagnell J.~A, Peters J.
+\newblock Reinforcement Learning in Robotics: A Survey[J].
+\newblock The International Journal of Robotics Research, 2013, 32(11):~1238--1274.
+
+\bibitem{hwangbo2019}
+Hwangbo J, Lee J, Dosovitskiy A, et~al.
+\newblock Learning Agile and Dynamic Motor Skills for Legged Robots[J].
+\newblock Science Robotics, 2019, 4(26):~eaau5872.
+
+\bibitem{rudin2022}
+Rudin N, Hoeller D, Reiss P, et~al.
+\newblock Learning to Walk in Minutes Using Massively Parallel Deep Reinforcement Learning.
+\newblock in: Proceedings of the 5th Conference on Robot Learning (CoRL), 2022:91--100.
+
+\bibitem{lee2020}
+Lee J, Hwangbo J, Wellhausen L, et~al.
+\newblock Learning Quadrupedal Locomotion over Challenging Terrain[J].
+\newblock Science Robotics, 2020, 5(47):~eabc5986.
+
+\bibitem{miki2022}
+Miki T, Lee J, Hwangbo J, et~al.
+\newblock Learning Robust Perceptive Locomotion for Quadrupedal Robots in the Wild[J].
+\newblock Science Robotics, 2022, 7(62):~eabk2822.
+
+\bibitem{margolis2022}
+Margolis G.~B, Chen T, Paigwar K, et~al.
+\newblock Learning to Jump with Legged Robots.
+\newblock in: IEEE International Conference on Robotics and Automation (ICRA), 2022:10993--10999.
+
+\bibitem{cheng2024}
+Cheng X, Shi K, Agarwal A, et~al.
+\newblock Extreme Parkour with Legged Robots.
+\newblock in: IEEE International Conference on Robotics and Automation (ICRA), 2024.
+
+\bibitem{pratt2001}
+Pratt J, Chew C.-M, Torres A, et~al.
+\newblock Virtual Model Control: An Intuitive Approach for Bipedal Locomotion[J].
+\newblock The International Journal of Robotics Research, 2001, 20(2):~129--143.
+
+\bibitem{blickhan1989}
+Blickhan R.
+\newblock The Spring-Mass Model for Running and Hopping[J].
+\newblock Journal of Biomechanics, 1989, 22(11--12):~1217--1227.
+
+\bibitem{zhuang2023}
+Zhuang Z, Fu~Z, Wang J, et~al.
+\newblock Robot Parkour Learning.
+\newblock in: Proceedings of the 7th Conference on Robot Learning (CoRL), 2023.
+
+\bibitem{mccloskey1989}
+McCloskey M, Cohen N.~J.
+\newblock Catastrophic Interference in Connectionist Networks: The Sequential Learning Problem.
+\newblock in: Psychology of Learning and Motivation, Academic Press, 1989:109--165.
+
+\bibitem{kirkpatrick2017}
+Kirkpatrick J, Pascanu R, Rabinowitz N, et~al.
+\newblock Overcoming Catastrophic Forgetting in Neural Networks[J].
+\newblock Proceedings of the National Academy of Sciences, 2017, 114(13):~3521--3526.
+
+\bibitem{bengio2009}
+Bengio Y, Louradour J, Collobert R, et~al.
+\newblock Curriculum Learning.
+\newblock in: Proceedings of the 26th Annual International Conference on Machine Learning (ICML), 2009:41--48.
+
+\bibitem{jacobs1991}
+Jacobs R.~A, Jordan M.~I, Nowlan S.~J, et~al.
+\newblock Adaptive Mixtures of Local Experts[J].
+\newblock Neural Computation, 1991, 3(1):~79--87.
+
+\bibitem{shazeer2017}
+Shazeer N, Mirhoseini A, Maziarz K, et~al.
+\newblock Outrageously Large Neural Networks: The Sparsely-Gated Mixture-of-Experts Layer.
+\newblock in: Proceedings of the 5th International Conference on Learning Representations (ICLR), 2017.
+
+\bibitem{cpo2017}
+Achiam J, Held D, Tamar A, et~al.
+\newblock Constrained Policy Optimization.
+\newblock in: Proceedings of the 34th International Conference on Machine Learning (ICML), 2017:22--31.
+
+\bibitem{npg2001}
+Kakade S.~M.
+\newblock A Natural Policy Gradient.
+\newblock in: Advances in Neural Information Processing Systems (NeurIPS), 2001.
+
+\bibitem{geyer2006}
+Geyer H, Seyfarth A, Blickhan R.
+\newblock Compliant Leg Behaviour Explains Basic Dynamics of Walking and Running[J].
+\newblock Proceedings of the Royal Society B: Biological Sciences, 2006, 273(1603):~2861--2867.
+
+\bibitem{sutton1998}
+Sutton R.~S, Barto A.~G.
+\newblock Reinforcement Learning: An Introduction.
+\newblock Cambridge, MA: MIT Press, 1998.
+
+\bibitem{ppo2017}
+Schulman J, Wolski F, Dhariwal P, et~al.
+\newblock Proximal Policy Optimization Algorithms[J].
+\newblock arXiv preprint arXiv:1707.06347, 2017.
+
+\bibitem{sac2018}
+Haarnoja T, Zhou A, Abbeel P, et~al.
+\newblock Soft Actor-Critic: Off-Policy Maximum Entropy Deep Reinforcement Learning with a Stochastic Actor.
+\newblock in: Proceedings of the 35th International Conference on Machine Learning (ICML), 2018:1861--1870.
+
+\bibitem{sutton1999}
+Sutton R.~S, Precup D, Singh S.
+\newblock Between MDPs and Semi-MDPs: A Framework for Temporal Abstraction in Reinforcement Learning[J].
+\newblock Artificial Intelligence, 1999, 112(1--2):~181--211.
+
+\bibitem{hausman2018}
+Hausman K, Springenberg J.~T, Wang Z, et~al.
+\newblock Learning an Embedding Space for Transferable Robot Skills.
+\newblock in: Proceedings of the 6th International Conference on Learning Representations (ICLR), 2018.
+
+\bibitem{eysenbach2019}
+Eysenbach B, Gupta A, Ibarz J, et~al.
+\newblock Diversity is All You Need: Learning Skills without a Reward Function.
+\newblock in: Proceedings of the 7th International Conference on Learning Representations (ICLR), 2019.
+
+\bibitem{todorov2012}
+Todorov E, Erez T, Tassa Y.
+\newblock MuJoCo: A Physics Engine for Model-Based Control.
+\newblock in: IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS), 2012:5026--5033.
+
+\bibitem{tobin2017}
+Tobin J, Fong R, Ray A, et~al.
+\newblock Domain Randomization for Transferring Deep Neural Networks from Simulation to the Real World.
+\newblock in: IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS), 2017:23--30.
+
+\bibitem{peng2018}
+Peng X.~B, Andrychowicz M, Zaremba W, et~al.
+\newblock Sim-to-Real Transfer of Robotic Control with Dynamic Randomization.
+\newblock in: IEEE International Conference on Robotics and Automation (ICRA), 2018:3803--3810.
+
+\end{thebibliography}

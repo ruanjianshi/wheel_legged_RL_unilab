@@ -1,0 +1,112 @@
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "../main"
+%%% End:
+
+\chapter[两轮足机器人建模与强化学习理论基础]{两轮足机器人建模与强化学习理论基础}
+\label{cha:theory}
+
+本章首先建立两轮足机器人的机构、运动学与简化动力学模型，然后介绍强化学习的基础理论框架与本文使用的核心算法（PPO、SAC、N3PO），最后介绍物理仿真平台与异构训练框架，为后续章节的步态控制研究奠定理论与工具基础。
+
+\section{两轮足机器人机构与运动学模型}
+
+\subsection{机构构型与自由度分析}
+
+本文研究的两轮足机器人由基座机身、两条对称分布的腿部机构与两个主动驱动轮组成。每条腿包含髋俯仰、髋横滚、膝俯仰等关节，驱动轮集成于腿末端，具备独立的滚动与转向驱动。机器人整体呈现"轮-腿混合"构型：在平坦地形上以双轮支撑滚动行走，在复杂地形上通过腿部抬升、侧倾实现越障与姿态调节。
+
+以两条腿共$n_l$个旋转关节加上双轮驱动计，机器人总自由度数$n_q = n_l + 2$。机身位姿可用六维广义坐标$\boldsymbol{q}_b \in \mathbb{R}^6$描述，关节角与轮角构成关节坐标$\boldsymbol{q}_j \in \mathbb{R}^{n_q}$，系统的完整广义坐标记为
+\begin{equation}
+  \boldsymbol{q} = \left[\boldsymbol{q}_b^{\mathrm{T}},\ \boldsymbol{q}_j^{\mathrm{T}}\right]^{\mathrm{T}} \in \mathbb{R}^{6+n_q}.
+  \label{eq:qcoord}
+\end{equation}
+
+\subsection{运动学建模}
+
+正运动学描述从关节空间到末端（轮心）笛卡尔空间的映射。令$\boldsymbol{T}_{base}^{i}$为第$i$条腿末端的齐次变换矩阵，其由基座位姿与各关节旋转变换连乘得到
+\begin{equation}
+  \boldsymbol{T}_{base}^{i} = \boldsymbol{T}_{base}^{0}\,\boldsymbol{T}_{0}^{1}\cdots \boldsymbol{T}_{i-1}^{i},
+  \label{eq:fk}
+\end{equation}
+其中$\boldsymbol{T}_{j-1}^{j}$为相邻连杆间的齐次变换。逆运动学则在已知期望轮心位置与姿态的条件下求解关节角$\boldsymbol{q}_j$，本文在步态轨迹规划中采用解析逆解与数值迭代相结合的求解方式。
+
+\subsection{倒立摆动力学模型}
+
+两轮足机器人稳定站立可抽象为车轮-机身的倒立摆模型。以机身倾角$\theta$、车轮角$\phi$与轮轴前进位移$x$为广义坐标，忽略腿部关节动态，系统的简化动力学方程为
+\begin{equation}
+  \left\{
+    \begin{aligned}
+      (m_l r^2 + m_w r^2 + m_l d^2\cos\theta)\,\ddot{\theta} &\;=\; m_l g d \sin\theta - \tau_w - m_l d \ddot{x} \cos\theta, \\
+      (m_w + m_l)\,\ddot{x} + m_l d\,\ddot{\theta}\cos\theta &\;=\; \tau_w / r + f_{ext},
+    \end{aligned}
+  \right.
+  \label{eq:inverted-pendulum}
+\end{equation}
+式中，$m_w$为车轮质量，$m_l$为机身等效质量，$d$为机身质心到轮轴的高度，$r$为车轮半径，$g$为重力加速度，$\tau_w$为轮端驱动力矩，$f_{ext}$为外部扰动力。由式~\eqref{eq:inverted-pendulum}可见，系统是典型的欠驱动不稳定系统，其稳定控制依赖轮端力矩的实时反馈调节，这也正是本文采用强化学习学习的核心控制对象。
+
+此外，在跳跃等高动态运动中，本文引入弹簧负载倒立摆（SLIP）模型作为弹道运动的先验模板\cite{blickhan1989,geyer2006}。SLIP模型将机器人的质心运动等效为带弹簧腿的点质量，其着地-离地相的地面反力控制为跳跃轨迹规划提供了简化解析解。
+
+\section{强化学习基础理论}
+
+\subsection{马尔可夫决策过程}
+
+强化学习问题可建模为马尔可夫决策过程（Markov Decision Process, MDP），用五元组$\left(\mathcal{S},\mathcal{A},\mathcal{P},\mathcal{R},\gamma\right)$描述，其中$\mathcal{S}$为状态空间，$\mathcal{A}$为动作空间，$\mathcal{P}(s'|s,a)$为状态转移概率，$\mathcal{R}(s,a)$为奖励函数，$\gamma\in(0,1]$为折扣因子\cite{sutton1998}。策略$\pi(a|s)$给出状态$s$下选择动作$a$的概率，智能体的目标是最大化累计折扣回报
+\begin{equation}
+  J(\pi) = \mathbb{E}_{\tau \sim \pi}\left[\sum_{t=0}^{\infty}\gamma^t\,r_t\right],
+  \label{eq:mdp-objective}
+\end{equation}
+式中，$\tau = (s_0,a_0,s_1,a_1,\ldots)$为轨迹。
+
+\subsection{策略梯度与PPO算法}
+
+策略梯度方法通过直接对策略参数求梯度以最大化目标函数\eqref{eq:mdp-objective}，其梯度估计为
+\begin{equation}
+  \nabla_\theta J(\theta) = \mathbb{E}_{s,a\sim\pi_\theta}\left[\nabla_\theta \log\pi_\theta(a|s)\,A^{\pi_\theta}(s,a)\right],
+  \label{eq:pg}
+\end{equation}
+式中，$A^{\pi}(s,a)$为优势函数。近端策略优化（Proximal Policy Optimization, PPO）\cite{ppo2017}在策略梯度中引入裁剪项以限制单步更新幅度，其裁剪目标函数为
+\begin{equation}
+  L^{CLIP}(\theta) = \mathbb{E}_t\left[\min\left(r_t(\theta)\hat{A}_t,\ \operatorname{clip}\left(r_t(\theta),1-\varepsilon,1+\varepsilon\right)\hat{A}_t\right)\right],
+  \label{eq:ppo-clip}
+\end{equation}
+式中，$r_t(\theta) = \pi_\theta(a_t|s_t)/\pi_{\theta_{old}}(a_t|s_t)$为新旧策略的概率比，$\varepsilon$为裁剪系数。裁剪项使得策略更新不会过度偏离旧策略，保证了训练的稳定性，是本文各步态任务的基础算法。
+
+\subsection{最大熵强化学习与SAC算法}
+
+软演员-评论家（Soft Actor-Critic, SAC）\cite{sac2018}在目标中引入策略熵最大化，鼓励探索并提升策略的随机鲁棒性，其目标函数为
+\begin{equation}
+  J(\pi) = \mathbb{E}_{s,a\sim\pi}\left[\sum_{t}\gamma^t\left(r_t + \alpha\,\mathcal{H}\left(\pi(\cdot|s_t)\right)\right)\right],
+  \label{eq:sac-objective}
+\end{equation}
+式中，$\alpha$为温度系数，$\mathcal{H}(\cdot)$为策略熵。SAC属于离策略（off-policy）算法，样本效率较高，本文将其作为抬腿上台阶等精细任务的对比算法之一。
+
+\subsection{约束马尔可夫决策过程与N3PO}
+
+当任务同时包含性能指标与安全性约束时，问题可建模为约束马尔可夫决策过程（CMDP）。在CMDP中，除原始回报外还引入代价函数$c(s,a)$，策略优化问题表述为
+\begin{equation}
+  \begin{aligned}
+    \max_{\pi}\;&\mathbb{E}_{\tau\sim\pi}\left[\sum_{t}\gamma^t r_t\right]\\
+    \text{s.t.}\;&\mathbb{E}_{\tau\sim\pi}\left[\sum_{t}\gamma^t c_t\right] \le d,
+  \end{aligned}
+  \label{eq:cmdp}
+\end{equation}
+式中，$d$为代价预算上限。N3PO（Natural Policy Gradient with safety constraints）算法基于自然策略梯度\cite{npg2001}与约束投影\cite{cpo2017}，在每次策略更新中显式满足约束，适用于"既要高动态又要稳姿态"的精细控制任务。本文在抬腿上台阶任务中引入N3PO，约束项包括关节力矩饱和率、机身姿态范围与轮端净空等。
+
+\subsection{分层强化学习与门控机制}
+
+当任务可分解为"高层决策 + 底层执行"两个层次时，可采用分层强化学习（Hierarchical Reinforcement Learning, HRL）框架。选项（Option）框架\cite{sutton1999}将高层决策抽象为选项集合，每个选项包含一条底层策略及其终止条件，高层策略负责在选项之间进行选择。在机器人运动控制中，底层选项即各步态专家策略，高层策略即统一调度器，二者的双层结构天然契合本文"分训-整合"的总体思路。
+
+专家混合（Mixture of Experts, MoE）\cite{jacobs1991,shazeer2017}通过门控网络对多个专家网络的输出进行加权组合，实现对不同能力的按需激活。在调度器中，门控网络接收地形感知与本体状态，输出对各步态专家的选择权重，既可采用硬门控（仅激活最高权重专家，响应快、便于工程部署），也可采用软门控（各专家输出加权混合，切换平滑），还可通过嵌入空间技能抽象\cite{hausman2018}或多样性技能学习\cite{eysenbach2019}学习可迁移的高层表征。本文第7章的学习式统一调度器即基于上述分层强化学习与门控机制设计。
+
+\section{物理仿真与异构训练框架}
+
+\subsection{MuJoCo物理引擎}
+
+MuJoCo（Multi-Joint dynamics with Contact）是一款高效、稳定的多体接触动力学仿真引擎\cite{todorov2012}，以其快速而精确的接触求解、良好的可微性而被广泛用于机器人控制研究。本文基于MuJoCo搭建两轮足机器人的仿真环境，包括机构模型定义、地形场景构建（平面、斜坡、碎石、台阶、独木桥、木桩等）、观测与奖励接口封装以及领域随机化模块。
+
+\subsection{UniLab异构强化学习训练框架}
+
+面向两轮足机器人多步态训练需求，本文采用自主研发的UniLab异构强化学习框架，其核心思想是将CPU上的多线程物理仿真与GPU/加速器上的策略训练解耦，通过统一共享内存的循环缓冲区（Shared Replay Buffer）传输transition，从而实现大规模并行仿真下的高效训练。该框架统一了PPO、SAC等算法的训练接口，支持"配置即任务"的Hydra配置体系，能够通过修改任务配置文件快速切换地形、奖励与算法，是本文四大模块、七大任务统一训练与对比验证的工程基础。
+
+\section{本章小结}
+
+本章建立了两轮足机器人的机构、运动学与倒立摆动力学模型，阐明了其欠驱动不稳定的控制本质；介绍了MDP框架、PPO、SAC与N3PO等强化学习核心算法及CMDP约束优化思想；引入了分层强化学习与门控机制，为学习式统一调度器的设计奠定理论基础；并介绍了MuJoCo物理引擎与UniLab异构训练框架。上述模型、算法与工具共同构成后续章节多步态运动控制研究的理论基础。

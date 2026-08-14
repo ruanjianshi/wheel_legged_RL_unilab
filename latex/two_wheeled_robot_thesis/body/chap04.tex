@@ -1,0 +1,135 @@
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "../main"
+%%% End:
+
+\chapter[行走类步态专家的独立训练]{行走类步态专家的独立训练}
+\label{cha:walking-experts}
+
+本章对应"分训"阶段的第一类专家——行走类步态专家，阐述滚动行走专家（含侧向移动）与粗糙地形行走专家两个专家网络的独立训练。两者分别覆盖平面/狭窄地形与粗糙/碎石/斜坡地形的行走能力，是调度器在开阔与中等复杂度地形上的基础选项。
+
+\section{行走类专家库概述}
+
+行走类专家库包含两个专家：
+
+（1）\textbf{滚动行走专家}：面向平面与狭窄通道地形，实现稳定站立、前进后退、转向与侧向移动等基础能力，控制频率100Hz，采用PPO算法训练；
+
+（2）\textbf{粗糙地形行走专家}：面向粗糙、碎石、斜坡等地形，实现基于地形感知的腿长自适应变化与鲁棒行走，同样采用PPO算法训练。
+
+两类专家共用统一的观测组织方式与训练流程，但因适用地形与能力侧重不同，观测维度与奖励结构存在差异，故独立训练、独立验收。
+
+\section{滚动行走专家}
+
+\subsection{稳定站立姿态控制}
+
+稳定站立是滚动行走专家的首要控制目标。基于第2章的倒立摆模型，策略需要输出轮端力矩以实时抑制机身倾角发散。奖励函数中基础平衡项设计为
+\begin{equation}
+  r_{bal} = \exp\left(-\lambda_1\,\theta_{pitch}^2 - \lambda_2\,\omega_{pitch}^2\right),
+  \label{eq:rbal}
+\end{equation}
+式中，$\theta_{pitch}$为机身俯仰角，$\omega_{pitch}$为其角速度，$\lambda_1$、$\lambda_2$为权重。同时引入姿态角速度惩罚与动作平滑惩罚，防止剧烈晃动，规避"抖动取巧"的局部最优。
+
+\subsection{腿长变化与行走机制}
+
+滚动行走通过腿部关节的协同伸缩改变机身质心高度与轮端支撑构型。本文在动作空间中显式包含腿部关节目标角，并引入腿长相关的奖励项约束质心高度
+\begin{equation}
+  r_{leg} = \exp\left(-\lambda_3\,(h_{com} - h_{ref})^2\right),
+  \label{eq:rleg}
+\end{equation}
+式中，$h_{com}$为质心高度，$h_{ref}$为参考质心高度。通过腿长变化调节，机器人能够实现低重心稳定行走与姿态过渡。
+
+\subsection{前进后退与转向控制}
+
+前进后退通过跟踪线速度指令实现，转向通过跟踪偏航角速度指令实现。速度跟踪奖励定义为
+\begin{equation}
+  r_{vel} = \exp\left(-\lambda_4\,\|\boldsymbol{v}_t - \boldsymbol{v}_{cmd}\|^2\right),
+  \label{eq:rvel}
+\end{equation}
+式中，$\boldsymbol{v}_t$为实际速度，$\boldsymbol{v}_{cmd}$为指令速度。训练中采用课程式速度调度，将指令速度由低速逐步提升至高速。
+
+\subsection{侧向移动（狭窄地形）}
+
+在滚动行走基础上，本文进一步训练侧向移动能力，使机器人能够在保持航向的同时沿横向移动。该能力在狭窄通道等转向空间受限的场景中尤为重要——调度器可据此选择"侧向移动"而非"大半径转向"通过狭窄地形。侧向移动通过在奖励中增加横向速度跟踪项实现，其运动学由轮端差速驱动与腿部侧倾配合完成。
+
+\section{粗糙地形行走专家}
+
+\subsection{地形感知与观测设计}
+
+为实现地形自适应，粗糙地形行走专家在观测空间中引入地形感知信息，包括前向地面高度剖面与轮地接触状态。定义地形高度剖面为
+\begin{equation}
+  \boldsymbol{h}_{terr} = \left[h_{-N}, \ldots, h_0, \ldots, h_{N}\right]^{\mathrm{T}},
+  \label{eq:terrain-probe}
+\end{equation}
+式中，$h_i$为机器人前方第$i$个采样点的地面相对高度。观测空间由"本体状态 + 地形高度剖面 + 任务指令"构成，策略据此提前感知地形变化并规划腿长与姿态。
+
+\subsection{腿长基于地形自适应变化}
+
+策略依据地形高度剖面实时调整腿长，使轮端保持有效接触并维持机身水平。定义腿长补偿量为
+\begin{equation}
+  \Delta L = K_p\,(h_{ref} - \hat{h}_{front}) + K_d\,(\dot{h}_{ref} - \dot{\hat{h}}_{front}),
+  \label{eq:leg-adapt}
+\end{equation}
+式中，$\hat{h}_{front}$为前方地形估计高度，$h_{ref}$为参考高度，$K_p$、$K_d$为增益。该补偿量作为任务指令输入策略，作为腿长控制的先验引导。
+
+\subsection{多地形课程训练}
+
+粗糙地形行走专家采用"多地形混合 + 逐地形课程"的训练策略：先在平面地形上热启动，再逐步引入斜坡、碎石等单一地形，最后进行多地形混合训练。各典型地形的训练要点如下：
+
+\textbf{斜坡地形}：侧重姿态稳定与坡面适应，奖励中增加机身俯仰角与坡角匹配项，避免下坡失控。
+
+\textbf{碎石地形}：碎石地面接触点随机变化，侧重轮地接触鲁棒性与速度跟踪平滑性，强化领域随机化以提升对随机接触扰动的适应能力。
+
+\section{行走类专家独立训练实验设置}
+
+实验基于MuJoCo物理引擎与UniLab异构训练框架，行走类专家的公共训练参数如表~\ref{tab:setup-walk}所示。
+
+\begin{table}[!htbp]
+    \centering
+    \bicaption{行走类专家训练实验设置}{Experiment setup for walking expert training}
+    \resizebox{0.92\textwidth}{!}{
+        \begin{tabular}{lcl}
+            \toprule[1.5pt]
+            参数 & 数值 & 说明 \\
+            \midrule[0.75pt]
+            控制频率 & 100Hz & 策略推理频率 \\
+            算法 & PPO & 近端策略优化 \\
+            折扣因子 & 0.99 & $\gamma$ \\
+            裁剪系数 & 0.2 & $\varepsilon$ \\
+            训练地形 & 平面/粗糙/碎石/斜坡 & 分专家设置 \\
+            随机种子数 & 5 & 评估稳定性 \\
+            \bottomrule[1.5pt]
+        \end{tabular}
+    }
+    \label{tab:setup-walk}
+\end{table}
+
+\section{实验结果与分析}
+
+\subsection{滚动行走专家性能}
+
+【待填入：滚动行走速度跟踪误差、航向误差、站立稳定时间、侧向移动精度等实验结果，并附训练曲线图与步态截图。】
+
+\subsection{粗糙地形行走专家性能}
+
+【待填入：各粗糙地形通过率、速度跟踪误差、姿态角标准差（参照表~\ref{tab:terrain-result}结构），以及不同领域随机化强度下的鲁棒性对比。】
+
+\begin{table}[!htbp]
+    \centering
+    \bicaption{粗糙地形行走实验结果（示意表格，填入真实数据）}{Rough-terrain walking results (illustrative, fill in real data)}
+    \resizebox{0.92\textwidth}{!}{
+        \begin{tabular}{lccc}
+            \toprule[1.5pt]
+            地形类型 & 通过率(\%) & 速度跟踪误差(m/s) & 姿态角标准差($^\circ$) \\
+            \midrule[0.75pt]
+            斜坡（$10^\circ$） & 【待填】 & 【待填】 & 【待填】 \\
+            碎石地形 & 【待填】 & 【待填】 & 【待填】 \\
+            粗糙地形 & 【待填】 & 【待填】 & 【待填】 \\
+            \bottomrule[1.5pt]
+        \end{tabular}
+    }
+    \label{tab:terrain-result}
+\end{table}
+
+\section{本章小结}
+
+本章阐述了行走类步态专家（滚动行走专家与粗糙地形行走专家）的独立训练方法。滚动行走专家实现了稳定站立、腿长变化、前进后退、转向与侧向移动等基础能力；粗糙地形行走专家通过地形感知观测设计、腿长自适应补偿与多地形课程训练，实现了粗糙、碎石、斜坡等非结构化地形上的稳定行走。两类专家作为调度器的底层基础选项，为第8章统一系统集成提供了行走能力支撑。

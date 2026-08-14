@@ -182,11 +182,10 @@ class XqRobotWLWalkFlatCfg(XqRobotWLBaseCfg):
 
 
 class XqRobotWLDRProvider(LocomotionDRProvider):
+    # 对齐 URDF 源模型: 髋 link 无碰撞体 (见 xqrobotwl.xml 注释), 仅大腿/小腿参与腿长缩放
     _LEG_GEOM_NAMES = [
-        "left_link_1_collision",
         "left_link_2_collision",
         "left_link_3_collision",
-        "right_link_1_collision",
         "right_link_2_collision",
         "right_link_3_collision",
     ]

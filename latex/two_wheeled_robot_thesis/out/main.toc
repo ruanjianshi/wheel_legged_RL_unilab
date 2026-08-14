@@ -1,0 +1,159 @@
+\ttl@change@i {\@ne }{chapter}{0.0em}{\bfseries \hei \addvspace {0bp minus1bp}}{\thecontentslabel \hspace {1em}}{}{\normalfont \dotfill \textrm {\bfseries \contentspage }}\relax 
+\ttl@change@v {chapter}{}{}{}\relax 
+\contentsline {chapter}{\CJKfamily {song}\xiaosi 摘~~~~要}{I}{section*.1}%
+\contentsline {chapter}{\xiaosi Abstract}{II}{section*.3}%
+\ttl@change@i {\@ne }{chapter}{0.0em}{\vspace {0.1em}\song \xiaosi \addvspace {3bp minus1bp}}{第\thecontentslabel 章\hspace {0.6em}}{}{\normalfont \dotfill \textrm {\contentspage [\thecontentspage ]}}\relax 
+\ttl@change@v {chapter}{}{}{}\relax 
+\ttl@change@i {\@ne }{chapter}{0.0em}{\bfseries \hei \addvspace {3bp minus1bp}}{\thecontentslabel \hspace {1em}}{}{\normalfont \dotfill \textrm {\bfseries \contentspage }}\relax 
+\ttl@change@v {chapter}{}{}{}\relax 
+\contentsline {chapter}{\sihao 主要符号对照表}{IX}{chapter*.5}%
+\ttl@change@i {\@ne }{chapter}{2.1em}{\vspace {0.1em}\song \xiaosi \addvspace {3bp minus1bp}}{\contentslabel {1.76em}}{}{}\relax 
+\ttl@change@v {chapter}{}{}{}\relax 
+\contentsline {chapter}{\numberline {1}绪论}{1}{chapter.1}%
+\contentsline {section}{\numberline {1.1}研究背景与意义}{1}{section.1.1}%
+\contentsline {subsection}{\numberline {1.1.1}两轮足机器人概述}{1}{subsection.1.1.1}%
+\contentsline {subsection}{\numberline {1.1.2}强化学习在机器人运动控制中的应用}{1}{subsection.1.1.2}%
+\contentsline {subsection}{\numberline {1.1.3}课题研究意义}{1}{subsection.1.1.3}%
+\contentsline {section}{\numberline {1.2}国内外研究现状与分析}{2}{section.1.2}%
+\contentsline {subsection}{\numberline {1.2.1}两轮足与轮腿机器人运动控制研究现状}{2}{subsection.1.2.1}%
+\contentsline {subsection}{\numberline {1.2.2}基于强化学习的足式机器人步态生成研究现状}{2}{subsection.1.2.2}%
+\contentsline {subsection}{\numberline {1.2.3}连续多任务学习与灾难性遗忘研究现状}{3}{subsection.1.2.3}%
+\contentsline {subsection}{\numberline {1.2.4}约束强化学习与融合算法研究现状}{3}{subsection.1.2.4}%
+\contentsline {subsection}{\numberline {1.2.5}研究现状分析与存在的问题}{3}{subsection.1.2.5}%
+\contentsline {section}{\numberline {1.3}本文主要研究内容}{4}{section.1.3}%
+\contentsline {section}{\numberline {1.4}论文组织结构}{4}{section.1.4}%
+\contentsline {chapter}{\numberline {2}两轮足机器人建模与强化学习理论基础}{6}{chapter.2}%
+\contentsline {section}{\numberline {2.1}两轮足机器人机构与运动学模型}{6}{section.2.1}%
+\contentsline {subsection}{\numberline {2.1.1}机构构型与自由度分析}{6}{subsection.2.1.1}%
+\contentsline {subsection}{\numberline {2.1.2}运动学建模}{6}{subsection.2.1.2}%
+\contentsline {subsection}{\numberline {2.1.3}倒立摆动力学模型}{6}{subsection.2.1.3}%
+\contentsline {section}{\numberline {2.2}强化学习基础理论}{7}{section.2.2}%
+\contentsline {subsection}{\numberline {2.2.1}马尔可夫决策过程}{7}{subsection.2.2.1}%
+\contentsline {subsection}{\numberline {2.2.2}策略梯度与PPO算法}{7}{subsection.2.2.2}%
+\contentsline {subsection}{\numberline {2.2.3}最大熵强化学习与SAC算法}{8}{subsection.2.2.3}%
+\contentsline {subsection}{\numberline {2.2.4}约束马尔可夫决策过程与N3PO}{8}{subsection.2.2.4}%
+\contentsline {subsection}{\numberline {2.2.5}分层强化学习与门控机制}{8}{subsection.2.2.5}%
+\contentsline {section}{\numberline {2.3}物理仿真与异构训练框架}{9}{section.2.3}%
+\contentsline {subsection}{\numberline {2.3.1}MuJoCo物理引擎}{9}{subsection.2.3.1}%
+\contentsline {subsection}{\numberline {2.3.2}UniLab异构强化学习训练框架}{9}{subsection.2.3.2}%
+\contentsline {section}{\numberline {2.4}本章小结}{9}{section.2.4}%
+\contentsline {chapter}{\numberline {3}多任务强化学习总体框架与混合地形统一环境}{10}{chapter.3}%
+\contentsline {section}{\numberline {3.1}总体设计思路}{10}{section.3.1}%
+\contentsline {subsection}{\numberline {3.1.1}设计需求分析}{10}{subsection.3.1.1}%
+\contentsline {subsection}{\numberline {3.1.2}"分训-整合"两阶段范式}{10}{subsection.3.1.2}%
+\contentsline {section}{\numberline {3.2}混合地形统一仿真环境设计}{11}{section.3.2}%
+\contentsline {subsection}{\numberline {3.2.1}地形库构成}{11}{subsection.3.2.1}%
+\contentsline {subsection}{\numberline {3.2.2}地形-步态对应关系}{11}{subsection.3.2.2}%
+\contentsline {subsection}{\numberline {3.2.3}领域随机化}{12}{subsection.3.2.3}%
+\contentsline {section}{\numberline {3.3}步态专家库的独立训练}{12}{section.3.3}%
+\contentsline {subsection}{\numberline {3.3.1}7个步态专家的划分}{12}{subsection.3.3.1}%
+\contentsline {subsection}{\numberline {3.3.2}专家独立训练与验收}{12}{subsection.3.3.2}%
+\contentsline {subsection}{\numberline {3.3.3}观测、动作与执行频率设计}{13}{subsection.3.3.3}%
+\contentsline {section}{\numberline {3.4}学习式统一调度器总体方案}{13}{section.3.4}%
+\contentsline {subsection}{\numberline {3.4.1}调度器任务建模}{13}{subsection.3.4.1}%
+\contentsline {subsection}{\numberline {3.4.2}调度器训练}{13}{subsection.3.4.2}%
+\contentsline {subsection}{\numberline {3.4.3}与三大问题的关系}{14}{subsection.3.4.3}%
+\contentsline {section}{\numberline {3.5}多任务整合的三大核心问题应对}{14}{section.3.5}%
+\contentsline {subsection}{\numberline {3.5.1}灾难性遗忘：参数解耦与分训}{14}{subsection.3.5.1}%
+\contentsline {subsection}{\numberline {3.5.2}奖励冲突：专家奖励与调度器目标分离}{14}{subsection.3.5.2}%
+\contentsline {subsection}{\numberline {3.5.3}局部最优：统一评估与领域随机化}{14}{subsection.3.5.3}%
+\contentsline {section}{\numberline {3.6}多维评价与分析体系}{14}{section.3.6}%
+\contentsline {section}{\numberline {3.7}本章小结}{15}{section.3.7}%
+\contentsline {chapter}{\numberline {4}行走类步态专家的独立训练}{16}{chapter.4}%
+\contentsline {section}{\numberline {4.1}行走类专家库概述}{16}{section.4.1}%
+\contentsline {section}{\numberline {4.2}滚动行走专家}{16}{section.4.2}%
+\contentsline {subsection}{\numberline {4.2.1}稳定站立姿态控制}{16}{subsection.4.2.1}%
+\contentsline {subsection}{\numberline {4.2.2}腿长变化与行走机制}{16}{subsection.4.2.2}%
+\contentsline {subsection}{\numberline {4.2.3}前进后退与转向控制}{17}{subsection.4.2.3}%
+\contentsline {subsection}{\numberline {4.2.4}侧向移动（狭窄地形）}{17}{subsection.4.2.4}%
+\contentsline {section}{\numberline {4.3}粗糙地形行走专家}{17}{section.4.3}%
+\contentsline {subsection}{\numberline {4.3.1}地形感知与观测设计}{17}{subsection.4.3.1}%
+\contentsline {subsection}{\numberline {4.3.2}腿长基于地形自适应变化}{17}{subsection.4.3.2}%
+\contentsline {subsection}{\numberline {4.3.3}多地形课程训练}{18}{subsection.4.3.3}%
+\contentsline {section}{\numberline {4.4}行走类专家独立训练实验设置}{18}{section.4.4}%
+\contentsline {section}{\numberline {4.5}实验结果与分析}{18}{section.4.5}%
+\contentsline {subsection}{\numberline {4.5.1}滚动行走专家性能}{18}{subsection.4.5.1}%
+\contentsline {subsection}{\numberline {4.5.2}粗糙地形行走专家性能}{19}{subsection.4.5.2}%
+\contentsline {section}{\numberline {4.6}本章小结}{19}{section.4.6}%
+\contentsline {chapter}{\numberline {5}精细平衡类步态专家的独立训练}{20}{chapter.5}%
+\contentsline {section}{\numberline {5.1}精细平衡类专家库概述}{20}{section.5.1}%
+\contentsline {section}{\numberline {5.2}抬腿行走专家}{20}{section.5.2}%
+\contentsline {subsection}{\numberline {5.2.1}抬腿机制与任务设计}{20}{subsection.5.2.1}%
+\contentsline {subsection}{\numberline {5.2.2}粗糙与木桩地形的点足行走}{20}{subsection.5.2.2}%
+\contentsline {section}{\numberline {5.3}抬腿上台阶专家}{21}{section.5.3}%
+\contentsline {subsection}{\numberline {5.3.1}任务定义与约束分析}{21}{subsection.5.3.1}%
+\contentsline {subsection}{\numberline {5.3.2}基于N3PO的约束强化学习}{21}{subsection.5.3.2}%
+\contentsline {subsection}{\numberline {5.3.3}与SAC及单强化学习算法的对比}{21}{subsection.5.3.3}%
+\contentsline {section}{\numberline {5.4}单腿平衡专家}{21}{section.5.4}%
+\contentsline {subsection}{\numberline {5.4.1}收膝折腿与侧倾机制}{21}{subsection.5.4.1}%
+\contentsline {subsection}{\numberline {5.4.2}独木桥行走}{22}{subsection.5.4.2}%
+\contentsline {section}{\numberline {5.5}实验结果与分析}{22}{section.5.5}%
+\contentsline {section}{\numberline {5.6}本章小结}{23}{section.5.6}%
+\contentsline {chapter}{\numberline {6}高动态敏捷类步态专家的独立训练}{24}{chapter.6}%
+\contentsline {section}{\numberline {6.1}高动态敏捷类专家库概述}{24}{section.6.1}%
+\contentsline {section}{\numberline {6.2}SLIP模型与VMC融合控制基础}{24}{section.6.2}%
+\contentsline {subsection}{\numberline {6.2.1}SLIP模型}{24}{subsection.6.2.1}%
+\contentsline {subsection}{\numberline {6.2.2}虚拟模型控制（VMC）}{25}{subsection.6.2.2}%
+\contentsline {section}{\numberline {6.3}跳跃专家}{25}{section.6.3}%
+\contentsline {subsection}{\numberline {6.3.1}单PPO算法}{25}{subsection.6.3.1}%
+\contentsline {subsection}{\numberline {6.3.2}PPO+SLIP融合算法}{25}{subsection.6.3.2}%
+\contentsline {subsection}{\numberline {6.3.3}SLIP+PPO+VMC融合算法}{25}{subsection.6.3.3}%
+\contentsline {subsection}{\numberline {6.3.4}行走过程中跳跃}{25}{subsection.6.3.4}%
+\contentsline {section}{\numberline {6.4}后空翻专家}{26}{section.6.4}%
+\contentsline {subsection}{\numberline {6.4.1}翻转阶段划分与机制}{26}{subsection.6.4.1}%
+\contentsline {subsection}{\numberline {6.4.2}确定性翻转与前馈控制}{26}{subsection.6.4.2}%
+\contentsline {subsection}{\numberline {6.4.3}奖励函数设计}{26}{subsection.6.4.3}%
+\contentsline {section}{\numberline {6.5}多算法对比分析}{26}{section.6.5}%
+\contentsline {subsection}{\numberline {6.5.1}跳跃稳定性对比}{26}{subsection.6.5.1}%
+\contentsline {subsection}{\numberline {6.5.2}收敛速度对比}{26}{subsection.6.5.2}%
+\contentsline {subsection}{\numberline {6.5.3}追踪误差对比}{26}{subsection.6.5.3}%
+\contentsline {section}{\numberline {6.6}实验结果与分析}{27}{section.6.6}%
+\contentsline {section}{\numberline {6.7}本章小结}{27}{section.6.7}%
+\contentsline {chapter}{\numberline {7}学习式统一调度器设计}{28}{chapter.7}%
+\contentsline {section}{\numberline {7.1}问题描述与设计目标}{28}{section.7.1}%
+\contentsline {section}{\numberline {7.2}调度器的分层强化学习建模}{28}{section.7.2}%
+\contentsline {subsection}{\numberline {7.2.1}选项框架与专家集合}{28}{subsection.7.2.1}%
+\contentsline {subsection}{\numberline {7.2.2}状态与动作空间}{28}{subsection.7.2.2}%
+\contentsline {subsection}{\numberline {7.2.3}高层奖励设计}{29}{subsection.7.2.3}%
+\contentsline {section}{\numberline {7.3}地形感知与状态抽象}{29}{section.7.3}%
+\contentsline {subsection}{\numberline {7.3.1}地形感知特征提取}{29}{subsection.7.3.1}%
+\contentsline {subsection}{\numberline {7.3.2}任务指令与切换标志}{29}{subsection.7.3.2}%
+\contentsline {section}{\numberline {7.4}门控机制与专家切换}{30}{section.7.4}%
+\contentsline {subsection}{\numberline {7.4.1}硬门控与软门控}{30}{subsection.7.4.1}%
+\contentsline {subsection}{\numberline {7.4.2}切换平滑与滞后机制}{30}{subsection.7.4.2}%
+\contentsline {subsection}{\numberline {7.4.3}与自适应能量指标的融合}{30}{subsection.7.4.3}%
+\contentsline {section}{\numberline {7.5}调度器训练流程}{30}{section.7.5}%
+\contentsline {subsection}{\numberline {7.5.1}课程式场景编排}{30}{subsection.7.5.1}%
+\contentsline {subsection}{\numberline {7.5.2}专家冻结与联合微调}{31}{subsection.7.5.2}%
+\contentsline {section}{\numberline {7.6}本章小结}{31}{section.7.6}%
+\contentsline {chapter}{\numberline {8}统一系统集成与整体验证}{32}{chapter.8}%
+\contentsline {section}{\numberline {8.1}统一系统架构与集成流程}{32}{section.8.1}%
+\contentsline {subsection}{\numberline {8.1.1}系统组成}{32}{subsection.8.1.1}%
+\contentsline {subsection}{\numberline {8.1.2}集成流程}{32}{subsection.8.1.2}%
+\contentsline {section}{\numberline {8.2}混合地形统一环境实验设置}{32}{section.8.2}%
+\contentsline {subsection}{\numberline {8.2.1}场景布置}{32}{subsection.8.2.1}%
+\contentsline {subsection}{\numberline {8.2.2}评价指标}{32}{subsection.8.2.2}%
+\contentsline {section}{\numberline {8.3}整体遍历实验}{33}{section.8.3}%
+\contentsline {subsection}{\numberline {8.3.1}完整遍历与自动步态切换演示}{33}{subsection.8.3.1}%
+\contentsline {subsection}{\numberline {8.3.2}各地形段落通过性能}{33}{subsection.8.3.2}%
+\contentsline {section}{\numberline {8.4}多任务整合问题消融验证}{34}{section.8.4}%
+\contentsline {subsection}{\numberline {8.4.1}灾难性遗忘消融}{34}{subsection.8.4.1}%
+\contentsline {subsection}{\numberline {8.4.2}奖励冲突消融}{34}{subsection.8.4.2}%
+\contentsline {subsection}{\numberline {8.4.3}局部最优消融}{34}{subsection.8.4.3}%
+\contentsline {section}{\numberline {8.5}与现有方法对比}{34}{section.8.5}%
+\contentsline {section}{\numberline {8.6}本章小结}{35}{section.8.6}%
+\contentsline {chapter}{\numberline {9}结论与展望}{36}{chapter.9}%
+\contentsline {section}{\numberline {9.1}全文工作总结}{36}{section.9.1}%
+\contentsline {section}{\numberline {9.2}主要创新点}{37}{section.9.2}%
+\contentsline {section}{\numberline {9.3}研究展望}{37}{section.9.3}%
+\ttl@change@i {\@ne }{chapter}{0.0em}{\vspace {0.1em}\song \xiaosi \addvspace {3bp minus1bp}}{第\thecontentslabel 章\hspace {0.6em}}{}{\normalfont \dotfill \textrm {\contentspage [\thecontentspage ]}}\relax 
+\ttl@change@v {chapter}{}{}{}\relax 
+\contentsline {chapter}{\xiaosi 致\hspace {2em}谢}{39}{section*.20}%
+\ttl@change@i {\@ne }{chapter}{0.0em}{\vspace {0.1em}\song \xiaosi \addvspace {3bp minus1bp}}{第\thecontentslabel 章\hspace {0.6em}}{}{\normalfont \dotfill \textrm {\contentspage [\thecontentspage ]}}\relax 
+\ttl@change@v {chapter}{}{}{}\relax 
+\contentsline {chapter}{\xiaosi 参考文献}{40}{section*.22}%
+\ttl@change@i {\@ne }{chapter}{0.0em}{\vspace {0.45em}\bfseries \song \xiaosi \addvspace {0bp minus1bp}}{\appendixname ~\thecontentslabel \hspace {0.68em}}{}{\normalfont \dotfill \textrm {\contentspage [\thecontentspage ]}}\relax 
+\ttl@change@v {chapter}{}{}{}\relax 
+\contentsline {chapter}{\numberline {1}攻读硕士学位期间获得的学术成果}{43}{appendix.A}%
+\contentsline {chapter}{\numberline {2}攻读硕士学位期间参加的科研项目}{44}{appendix.B}%
+\contentsfinish 

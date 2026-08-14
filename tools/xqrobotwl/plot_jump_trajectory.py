@@ -28,7 +28,8 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-RESULTS = ROOT / "jump_management" / "results"
+DATA = ROOT / "latex" / "Wheeled-SRL-Jumping" / "data"  # jump_traj_*.npz
+FIG = ROOT / "latex" / "Wheeled-SRL-Jumping" / "figures"  # paper_fig_*.png/pdf
 
 # Okabe-Ito colourblind-safe palette (order matches ALGOS)
 COLORS = {
@@ -59,7 +60,7 @@ PHASE_COLORS = {
 
 
 def load_traj(name: str) -> dict:
-    d = np.load(RESULTS / f"{name}.npz", allow_pickle=True)
+    d = np.load(DATA / f"{name}.npz", allow_pickle=True)
     return {k: d[k] for k in d.files}
 
 
@@ -124,7 +125,7 @@ def fig_height() -> None:
         ax.set_ylabel("Base Height (m)", fontsize=8)
     for ax in axes[1, :]:
         ax.set_xlabel("Time (s)", fontsize=8)
-    out = RESULTS / "paper_fig_trajectory"
+    out = FIG / "paper_fig_trajectory"
     fig.savefig(out.with_suffix(".png"), dpi=300, bbox_inches="tight")
     fig.savefig(out.with_suffix(".pdf"), bbox_inches="tight")
     plt.close(fig)
@@ -152,7 +153,7 @@ def fig_joints() -> None:
     axes[0, 0].legend(
         fontsize=7, ncol=4, loc="upper center", bbox_to_anchor=(1.0, 1.42), frameon=False
     )
-    out = RESULTS / "paper_fig_jump_joints"
+    out = FIG / "paper_fig_jump_joints"
     fig.savefig(out.with_suffix(".png"), dpi=300, bbox_inches="tight")
     fig.savefig(out.with_suffix(".pdf"), bbox_inches="tight")
     plt.close(fig)

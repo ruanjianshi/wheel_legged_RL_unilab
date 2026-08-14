@@ -1,0 +1,55 @@
+robot:
+  wheel_r: 0.11
+  standing_angles:
+  - 0.0
+  - 0.1083
+  - -0.0188
+  - 0.0
+  - -0.1083
+  - 0.0188
+  default_leg_angles:
+  - 0.1
+  - 0.15
+  - 0.15
+  - -0.1
+  - -0.15
+  - -0.15
+  leg_targets_compensated:
+  - 0.0
+  - 0.18
+  - -0.28
+  - 0.0
+  - -0.18
+  - 0.28
+  standing_base_z: 0.512
+  hip_z_offset: 0.014
+  joint_limits:
+    L_hip_pitch:
+    - -1.047
+    - 2.094
+    R_hip_pitch:
+    - -2.094
+    - 1.047
+    L_knee:
+    - -0.873
+    - 0.873
+    R_knee:
+    - -0.873
+    - 0.873
+  ik_margin: 0.05
+  vmc:
+    l1: 0.30053
+    l2: 0.3007
+    offset: 0.0
+    theta0_offset: 0.0747
+    l0_offset: 0.3669
+    l0_min: 0.2047
+    l0_max: 0.5231
+    hip_sign:
+    - 1
+    - -1
+    knee_sign:
+    - -1
+    - 1
+    c1: 2.4103
+    c2: -1.679

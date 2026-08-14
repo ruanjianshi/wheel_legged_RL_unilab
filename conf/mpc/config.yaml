@@ -1,0 +1,20 @@
+sagittal:
+  q_theta: 100.0
+  q_theta_dot: 20.0
+  q_v: 80.0
+  q_x: 30.0
+  q_z: 8.0
+  r: 1.0
+mpc:
+  mpc_horizon: 20
+  u_max: 30.0
+  theta_max: 0.35
+  v_max: 2.5
+  wheel_vel_max: 25.0
+  tau: 0.059
+  alpha: 24.4
+  beta: -2.5
+  terminal_lqr: true
+  r_rate: 0.5
+  integral_gain: 1.5
+  model_file: logs/classic/mpc_plant_bb.npz

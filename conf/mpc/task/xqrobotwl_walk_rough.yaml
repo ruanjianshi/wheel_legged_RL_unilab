@@ -1,0 +1,5 @@
+env:
+  task_name: XqRobotWLWalkRough
+  task_key: walk_rough
+  command_dim: 4
+  mujoco_yaml: conf/ppo/task/xqrobotwl_walk_rough/mujoco.yaml

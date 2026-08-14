@@ -1,0 +1,10 @@
+# @package _global_
+# =============================================================================
+# XqRobotWL 两轮腿机器人 — 经典控制任务覆盖 (walk_rough, P4 地形自适应)
+# 复用 flat 的 robot 常数; 仅 env 映射差异
+# =============================================================================
+env:
+  task_name: XqRobotWLWalkRough
+  task_key: walk_rough
+  command_dim: 4
+  mujoco_yaml: conf/ppo/task/xqrobotwl_walk_rough/mujoco.yaml

@@ -1,0 +1,57 @@
+This is BibTeX, Version 0.99e (TeX Live 2026)
+Capacity: max_strings=200000, hash_size=200000, hash_prime=170003
+The top-level auxiliary file: main.aux
+A level-1 auxiliary file: body/denotation.aux
+A level-1 auxiliary file: body/chap01.aux
+A level-1 auxiliary file: body/chap02.aux
+A level-1 auxiliary file: body/chap03.aux
+A level-1 auxiliary file: body/chap04.aux
+A level-1 auxiliary file: body/chap05.aux
+A level-1 auxiliary file: body/chap06.aux
+A level-1 auxiliary file: body/chap07.aux
+A level-1 auxiliary file: body/chap08.aux
+A level-1 auxiliary file: body/conclusion.aux
+A level-1 auxiliary file: body/ack.aux
+The style file: WUSTThesis.bst
+Database file #1: refs.bib
+You've used 29 entries,
+            2259 wiz_defined-function locations,
+            679 strings with 9220 characters,
+and the built_in function-call counts, 7315 in all, are:
+= -- 657
+> -- 422
+< -- 0
++ -- 198
+- -- 99
+* -- 478
+:= -- 1129
+add.period$ -- 87
+call.type$ -- 29
+change.case$ -- 0
+chr.to.int$ -- 0
+cite$ -- 29
+duplicate$ -- 247
+empty$ -- 666
+format.name$ -- 125
+if$ -- 1682
+int.to.chr$ -- 0
+int.to.str$ -- 29
+missing$ -- 31
+newline$ -- 148
+num.names$ -- 29
+pop$ -- 88
+preamble$ -- 1
+purify$ -- 0
+quote$ -- 0
+skip$ -- 230
+stack$ -- 0
+substring$ -- 513
+swap$ -- 15
+text.length$ -- 0
+text.prefix$ -- 0
+top$ -- 0
+type$ -- 0
+warning$ -- 0
+while$ -- 49
+width$ -- 31
+write$ -- 303

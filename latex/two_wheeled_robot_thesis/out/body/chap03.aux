@@ -1,0 +1,127 @@
+\relax 
+\providecommand\hyper@newdestlabel[2]{}
+\@writefile{toc}{\contentsline {chapter}{\numberline {3}多任务强化学习总体框架与混合地形统一环境}{10}{chapter.3}\protected@file@percent }
+\@writefile{lof}{\addvspace {10\p@ }}
+\@writefile{lot}{\addvspace {10\p@ }}
+\@writefile{loa}{\addvspace {10\p@ }}
+\newlabel{cha:framework}{{3}{10}{多任务强化学习总体框架与混合地形统一环境}{chapter.3}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {3.1}总体设计思路}{10}{section.3.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.1.1}设计需求分析}{10}{subsection.3.1.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.1.2}"分训-整合"两阶段范式}{10}{subsection.3.1.2}\protected@file@percent }
+\citation{tobin2017,peng2018}
+\citation{tobin2017}
+\citation{peng2018}
+\@writefile{lof}{\contentsline {figure}{\numberline {3.1}{\ignorespaces "分训-整合"两阶段范式示意图（替换为自绘架构图）}}{11}{figure.caption.9}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3.1}{\ignorespaces Schematic of the two-phase "train-then-integrate" paradigm (replace with your own figure)}}{11}{figure.caption.9}\protected@file@percent }
+\newlabel{fig:paradigm}{{3.1}{11}{"分训-整合"两阶段范式示意图（替换为自绘架构图）}{figure.caption.9}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {3.2}混合地形统一仿真环境设计}{11}{section.3.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.2.1}地形库构成}{11}{subsection.3.2.1}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {3.1}{\ignorespaces 混合地形统一环境的地形库构成}}{11}{table.caption.10}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {3.1}{\ignorespaces Terrain library of the unified mixed-terrain environment}}{11}{table.caption.10}\protected@file@percent }
+\newlabel{tab:terrain-lib}{{3.1}{11}{混合地形统一环境的地形库构成}{table.caption.10}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.2.2}地形-步态对应关系}{11}{subsection.3.2.2}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {3.2}{\ignorespaces 典型地形与最适步态的对应关系}}{12}{table.caption.11}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {3.2}{\ignorespaces Correspondence between typical terrains and preferred gaits}}{12}{table.caption.11}\protected@file@percent }
+\newlabel{tab:terrain-gait}{{3.2}{12}{典型地形与最适步态的对应关系}{table.caption.11}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.2.3}领域随机化}{12}{subsection.3.2.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {3.3}步态专家库的独立训练}{12}{section.3.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.3.1}7个步态专家的划分}{12}{subsection.3.3.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.3.2}专家独立训练与验收}{12}{subsection.3.3.2}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {3.3}{\ignorespaces 步态专家库划分与训练配置}}{13}{table.caption.12}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {3.3}{\ignorespaces Gait expert library and training configuration}}{13}{table.caption.12}\protected@file@percent }
+\newlabel{tab:experts}{{3.3}{13}{步态专家库划分与训练配置}{table.caption.12}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.3.3}观测、动作与执行频率设计}{13}{subsection.3.3.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {3.4}学习式统一调度器总体方案}{13}{section.3.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.4.1}调度器任务建模}{13}{subsection.3.4.1}\protected@file@percent }
+\newlabel{eq:scheduler}{{3-1}{13}{调度器任务建模}{equation.3.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.4.2}调度器训练}{13}{subsection.3.4.2}\protected@file@percent }
+\citation{mccloskey1989,kirkpatrick2017}
+\citation{mccloskey1989}
+\citation{kirkpatrick2017}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.4.3}与三大问题的关系}{14}{subsection.3.4.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {3.5}多任务整合的三大核心问题应对}{14}{section.3.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.5.1}灾难性遗忘：参数解耦与分训}{14}{subsection.3.5.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.5.2}奖励冲突：专家奖励与调度器目标分离}{14}{subsection.3.5.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.5.3}局部最优：统一评估与领域随机化}{14}{subsection.3.5.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {3.6}多维评价与分析体系}{14}{section.3.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {3.7}本章小结}{15}{section.3.7}\protected@file@percent }
+\@setckpt{body/chap03}{
+\setcounter{page}{16}
+\setcounter{equation}{1}
+\setcounter{enumi}{0}
+\setcounter{enumii}{0}
+\setcounter{enumiii}{0}
+\setcounter{enumiv}{0}
+\setcounter{footnote}{0}
+\setcounter{mpfootnote}{0}
+\setcounter{part}{0}
+\setcounter{chapter}{3}
+\setcounter{section}{7}
+\setcounter{subsection}{0}
+\setcounter{subsubsection}{0}
+\setcounter{paragraph}{0}
+\setcounter{subparagraph}{0}
+\setcounter{figure}{1}
+\setcounter{table}{3}
+\setcounter{hdr@segments}{0}
+\setcounter{AlgoLine}{0}
+\setcounter{algocfline}{0}
+\setcounter{algocfproc}{0}
+\setcounter{algocf}{0}
+\setcounter{parentequation}{0}
+\setcounter{caption@flags}{2}
+\setcounter{continuedfloat}{0}
+\setcounter{KVtest}{2}
+\setcounter{subfigure}{0}
+\setcounter{subfigure@save}{0}
+\setcounter{lofdepth}{1}
+\setcounter{subtable}{0}
+\setcounter{subtable@save}{0}
+\setcounter{lotdepth}{1}
+\setcounter{endNonectr}{31}
+\setcounter{currNonectr}{0}
+\setcounter{NAT@ctr}{0}
+\setcounter{section@level}{1}
+\setcounter{Item}{0}
+\setcounter{Hfootnote}{0}
+\setcounter{Hy@AnnotLevel}{0}
+\setcounter{bookmark@seq@number}{53}
+\setcounter{currdefinitionctr}{0}
+\setcounter{enddefinitionctr}{0}
+\setcounter{definition}{0}
+\setcounter{currpropositionctr}{0}
+\setcounter{endpropositionctr}{0}
+\setcounter{proposition}{0}
+\setcounter{currlemmactr}{0}
+\setcounter{endlemmactr}{0}
+\setcounter{lemma}{0}
+\setcounter{currtheoremctr}{0}
+\setcounter{endtheoremctr}{0}
+\setcounter{theorem}{0}
+\setcounter{curraxiomctr}{0}
+\setcounter{endaxiomctr}{0}
+\setcounter{axiom}{0}
+\setcounter{currcorollaryctr}{0}
+\setcounter{endcorollaryctr}{0}
+\setcounter{corollary}{0}
+\setcounter{currexercisectr}{0}
+\setcounter{endexercisectr}{0}
+\setcounter{exercise}{0}
+\setcounter{currexamplectr}{0}
+\setcounter{endexamplectr}{0}
+\setcounter{example}{0}
+\setcounter{currproofctr}{0}
+\setcounter{endproofctr}{0}
+\setcounter{proof}{0}
+\setcounter{nlinenum}{0}
+\setcounter{ALC@unique}{0}
+\setcounter{ALC@line}{0}
+\setcounter{ALC@rem}{0}
+\setcounter{ALC@depth}{0}
+\setcounter{float@type}{16}
+\setcounter{algorithm}{0}
+\setcounter{LT@tables}{0}
+\setcounter{LT@chunks}{0}
+\setcounter{lstnumber}{1}
+\setcounter{lstlisting}{0}
+}

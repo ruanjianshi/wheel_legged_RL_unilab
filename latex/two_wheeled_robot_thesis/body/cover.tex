@@ -1,0 +1,45 @@
+
+%%% Local Variables:
+%%% mode: Xelatex
+%%% TeX-master: "../main"
+%%% End:
+
+%% ==================== 中文题目（≤30字） ====================
+\ctitle{基于强化学习的两轮足机器人多步态运动控制与自适应调度方法研究}
+
+%% ==================== 封面信息（请填写个人真实信息） ====================
+\xuehao{【学号】} \schoolcode{10488}
+\csubjectname{机械工程} \cauthorname{【姓名】}
+\csupervisorname{【导师姓名】} \csupervisortitle{教授}
+\defencedate{2027~年~5~月} \grantdate{}
+\chair{}%
+\firstreviewer{} \secondreviewer{} \thirdreviewer{}
+
+%% ==================== 英文题目与封面信息 ====================
+\etitle{Research on Multi-Gait Motion Control and Adaptive Scheduling Method for Two-Wheeled Legged Robot Based on Reinforcement Learning}
+\edegree{Master of Science}
+\esubject{Mechanical Engineering}
+\eauthor{【Full Name】}
+\esupervisor{Prof. 【Supervisor】}
+
+%% ==================== 中文摘要（硕士约500字，宋体/Times New Roman 小四号，1.5倍行距） ====================
+\cabstract{
+    两轮足机器人以车轮为主要运动执行末端，兼具轮式移动的高效平稳性与足式结构的轻量化优势，在复杂地形巡检、物资运输与特种作业等场景具有广阔应用前景。然而，单一策略网络难以同时具备滚动行走、抬腿行走、跳跃、后空翻、抬腿上台阶与单腿平衡等多种步态能力，将多种步态直接纳入统一策略训练时，会产生灾难性遗忘、奖励冲突与局部最优等连续多任务学习的核心难题，严重制约策略的泛化能力与鲁棒性。
+
+    针对上述问题，本文提出"分训-整合"的两阶段多任务强化学习框架。第一阶段，针对7类典型步态分别训练独立的步态专家策略网络，包括滚动行走（含侧向移动）、粗糙地形行走、抬腿行走、跳跃、后空翻、抬腿上台阶与单腿平衡，各专家在对应地形的专用环境中独立训练并达到验收标准；第二阶段，设计学习式统一调度器，该调度器以地形感知信息与机器人本体状态为输入，通过分层强化学习训练，在由平面、粗糙、碎石、台阶、独木桥、木桩与狭窄通道构成的混合地形统一环境中，自动选择或混合激活合适的步态专家，实现机器人按地形自适应切换步态：粗糙地形采用抬腿点足行走、低台阶抬腿跨越、高台阶跳跃上去、狭窄地形侧向移动、独木桥单腿平衡、木桩间隙跳跃通过。
+
+    专家网络参数解耦从结构上规避了灾难性遗忘，各专家独立奖励函数与调度器高层目标分离缓解了奖励冲突，混合地形统一环境的细粒度评估与领域随机化抑制了局部最优。实验结果表明，所提框架能够使两轮足机器人在混合地形环境中完整遍历并自动切换步态，各步态专家在对应地形上均表现出良好的稳定性与鲁棒性，验证了"分训-整合"范式解决多任务强化学习整合难题的有效性。
+}
+
+\ckeywords{两轮足机器人；多任务强化学习；步态专家网络；学习式调度器；地形自适应步态切换}
+
+%% ==================== 英文摘要（Times New Roman 小四号，1.5倍行距，首行缩进2个英文字符） ====================
+\eabstract{
+    The two-wheeled legged robot uses wheels as its primary locomotion end-effector, combining the high efficiency and stability of wheeled mobility with the lightweight advantages of legged structures, and holds broad application prospects in complex-terrain inspection, logistics transportation, and special operations. However, a single policy network can hardly master multiple gaits simultaneously, such as rolling walk, toe walk, jumping, backflip, stair leg lift, and single-leg balance. Directly integrating multiple gaits into one unified policy training inevitably gives rise to core challenges of continuous multi-task learning, including catastrophic forgetting, reward conflicts, and local optima, which severely restrict the generalization and robustness of the policy.
+
+    To address these issues, this thesis proposes a two-phase "train-then-integrate" multi-task reinforcement learning framework. In the first phase, independent gait expert policies are trained separately for seven typical gaits, including rolling walk (with lateral movement), rough-terrain walking, toe walk, jumping, backflip, stair leg lift, and single-leg balance. Each expert is trained in a dedicated environment on its corresponding terrain and reaches an acceptance criterion. In the second phase, a learned unified scheduler is designed. Taking terrain perception information and the robot's proprioceptive state as inputs and trained by hierarchical reinforcement learning, the scheduler automatically selects or blends the appropriate gait experts in a unified mixed-terrain environment composed of flat, rough, rubble, stair, single-log bridge, stump, and narrow-passage terrains, enabling the robot to adaptively switch gaits according to terrain: toe-walking on rough terrain, stepping over low stairs, jumping onto high stairs, lateral movement in narrow spaces, single-leg balance on the single-log bridge, and jumping over stump gaps.
+
+    The decoupled parameters of expert networks structurally avoid catastrophic forgetting; the separation of each expert's independent reward function from the scheduler's high-level objective alleviates reward conflicts; and fine-grained evaluation together with domain randomization in the unified mixed-terrain environment suppresses local optima. Experimental results show that the proposed framework enables the two-wheeled legged robot to traverse the mixed-terrain environment completely with automatic gait switching, and each gait expert exhibits favorable stability and robustness on its corresponding terrain, verifying the effectiveness of the "train-then-integrate" paradigm in solving the integration challenges of multi-task reinforcement learning.
+}
+
+\ekeywords{two-wheeled legged robot; multi-task reinforcement learning; gait expert network; learned scheduler; terrain-adaptive gait switching}

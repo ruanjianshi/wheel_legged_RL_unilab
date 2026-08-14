@@ -1,0 +1,139 @@
+<mujoco model="xqrobotwl">
+  <default>
+    <default class="robot">
+      <joint damping="0.5" armature="0.002" frictionloss="0.01" />
+      <default class="visual">
+        <geom contype="0" conaffinity="0" group="2" />
+      </default>
+      <default class="collision">
+        <geom contype="0" conaffinity="1" group="3" />
+      </default>
+    </default>
+  </default>
+  <compiler angle="radian" meshdir="meshes" balanceinertia="true" />
+  <worldbody>
+    <body name="base_link" childclass="robot" pos="0 0 0.55">
+      <inertial pos="0.026 0 0.025" mass="5.408" diaginertia="0.014 0.025 0.025" />
+      <site name="imu_in_base" size="0.01" />
+      <!-- Simplified collision: upper box (wide) + lower box (narrow) -->
+      <geom name="base_link_collision" type="box" size="0.05 0.16 0.06" pos="0.10 0 0.0" class="collision" />
+      <geom name="base_link_collision_lower" type="box" size="0.10 0.07 0.06" pos="-0.05 0 0.0" class="collision" />
+      <geom name="base_link_visual" type="mesh" mesh="base_link_visual" class="visual" />
+      <body name="left_link_1" pos="0.069 -0.124 -0.001">
+        <inertial pos="-0.033 -0.011 0.000" mass="1.500" diaginertia="0.00084 0.00159 0.00116" />
+        <joint name="joint_left_hip_roll" type="hinge" range="0 3.1416" axis="-1 0 0" />
+        <!-- 对齐 URDF: 髋 link 无碰撞体 (源码注释: hip joint rarely contacts ground) -->
+        <geom name="left_link_1_visual" type="mesh" mesh="left_link_1_visual" class="visual" />
+        <site name="left_hip_site" size="0.005" />
+        <body name="left_link_2" pos="-0.070 -0.019 0.000">
+          <inertial pos="-0.107 0.010 -0.075" mass="2.000" diaginertia="0.00584 0.01016 0.00676" />
+          <joint name="joint_left_hip_pitch" type="hinge" range="-1.047 2.094" axis="0 1 0" />
+          <geom name="left_link_2_collision" type="box" size="0.06 0.03 0.03" pos="-0.06 0.02 -0.06" euler="0 2.48 0" class="collision" />
+          <geom name="left_link_2_visual" type="mesh" mesh="left_link_2_visual" class="visual" />
+          <site name="left_thigh_site" size="0.005" />
+          <body name="left_link_3" pos="-0.224 0.015 -0.200">
+            <inertial pos="0.095 -0.001 -0.081" mass="0.800" diaginertia="0.00210 0.00506 0.00314" />
+            <joint name="joint_left_knee" type="hinge" range="-0.873 0.873" axis="0 -1 0" />
+            <geom name="left_link_3_collision" type="box" size="0.11 0.02 0.02" pos="0.04 0 -0.055" euler="0 0.7 0" class="collision" />
+            <geom name="left_link_3_visual" type="mesh" mesh="left_link_3_visual" class="visual" />
+            <site name="left_calf_site" size="0.005" />
+            <body name="left_link_wheel" pos="0.224 -0.037 -0.199">
+              <inertial pos="0 -0.012 0.000" mass="2.323" diaginertia="0.00477 0.00897 0.00477" />
+              <joint name="joint_left_wheel" type="hinge" axis="0 1 0" />
+              <geom name="left_link_wheel_collision" type="cylinder" size="0.11 0.0225" pos="0 -0.012 0" euler="1.5708 0 0" class="collision" />
+              <geom name="left_link_wheel_visual" type="mesh" mesh="left_link_wheel_visual" class="visual" />
+              <site name="left_wheel_site" size="0.005" />
+            </body>
+          </body>
+        </body>
+      </body>
+      <body name="right_link_1" pos="0.069 0.124 -0.001">
+        <inertial pos="-0.033 0.011 0.000" mass="1.500" diaginertia="0.00084 0.00159 0.00116" />
+        <joint name="joint_right_hip_roll" type="hinge" range="-3.1416 0" axis="-1 0 0" />
+        <!-- 对齐 URDF: 髋 link 无碰撞体 (源码注释: hip joint rarely contacts ground) -->
+        <geom name="right_link_1_visual" type="mesh" mesh="right_link_1_visual" class="visual" />
+        <site name="right_hip_site" size="0.005" />
+        <body name="right_link_2" pos="-0.070 0.019 0.000">
+          <inertial pos="-0.107 -0.010 -0.075" mass="2.000" diaginertia="0.00584 0.01016 0.00676" />
+          <joint name="joint_right_hip_pitch" type="hinge" range="-2.094 1.047" axis="0 -1 0" />
+          <geom name="right_link_2_collision" type="box" size="0.06 0.03 0.03" pos="-0.06 -0.02 -0.06" euler="0 2.48 0" class="collision" />
+          <geom name="right_link_2_visual" type="mesh" mesh="right_link_2_visual" class="visual" />
+          <site name="right_thigh_site" size="0.005" />
+          <body name="right_link_3" pos="-0.224 -0.015 -0.200">
+            <inertial pos="0.095 0.001 -0.081" mass="0.800" diaginertia="0.00210 0.00506 0.00314" />
+            <joint name="joint_right_knee" type="hinge" range="-0.873 0.873" axis="0 1 0" />
+            <geom name="right_link_3_collision" type="box" size="0.11 0.02 0.02" pos="0.04 0 -0.055" euler="0 0.7 0" class="collision" />
+            <geom name="right_link_3_visual" type="mesh" mesh="right_link_3_visual" class="visual" />
+            <site name="right_calf_site" size="0.005" />
+            <body name="right_link_wheel" pos="0.224 0.031 -0.204">
+              <inertial pos="0 0.012 0.000" mass="2.323" diaginertia="0.00477 0.00897 0.00477" />
+              <joint name="joint_right_wheel" type="hinge" axis="0 -1 0" />
+              <geom name="right_link_wheel_collision" type="cylinder" size="0.11 0.0225" pos="0 0.012 0" euler="1.5708 0 0" class="collision" />
+              <geom name="right_link_wheel_visual" type="mesh" mesh="right_link_wheel_visual" class="visual" />
+              <site name="right_wheel_site" size="0.005" />
+            </body>
+          </body>
+        </body>
+      </body>
+      <freejoint name="floating_base" />
+    </body>
+  </worldbody>
+  <asset>
+    <mesh name="base_link_visual" file="base_link.STL" />
+    <mesh name="left_link_1_visual" file="left_link_1.STL" />
+    <mesh name="left_link_2_visual" file="left_link_2.STL" />
+    <mesh name="left_link_3_visual" file="left_link_3.STL" />
+    <mesh name="left_link_wheel_visual" file="left_link_wheel.STL" />
+    <mesh name="right_link_1_visual" file="right_link_1.STL" />
+    <mesh name="right_link_2_visual" file="right_link_2.STL" />
+    <mesh name="right_link_3_visual" file="right_link_3.STL" />
+    <mesh name="right_link_wheel_visual" file="right_link_wheel.STL" />
+  </asset>
+  <!-- VMC 变体: 全部 8 个作动器为 motor(力矩控制), ctrl 单位为 N·m
+       腿 ±50: 蹬伸需 -60~-134 N·m (深蹲时), ±30 饱和导致蹬伸无力跳不高 -->
+  <actuator>
+    <motor name="joint_left_hip_roll" joint="joint_left_hip_roll" ctrlrange="-50 50" />
+    <motor name="joint_left_hip_pitch" joint="joint_left_hip_pitch" ctrlrange="-50 50" />
+    <motor name="joint_left_knee" joint="joint_left_knee" ctrlrange="-50 50" />
+    <motor name="joint_left_wheel" joint="joint_left_wheel" ctrlrange="-10 10" />
+    <motor name="joint_right_hip_roll" joint="joint_right_hip_roll" ctrlrange="-50 50" />
+    <motor name="joint_right_hip_pitch" joint="joint_right_hip_pitch" ctrlrange="-50 50" />
+    <motor name="joint_right_knee" joint="joint_right_knee" ctrlrange="-50 50" />
+    <motor name="joint_right_wheel" joint="joint_right_wheel" ctrlrange="-10 10" />
+  </actuator>
+  <sensor>
+    <framelinvel name="local_linvel" objtype="body" objname="base_link" />
+    <gyro name="gyro" site="imu_in_base" />
+    <framezaxis name="upvector" objtype="body" objname="base_link" />
+    <jointpos name="left_hip_roll_pos" joint="joint_left_hip_roll" />
+    <jointvel name="left_hip_roll_vel" joint="joint_left_hip_roll" />
+    <jointpos name="left_hip_pitch_pos" joint="joint_left_hip_pitch" />
+    <jointvel name="left_hip_pitch_vel" joint="joint_left_hip_pitch" />
+    <jointpos name="left_knee_pos" joint="joint_left_knee" />
+    <jointvel name="left_knee_vel" joint="joint_left_knee" />
+    <jointpos name="left_wheel_pos" joint="joint_left_wheel" />
+    <jointvel name="left_wheel_vel" joint="joint_left_wheel" />
+    <jointpos name="right_hip_roll_pos" joint="joint_right_hip_roll" />
+    <jointvel name="right_hip_roll_vel" joint="joint_right_hip_roll" />
+    <jointpos name="right_hip_pitch_pos" joint="joint_right_hip_pitch" />
+    <jointvel name="right_hip_pitch_vel" joint="joint_right_hip_pitch" />
+    <jointpos name="right_knee_pos" joint="joint_right_knee" />
+    <jointvel name="right_knee_vel" joint="joint_right_knee" />
+    <jointpos name="right_wheel_pos" joint="joint_right_wheel" />
+    <jointvel name="right_wheel_vel" joint="joint_right_wheel" />
+    <force name="left_wheel_force" site="left_wheel_site" />
+    <force name="right_wheel_force" site="right_wheel_site" />
+    <torque name="left_hip_torque" site="left_hip_site" />
+    <torque name="left_thigh_torque" site="left_thigh_site" />
+    <torque name="left_calf_torque" site="left_calf_site" />
+    <torque name="right_hip_torque" site="right_hip_site" />
+    <torque name="right_thigh_torque" site="right_thigh_site" />
+    <torque name="right_calf_torque" site="right_calf_site" />
+    <torque name="left_wheel_torque" site="left_wheel_site" />
+    <torque name="right_wheel_torque" site="right_wheel_site" />
+    <force name="left_thigh_force" site="left_thigh_site" />
+    <force name="left_calf_force" site="left_calf_site" />
+    <force name="right_thigh_force" site="right_thigh_site" />
+    <force name="right_calf_force" site="right_calf_site" />
+  </sensor>
+</mujoco>
