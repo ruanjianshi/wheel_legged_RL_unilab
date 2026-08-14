@@ -25,22 +25,28 @@ def cmd_dim(task_key: str) -> int:
     return 5 if task_key == "walk_flat" else 4
 
 
-def denorm_action(a: np.ndarray, cfg: MpcSacConfig, task_key: str) -> np.ndarray:
-    """归一化动作 [-1,1] → 实际命令 (flat 5D / rough 4D)."""
+def denorm_action(
+    a: np.ndarray, cfg: MpcSacConfig, task_key: str, des: np.ndarray | None = None
+) -> np.ndarray:
+    """★ 残差命令: cmd = des + res_scale·a (a∈[-1,1] 为 RL 残差校正).
+
+    des 缺省为 0 → 纯残差; 训练/推理均传期望命令作为基线。
+    """
     a = np.clip(np.asarray(a, dtype=np.float64), -1.0, 1.0)
+    des = np.zeros(cmd_dim(task_key), dtype=np.float64) if des is None else np.asarray(des, dtype=np.float64)
     if task_key == "walk_flat":
-        return np.array(
+        return des + np.array(
             [
-                float(a[0]) * cfg.vx_flat,
+                float(a[0]) * cfg.res_vx,
                 0.0,
-                float(a[1]) * cfg.vyaw_flat,
-                cfg.tsk_flat,
-                cfg.height_mid + float(a[2]) * cfg.height_half,
+                float(a[1]) * cfg.res_vyaw,
+                cfg.res_tsk,
+                float(a[2]) * cfg.res_height,
             ],
             dtype=np.float64,
         )
-    return np.array(
-        [float(a[0]) * cfg.vx_rough, 0.0, float(a[1]) * cfg.vyaw_rough, 0.0],
+    return des + np.array(
+        [float(a[0]) * cfg.res_vx_rough, 0.0, float(a[1]) * cfg.res_vyaw_rough, 0.0],
         dtype=np.float64,
     )
 
@@ -161,6 +167,7 @@ def compute_reward(
         base_z = np.asarray(sensors["base_z"], dtype=np.float64)
         r = r + cfg.w_h * np.exp(-((base_z - des[:, 4]) ** 2) / (2 * cfg.sigma_h**2))
     r = r + cfg.w_theta * theta**2
+    r = r + cfg.w_omega * omega_z**2  # ★ 防自旋: 偏航角速度² 惩罚
     r = r + cfg.w_energy * (np.asarray(sensors["dof_vel"], dtype=np.float64)[:, 6] ** 2)
     r = r + cfg.w_cmd_rate * np.sum((np.asarray(a) - np.asarray(prev_a)) ** 2, axis=-1)
     return r

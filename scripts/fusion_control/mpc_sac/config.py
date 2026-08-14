@@ -57,7 +57,7 @@ class MpcSacConfig:
     target_entropy_ratio: float = 1.0
     gamma: float = 0.99
     tau: float = 0.005
-    init_noise_std: float = 0.6
+    init_noise_std: float = 0.4
     min_action: float = -1.0
     max_action: float = 1.0
     batch_size: int = 256
@@ -65,14 +65,13 @@ class MpcSacConfig:
     updates_per_step: int = 2
     obs_normalization: bool = True
 
-    # ── 命令缩放 ──
-    vx_flat: float = 0.6
-    vyaw_flat: float = 1.0
-    height_mid: float = 0.518
-    height_half: float = 0.035
-    vx_rough: float = 1.0
-    vyaw_rough: float = 1.5
-    tsk_flat: float = 0.0
+    # ── 残差命令 (cmd = des + res_scale·a) ──
+    res_vx: float = 0.3
+    res_vyaw: float = 0.2
+    res_height: float = 0.02
+    res_vx_rough: float = 0.4
+    res_vyaw_rough: float = 0.3
+    res_tsk: float = 0.0
 
     # ── 期望命令采样 ──
     resample_s_flat: float = 3.0
@@ -84,14 +83,15 @@ class MpcSacConfig:
     vyaw_range_rough: tuple = (-1.0, 1.0)
 
     # ── 奖励 ──
-    w_alive: float = 1.0
-    w_vx: float = 2.0
+    w_alive: float = 0.8
+    w_vx: float = 3.0
     sigma_vx: float = 0.25
-    w_vyaw: float = 0.5
+    w_vyaw: float = 1.0
     sigma_vyaw: float = 0.4
     w_h: float = 1.5
     sigma_h: float = 0.02
     w_theta: float = -2.0
+    w_omega: float = -0.5
     w_energy: float = -0.001
     w_cmd_rate: float = -0.1
 

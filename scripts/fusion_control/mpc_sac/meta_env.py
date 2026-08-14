@@ -85,7 +85,9 @@ class MpcSacMetaEnv:
     def step(self, actions: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, dict]:
         """actions: (N, action_dim) 归一化命令 → (obs2, reward, done, info)."""
         a = np.clip(np.asarray(actions, dtype=np.float64), -1.0, 1.0)
-        cmds = np.stack([denorm_action(a[i], self.cfg, self.task_key) for i in range(self.num_envs)])
+        cmds = np.stack(
+            [denorm_action(a[i], self.cfg, self.task_key, self._des[i]) for i in range(self.num_envs)]
+        )
         sens = read_sensors_batch(self.low_env)
         a8 = np.stack(
             [

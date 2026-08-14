@@ -71,15 +71,15 @@ class MpcSacController:
         self._des = np.asarray(des_cmd, dtype=np.float64).reshape(-1)
         obs = build_high_obs(sensors, self._des, self._prev_a, self.cfg, self.task_key)
         a_hi = self._policy.select_action(obs, deterministic=True)
-        cmd = denorm_action(a_hi, self.cfg, self.task_key)
+        cmd = denorm_action(a_hi, self.cfg, self.task_key, self._des)
         a8 = self.low.act(sensors, cmd)
         self._prev_a = a_hi
         return a8
 
     @property
     def last_cmd(self) -> np.ndarray:
-        """高层实际发出的命令 (去归一化后)."""
-        return denorm_action(self._prev_a, self.cfg, self.task_key)
+        """高层实际发出的命令 (des + 残差校正)."""
+        return denorm_action(self._prev_a, self.cfg, self.task_key, self._des)
 
     @property
     def last_solve_ms(self) -> float:

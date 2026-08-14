@@ -41,7 +41,7 @@ sac:
   target_entropy_ratio: 1.0   # target_entropy = ratio * (-action_dim)
   gamma: 0.99
   tau: 0.005                   # 目标网络软更新
-  init_noise_std: 0.6
+  init_noise_std: 0.4
   min_action: -1.0
   max_action: 1.0
   batch_size: 256
@@ -49,15 +49,15 @@ sac:
   updates_per_step: 2
   obs_normalization: true      # RunningMeanStd 归一化高层 obs
 
-# ── 命令缩放 (归一化动作 [-1,1] → 实际命令) ──
-cmd_scale:
-  vx_flat: 0.6          # vx ∈ [-0.6, 0.6] m/s
-  vyaw_flat: 1.0        # vyaw ∈ [-1.0, 1.0] rad/s
-  height_mid: 0.518     # height 中心 (站姿)
-  height_half: 0.035    # height ∈ [0.483, 0.553] m (MPC 膝可达带)
-  vx_rough: 1.0         # rough vx ∈ [-1.0, 1.0]
-  vyaw_rough: 1.5       # rough vyaw ∈ [-1.5, 1.5]
-  tsk_flat: 0.0         # hip 对称命令 (固定 0)
+# ── 残差命令 (★ 融合: cmd = des + res_scale·a, RL 输出残差校正 a∈[-1,1]) ──
+#   初值 a≈0 → cmd≈des → MPC 基线直接跟踪 (稳定); RL 只学需要的校正 (防自旋/地形自适应)
+residual_scale:
+  vx: 0.3            # vx 残差 ±0.3 m/s (围绕期望)
+  vyaw: 0.2          # vyaw 残差 ±0.2 rad/s (防自旋)
+  height: 0.02       # height 残差 ±0.02 m
+  vx_rough: 0.4
+  vyaw_rough: 0.3
+  tsk: 0.0
 
 # ── 期望命令采样 (训练) ──
 desired:
@@ -71,14 +71,15 @@ desired:
 
 # ── 奖励 ──
 reward:
-  w_alive: 1.0
-  w_vx: 2.0             # exp(-(v-des_vx)^2/2σ²)
+  w_alive: 0.8
+  w_vx: 3.0             # exp(-(v-des_vx)^2/2σ²) (提高跟踪相对存活权重)
   sigma_vx: 0.25
-  w_vyaw: 0.5
+  w_vyaw: 1.0           # 提高 vyaw 跟踪权重
   sigma_vyaw: 0.4
   w_h: 1.5              # flat 高度跟踪
   sigma_h: 0.02
   w_theta: -2.0         # θ² 直立惩罚
+  w_omega: -0.5         # ★ 偏航角速度² 惩罚 (防自旋失控)
   w_energy: -0.001      # 轮速² 能耗
   w_cmd_rate: -0.1      # 命令变化率惩罚
 
