@@ -52,10 +52,10 @@ sac:
 # ── 残差命令 (★ 融合: cmd = des + res_scale·a, RL 输出残差校正 a∈[-1,1]) ──
 #   初值 a≈0 → cmd≈des → MPC 基线直接跟踪 (稳定); RL 只学需要的校正 (防自旋/地形自适应)
 residual_scale:
-  vx: 0.3            # vx 残差 ±0.3 m/s (围绕期望)
+  vx: 0.2            # ★ vx 残差 ±0.2 m/s (收窄防过冲)
   vyaw: 0.05         # ★ vyaw 残差 ±0.05 (MPC yaw 跟踪不稳, 限制转弯)
   height: 0.02       # height 残差 ±0.02 m
-  vx_rough: 0.4
+  vx_rough: 0.3
   vyaw_rough: 0.1
   tsk: 0.0
 
@@ -80,6 +80,7 @@ reward:
   sigma_h: 0.02
   w_theta: -2.0         # θ² 直立惩罚
   w_omega: -0.5         # ★ 偏航角速度² 惩罚 (防自旋失控)
+  w_corr: -0.3          # ★ 残差校正² 惩罚 (MPC 基线已能跟踪, a≈0 除非真需要)
   w_energy: -0.001      # 轮速² 能耗
   w_cmd_rate: -0.1      # 命令变化率惩罚
 

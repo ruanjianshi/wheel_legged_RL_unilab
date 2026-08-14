@@ -47,8 +47,7 @@ def run_episode(
     dt: float = 0.01,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """跑一段 episode: 每步传期望命令 → 融合控制器 → a8 → env.step. 终止即断."""
-    if env.state is None:
-        env.init_state()
+    env.init_state()  # ★ 每 episode 无条件 init (terminated=True → 首步 step 站姿复位)
     record: list[dict[str, Any]] = []
     n_steps = int(sim_time / dt)
     terminated = False

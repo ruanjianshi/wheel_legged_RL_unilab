@@ -66,10 +66,10 @@ class MpcSacConfig:
     obs_normalization: bool = True
 
     # ── 残差命令 (cmd = des + res_scale·a) ──
-    res_vx: float = 0.3
+    res_vx: float = 0.2
     res_vyaw: float = 0.05
     res_height: float = 0.02
-    res_vx_rough: float = 0.4
+    res_vx_rough: float = 0.3
     res_vyaw_rough: float = 0.1
     res_tsk: float = 0.0
 
@@ -92,6 +92,7 @@ class MpcSacConfig:
     sigma_h: float = 0.02
     w_theta: float = -2.0
     w_omega: float = -0.5
+    w_corr: float = -0.3
     w_energy: float = -0.001
     w_cmd_rate: float = -0.1
 

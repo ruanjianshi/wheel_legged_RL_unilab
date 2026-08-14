@@ -168,6 +168,7 @@ def compute_reward(
         r = r + cfg.w_h * np.exp(-((base_z - des[:, 4]) ** 2) / (2 * cfg.sigma_h**2))
     r = r + cfg.w_theta * theta**2
     r = r + cfg.w_omega * omega_z**2  # ★ 防自旋: 偏航角速度² 惩罚
+    r = r + cfg.w_corr * np.sum(np.asarray(a) ** 2, axis=-1)  # ★ 残差校正² 惩罚 (防过冲)
     r = r + cfg.w_energy * (np.asarray(sensors["dof_vel"], dtype=np.float64)[:, 6] ** 2)
     r = r + cfg.w_cmd_rate * np.sum((np.asarray(a) - np.asarray(prev_a)) ** 2, axis=-1)
     return r
