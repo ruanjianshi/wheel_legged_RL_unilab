@@ -11,6 +11,7 @@ XqRobotWL 通用修改 — 跨任务基础设施。
 | 03 | 左右轮对称化 + 显示站姿镜像对称 (修复"左腿歪") | [→](2026-08-14/03_wheel_symmetry_fix.md) |
 | 04 | 全量核对: 13 个 xqrobotwl 任务机器人模型已对称化 | [→](2026-08-14/04_verify_all_13_tasks_model.md) |
 | 05 | 对称几何下全部重训 13 个 RL 任务 (启动) | [→](2026-08-14/05_retrain_all_13_tasks.md) |
+| ref | 参考文档: MPC × 强化学习 融合方法综述 (项目/论文) | [→](2026-08-14/ref_mpc_rl_fusion_survey.md) |
 
 ## 2026-08-13
 
