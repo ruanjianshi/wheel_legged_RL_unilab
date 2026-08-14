@@ -31,6 +31,7 @@ class SacHyper:
     init_noise_std: float = 0.6
     batch_size: int = 256
     replay_buffer_capacity: int = 200000
+    updates_per_step: int = 2
     obs_normalization: bool = True
     device: str = "cpu"
 

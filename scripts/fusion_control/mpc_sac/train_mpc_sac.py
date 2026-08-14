@@ -60,6 +60,7 @@ def main() -> int:
         init_noise_std=cfg.init_noise_std,
         batch_size=cfg.batch_size,
         replay_buffer_capacity=cfg.replay_buffer_capacity,
+        updates_per_step=cfg.updates_per_step,
         obs_normalization=cfg.obs_normalization,
         device=device,
     )
