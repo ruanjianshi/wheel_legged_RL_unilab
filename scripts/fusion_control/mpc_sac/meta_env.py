@@ -64,6 +64,12 @@ class MpcSacMetaEnv:
         self._prev_a = np.zeros((num_envs, self.action_dim), dtype=np.float64)
         self._steps = np.zeros(num_envs, dtype=int)
         self._last_obs = np.zeros((num_envs, self.obs_dim), dtype=np.float64)
+        # ★ 站姿预热: MPC 起步直接命令会失衡, 复位后先站 1.5s 再发随机命令
+        self._stand_steps = np.zeros(num_envs, dtype=int)
+        self._stand_total = int(1.5 / dt)
+        self._stand_cmd = np.zeros(self.cmd_dim, dtype=np.float64)
+        if self.cmd_dim == 5:
+            self._stand_cmd[4] = 0.518
 
     # ── 环境接口 ──
     def reset(self, indices: np.ndarray | None = None) -> tuple[np.ndarray, dict]:
@@ -76,7 +82,7 @@ class MpcSacMetaEnv:
         self.low_env.reset(indices)
         for i in indices:
             self.low[int(i)].reset()
-        self._resample_des(indices)
+        self._stand_start(indices)
         self._prev_a[indices] = 0.0
         self._steps[indices] = 0
         self._last_obs[indices] = self._collect_obs(indices)
@@ -101,10 +107,16 @@ class MpcSacMetaEnv:
         rew = compute_reward(sens, self._des, a, self._prev_a, done, self.cfg, self.task_key)
         self._prev_a = a.copy()
         self._steps += 1
+        # ★ 站姿预热: 计时递减, 结束 → 发随机命令
+        for i in range(self.num_envs):
+            if self._stand_steps[i] > 0:
+                self._stand_steps[i] -= 1
+                if self._stand_steps[i] == 0:
+                    self._resample_des(np.asarray([i]))
         done_idx = np.nonzero(done)[0]
         if len(done_idx):
-            # ★ auto-reset 终止 env (站姿复位 + MPC 复位 + 重采样期望)
-            self._resample_des(done_idx)
+            # auto-reset: 站姿复位 + MPC 复位 + 重新站姿预热
+            self._stand_start(done_idx)
             self._steps[done_idx] = 0
             self.low_env.reset(done_idx.astype(np.int32))
             for i in done_idx:
@@ -119,6 +131,12 @@ class MpcSacMetaEnv:
             pass
 
     # ── 内部 ──
+    def _stand_start(self, indices: np.ndarray) -> None:
+        """进入站姿预热: des=站姿命令, 计时 stand_total 步."""
+        for i in indices:
+            self._des[int(i)] = self._stand_cmd.copy()
+            self._stand_steps[int(i)] = self._stand_total
+
     def _resample_des(self, indices: np.ndarray) -> None:
         for i in indices:
             self._des[int(i)] = sample_desired(self.task_key, self.rng, self.cfg)

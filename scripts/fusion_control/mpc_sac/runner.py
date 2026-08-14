@@ -28,7 +28,11 @@ def make_schedule(task_key: str = "walk_flat", cmd_override: str | None = None) 
             cmd = [kv.get("vx", 0.0), 0.0, kv.get("vyaw", 0.0), 0.0, kv.get("height", 0.518)]
         else:
             cmd = [kv.get("vx", 0.0), 0.0, kv.get("vyaw", 0.0), 0.0]
-        return CmdSchedule([(1e9, cmd)])
+        # ★ MPC 起步直接命令失衡 → 先 2s 站姿再发命令 (同经典评估站姿预热)
+        stand = np.zeros_like(np.asarray(cmd, dtype=np.float64))
+        if task_key == "walk_flat":
+            stand[4] = 0.518
+        return CmdSchedule([(2.0, stand), (1e9, cmd)])
     phases = PhaseCommands.from_config(task_key, conf_dir=CONF_DIR)
     # flat→P3 (速度+高度), rough→P4 (地形)
     seg = phases.p3 if task_key == "walk_flat" else phases.p4

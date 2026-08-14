@@ -202,16 +202,14 @@ class MpcController:
         else:
             h_cmd = h_cmd_raw
 
-        # 指令斜坡
+        # 指令斜坡 (★ 首步从 0 起步 — 修复经典轨 cmd_ramp 首步跳变 bug)
         ramp = float(self.params.get("cmd_ramp_s", 1.5))
         if ramp > 0:
             alpha = 1.0 - self.dt / ramp
-            self._cmd_smooth = (
-                v_ref_raw
-                if not self._cmd_smooth_init
-                else alpha * self._cmd_smooth + (1.0 - alpha) * v_ref_raw
-            )
-            self._cmd_smooth_init = True
+            if not self._cmd_smooth_init:
+                self._cmd_smooth = 0.0  # 从 0 起步, 避免首步直接跳到命令 (起步失衡)
+                self._cmd_smooth_init = True
+            self._cmd_smooth = alpha * self._cmd_smooth + (1.0 - alpha) * v_ref_raw
             v_ref = self._cmd_smooth
         else:
             v_ref = v_ref_raw

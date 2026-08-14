@@ -67,20 +67,20 @@ class MpcSacConfig:
 
     # ── 残差命令 (cmd = des + res_scale·a) ──
     res_vx: float = 0.3
-    res_vyaw: float = 0.2
+    res_vyaw: float = 0.05
     res_height: float = 0.02
     res_vx_rough: float = 0.4
-    res_vyaw_rough: float = 0.3
+    res_vyaw_rough: float = 0.1
     res_tsk: float = 0.0
 
     # ── 期望命令采样 ──
     resample_s_flat: float = 3.0
     resample_s_rough: float = 6.0
     vx_range_flat: tuple = (-0.6, 0.6)
-    vyaw_range_flat: tuple = (-0.5, 0.5)
+    vyaw_range_flat: tuple = (-0.05, 0.05)
     height_range_flat: tuple = (0.49, 0.545)
     vx_range_rough: tuple = (-0.6, 0.6)
-    vyaw_range_rough: tuple = (-1.0, 1.0)
+    vyaw_range_rough: tuple = (-0.1, 0.1)
 
     # ── 奖励 ──
     w_alive: float = 0.8

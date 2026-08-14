@@ -53,10 +53,10 @@ sac:
 #   初值 a≈0 → cmd≈des → MPC 基线直接跟踪 (稳定); RL 只学需要的校正 (防自旋/地形自适应)
 residual_scale:
   vx: 0.3            # vx 残差 ±0.3 m/s (围绕期望)
-  vyaw: 0.2          # vyaw 残差 ±0.2 rad/s (防自旋)
+  vyaw: 0.05         # ★ vyaw 残差 ±0.05 (MPC yaw 跟踪不稳, 限制转弯)
   height: 0.02       # height 残差 ±0.02 m
   vx_rough: 0.4
-  vyaw_rough: 0.3
+  vyaw_rough: 0.1
   tsk: 0.0
 
 # ── 期望命令采样 (训练) ──
@@ -64,10 +64,10 @@ desired:
   resample_s_flat: 3.0
   resample_s_rough: 6.0
   vx_range_flat: [-0.6, 0.6]
-  vyaw_range_flat: [-0.5, 0.5]
+  vyaw_range_flat: [-0.05, 0.05]    # ★ MPC yaw 跟踪不稳 → 几乎直线
   height_range_flat: [0.49, 0.545]
   vx_range_rough: [-0.6, 0.6]
-  vyaw_range_rough: [-1.0, 1.0]
+  vyaw_range_rough: [-0.1, 0.1]
 
 # ── 奖励 ──
 reward:
