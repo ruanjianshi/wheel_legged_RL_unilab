@@ -1,0 +1,94 @@
+# MPC×SAC 融合控制分支 — 自包含配置
+# 低层: mpc (分支自带线性 MPC, 与经典轨 conf/mpc 数值一致)
+# 高层: sac (紧凑 SAC, 输出命令向量 [vx,vyaw,height] / [vx,vyaw])
+# 命名: fusion_control/mpc_sac — MPC 与 SAC 融合 (AugMPC 层次化移植)
+
+# ── 低层 MPC (分支自带, 冻结执行器) ──
+mpc:
+  mpc_horizon: 20
+  u_max: 30.0
+  theta_max: 0.35
+  v_max: 2.5
+  wheel_vel_max: 25.0
+  tau: 0.059
+  alpha: 24.4
+  beta: -2.5
+  terminal_lqr: true
+  r_rate: 0.5
+  integral_gain: 1.5
+  model_file: logs/classic/mpc_plant_bb.npz
+  # 矢状面代价权重 (同经典轨, 分支自有)
+  q_theta: 100.0
+  q_theta_dot: 20.0
+  q_v: 80.0
+  q_x: 30.0
+  q_z: 8.0
+  r: 1.0
+
+# ── 高层 SAC 策略 ──
+sac:
+  obs_dim_flat: 11          # [θ,θ̇,v,ω_z,base_z,des_vx,des_vyaw,des_height,prev(3)]
+  obs_dim_rough: 9          # [θ,θ̇,v,ω_z,base_z,des_vx,des_vyaw,prev(2)]
+  action_dim_flat: 3        # [vx, vyaw, height]
+  action_dim_rough: 2       # [vx, vyaw]
+  actor_hidden_dims: [256, 128]
+  critic_hidden_dims: [256, 128]
+  activation: relu
+  actor_lr: 3.0e-4
+  critic_lr: 3.0e-4
+  alpha_lr: 3.0e-4
+  alpha_init: 0.2
+  target_entropy_ratio: 1.0   # target_entropy = ratio * (-action_dim)
+  gamma: 0.99
+  tau: 0.005                   # 目标网络软更新
+  init_noise_std: 0.6
+  min_action: -1.0
+  max_action: 1.0
+  batch_size: 256
+  replay_buffer_capacity: 200000
+  updates_per_step: 2
+  obs_normalization: true      # RunningMeanStd 归一化高层 obs
+
+# ── 命令缩放 (归一化动作 [-1,1] → 实际命令) ──
+cmd_scale:
+  vx_flat: 0.6          # vx ∈ [-0.6, 0.6] m/s
+  vyaw_flat: 1.0        # vyaw ∈ [-1.0, 1.0] rad/s
+  height_mid: 0.518     # height 中心 (站姿)
+  height_half: 0.035    # height ∈ [0.483, 0.553] m (MPC 膝可达带)
+  vx_rough: 1.0         # rough vx ∈ [-1.0, 1.0]
+  vyaw_rough: 1.5       # rough vyaw ∈ [-1.5, 1.5]
+  tsk_flat: 0.0         # hip 对称命令 (固定 0)
+
+# ── 期望命令采样 (训练) ──
+desired:
+  resample_s_flat: 3.0
+  resample_s_rough: 6.0
+  vx_range_flat: [-0.6, 0.6]
+  vyaw_range_flat: [-0.5, 0.5]
+  height_range_flat: [0.49, 0.545]
+  vx_range_rough: [-0.6, 0.6]
+  vyaw_range_rough: [-1.0, 1.0]
+
+# ── 奖励 ──
+reward:
+  w_alive: 1.0
+  w_vx: 2.0             # exp(-(v-des_vx)^2/2σ²)
+  sigma_vx: 0.25
+  w_vyaw: 0.5
+  sigma_vyaw: 0.4
+  w_h: 1.5              # flat 高度跟踪
+  sigma_h: 0.02
+  w_theta: -2.0         # θ² 直立惩罚
+  w_energy: -0.001      # 轮速² 能耗
+  w_cmd_rate: -0.1      # 命令变化率惩罚
+
+# ── 训练 ──
+train:
+  num_envs: 64
+  max_episode_steps: 1000      # 单 episode 步数 (10s @ 100Hz)
+  max_iterations: 3000         # 学习更新轮数 (总交互 = iterations * updates_per_step * batch)
+  eval_interval: 200
+  save_interval: 500
+  log_dir: logs/fusion_control/mpc_sac
+  seed: 42
+  device: auto
