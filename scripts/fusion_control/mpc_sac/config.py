@@ -122,6 +122,8 @@ class MpcSacConfig:
     # ── 供低层 MPC 的额外字段 ──
     phase_flat: int = 3
     phase_rough: int = 4
+    # ★ 粗糙地形用缓坡版 (默认 rough 地形过难, MPC 基线站不住)
+    rough_gentle: bool = True
 
     # ── 高层 obs 长度 (组合时用) ──
     use_height_scan: bool = False

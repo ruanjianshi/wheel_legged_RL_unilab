@@ -65,8 +65,13 @@ def build_env(
     num_envs: int = 1,
     cmd: np.ndarray | None = None,
     lock_hip_roll: bool = True,
+    rough_gentle: bool = False,
 ) -> Any:
-    """构建确定性环境 (关课程/域随机化/命令重采样/平滑/噪声). 配置来自本分支 conf."""
+    """构建确定性环境 (关课程/域随机化/命令重采样/平滑/噪声). 配置来自本分支 conf.
+
+    rough_gentle=True: ★ 粗糙地形用缓坡版 (无陡坡/大波), 让 MPC 基线能站稳 — 默认 rough 地形
+    (波 18cm + 坡 0.5) 对 MPC 基线过难 (经典 P4 0%), 融合训练需要可站的地形。
+    """
     ensure_registries()
     cfg = _load_conf(task_key)
     override: dict[str, Any] = {"reward_config": cfg["reward"]}
@@ -90,6 +95,28 @@ def build_env(
     if task_key == "walk_rough":
         override["terrain_curriculum"] = {"enabled": False}
         override["terrain_scan"] = {"enabled": False}
+        if rough_gentle:
+            # ★ 缓坡地形: 平地 + 小 bump + 缓波, 无陡坡 (默认有 hf_pyramid_slope 坡 0.5)
+            #   地形生成器在 scene.terrain.generator (XqRobotWLRoughTerrainCfg.sub_terrains)
+            from unilab.terrains import flat, random_rough, wave_terrain
+
+            override["scene"] = {
+                "terrain": {
+                    "generator": {
+                        "sub_terrains": {
+                            "flat": flat(proportion=0.3),
+                            "random_rough": random_rough(
+                                proportion=0.4, noise_range=(0.01, 0.04), noise_step=0.01,
+                                border_width=0.2,
+                            ),
+                            "wave_terrain": wave_terrain(
+                                proportion=0.3, amplitude_range=(0.02, 0.08), num_waves=3,
+                                border_width=0.2,
+                            ),
+                        }
+                    }
+                }
+            }
 
     env = registry.make(
         _env_conf(task_key)["task_name"],

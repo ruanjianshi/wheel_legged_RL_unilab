@@ -47,7 +47,10 @@ class MpcSacMetaEnv:
         self.obs_dim = obs_dim(task_key, self.cfg)
         self.rng = np.random.default_rng(seed)
 
-        self.low_env = build_env(task_key, num_envs, cmd=None, lock_hip_roll=lock_hip_roll)
+        self.low_env = build_env(
+            task_key, num_envs, cmd=None, lock_hip_roll=lock_hip_roll,
+            rough_gentle=getattr(self.cfg, "rough_gentle", True),
+        )
         ascale = float(self.low_env._cfg.control_config.action_scale)
         wscale = float(self.low_env._cfg.control_config.wheel_action_scale)
         dt = float(self.low_env._cfg.ctrl_dt)
