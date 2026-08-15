@@ -100,6 +100,14 @@ class XqRobotWLVMCConfig:
     flight_ff_scale: float = 0.40
     landing_kd_scale: float = 2.5
     landing_ff_scale: float = 1.20
+    # ── PPO+VMC full-action reference blend ──
+    # fb<1.0 keeps the SLIP-FSM reference dominant so the policy cannot cancel
+    # the crouch->thrust timing (baseline fb=1.0 let it pre-extend during the
+    # crouch phase and farm launch_rise with the wheels never leaving ground).
+    feedback_gain: float = 1.0
+    # Crouch-phase L0 upper bound (m): L0 above this during fsm_state==0 is
+    # treated as premature extension and penalised by ``anti_early_extend``.
+    crouch_upper_bound: float = 0.38
 
 
 class VirtualLegVMC:

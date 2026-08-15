@@ -44,6 +44,12 @@ XqRobotWL 跳跃训练 — PPO 算法 + phase-gated 奖励 / Wheeled-SRL。
 | 36 | 论文图 v2.0 重出: 严格遵循 nature-draw.md (IBM 配色/EMA 0.02/PDF+PNG600) | [→](2026-08-14/36_paper_figs_v2_nature_draw.md) |
 | 37 | 论文补充图 5 张 (训练全景/最终性能/轨迹+速度/关节2×3/奖励分项) + 图片归档规范 picture/paper | [→](2026-08-14/37_paper_supp_figs_and_archive.md) |
 
+## 2026-08-15
+
+| 序号 | 标题 | 文件 |
+|------|------|------|
+| NN | PPO+VMC 跳跃改进: 堵住下蹲相慢伸 exploit, 参考主导混合+蹬伸相门控 launch_rise+anti_early_extend | [→](2026-08-15/NN_jump_vmc_improve.md) |
+
 ## 2026-08-11
 
 | 序号 | 标题 | 文件 |

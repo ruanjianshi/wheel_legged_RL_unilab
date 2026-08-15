@@ -96,6 +96,15 @@ env:
     roll_default: [0.1, -0.1]
     wheel_sign: [1.0, -1.0]
     clip_actions: 1.0
+    # SLIP-FSM 蹬伸相 VMC 增益 (覆盖 vmc.py 默认, PPO+VMC 版本调优)
+    thrust_ff_scale: 3.5  # 强蹬伸前馈 (3.0->3.5: 更爆发蹬伸)
+    thrust_kd_scale: 0.15  # 蹬伸低阻尼 (0.25->0.15: 更小腿长阻尼, 爆发伸展)
+    # Full-action 参考混合: fb<1.0 使 SLIP-FSM 参考主导, 策略保留大部分权限但
+    # 无法取消蹲→蹬时序 (基线 fb=1.0 时策略在下蹲相慢慢伸腿白拿 launch_rise,
+    # 轮子不离地 air=2%。SRL+VMC 用 0.5 验证有效)。
+    feedback_gain: 0.7
+    # 下蹲相 L0 上界 (物理 m): 超过视为提前伸腿, anti_early_extend 惩罚
+    crouch_upper_bound: 0.38
 
 reward:
   only_positive_rewards: false
@@ -111,14 +120,15 @@ reward:
     leg_mirror: -12.0
     tsk: -2.0
     alive: 1.0
-    jump_height: 12.0
+    jump_height: 15.0
     crouch_prep: 4.0
     landing_soft: 15.0
     wheel_air_time: 20.0
-    launch_rise: 40.0  # 实际升高奖励 (替换 vz²thrust: 推而不起=0)
+    launch_rise: 35.0  # 实际升高奖励 (已门控到 FSM 蹬伸相: 慢伸白拿被堵住)
     crouch_depth: 8.0  # 深蹲回报 (原4): 逼出"先蹲后蹬"
     anti_loiter: 12.0
     lean_forward: 5.0
+    anti_early_extend: 8.0  # 下蹲相提前伸腿惩罚 (堵住慢伸 exploit)
   tracking_sigma: 0.3
   base_height_target: 0.55
   jump_height_target: 1.0

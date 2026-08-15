@@ -144,10 +144,15 @@ class XqRobotWLJumpVMCFlatEnv(XqRobotWLJumpFlatEnv):
     def step(self, actions):
         actions = np.asarray(actions, dtype=self._np_dtype).copy()
         target_action = self._jump_leg_reference_action()
-        # Full-action mode: the policy keeps full authority on top of the SLIP-FSM
-        # leg-length reference (distinct from VMC+SRL's residual mode).
-        actions[:, 2] = target_action + actions[:, 2]  # L0_L
-        actions[:, 5] = target_action + actions[:, 5]  # L0_R
+        # Reference-dominant blend: the policy keeps most authority but cannot
+        # fully cancel the SLIP-FSM crouch->thrust trajectory.  Baseline
+        # full-action (fb=1.0) let the policy override the crouch reference and
+        # slowly extend during the crouch phase to farm launch_rise while the
+        # wheels never left the ground (air_frac ~2%).  fb<1.0 keeps the
+        # reference in control of the crouch->thrust timing (see devlog).
+        fb = float(getattr(self._vmc_cfg, "feedback_gain", 1.0))
+        actions[:, 2] = target_action + fb * actions[:, 2]  # L0_L
+        actions[:, 5] = target_action + fb * actions[:, 5]  # L0_R
         return super().step(actions)
 
     # ------------------------------------------------------------------ #
@@ -190,6 +195,66 @@ class XqRobotWLJumpVMCFlatEnv(XqRobotWLJumpFlatEnv):
         kd = np.where(landing, kd * cfg.landing_kd_scale, kd)
         ff = np.where(landing, ff * cfg.landing_ff_scale, ff)
         return kp, kd, ff
+
+    # ------------------------------------------------------------------ #
+    # Reward overrides (PPO+VMC-specific, isolated from shared jump.py)    #
+    # ------------------------------------------------------------------ #
+
+    def _init_reward_functions(self) -> None:
+        super()._init_reward_functions()
+        self._reward_fns["anti_early_extend"] = self._reward_anti_early_extend
+
+    def _leg_L0(self, dof_pos6: np.ndarray) -> np.ndarray:
+        """Virtual leg length L0 for both legs from a (N,6) leg-joint array."""
+        theta1, theta2 = self._vmc._theta_from_joints(dof_pos6)
+        L0, _ = self._vmc.forward_kinematics(theta1, theta2)
+        return L0
+
+    def _reward_launch_rise(self, ctx) -> np.ndarray:
+        """Rise reward gated to the SLIP-FSM THRUST phase + grounded.
+
+        The shared ``launch_rise`` rewards any on-ground rise while the trigger
+        is held, which let the full-action PPO+VMC policy farm it by slowly
+        extending the legs during the FSM CROUCH phase (wheels never leave the
+        ground -> air_frac 2%).  Gating on ``fsm_state == 1`` (thrust) means
+        rise credit is only earned while the explosive thrust gains are active,
+        so the policy must wait for the SLIP-FSM to switch to thrust.
+        """
+        base_z = ctx.base_height
+        floor = ctx.info.get(
+            "window_min_z",
+            np.full(ctx.num_envs, self._jump_cfg.base_height_target, dtype=get_global_dtype()),
+        )
+        rise = np.clip(base_z - floor, 0.0, 1.0)
+        wheel_contact = ctx.info.get("wheel_contact", np.ones((ctx.num_envs, 2)))
+        on_ground = (np.max(wheel_contact, axis=1) > 0.5).astype(np.float64)
+        thrust = (self._fsm_state == 1).astype(np.float64)
+        active = thrust * on_ground
+        if getattr(self._jump_cfg, "thrust_requires_crouch", True):
+            window_crouched = ctx.info.get(
+                "window_crouched", np.ones(ctx.num_envs, dtype=get_global_dtype())
+            )
+            active = active * window_crouched
+        weight = ctx.info.get("jump_curriculum", 1.0)
+        return rise * active * weight
+
+    def _reward_anti_early_extend(self, ctx) -> np.ndarray:
+        """Penalise extending the virtual legs before the FSM thrust phase.
+
+        In the baseline the policy overrode the SLIP-FSM crouch reference and
+        extended L0 during the crouch window, converting the jump into a slow
+        quasi-static rise with wheels never leaving the ground.  This term
+        penalises any L0 above ``crouch_upper_bound`` while fsm_state==0
+        (crouch) and the trigger window is active, so the only way to rise is
+        to wait for the thrust phase.
+        """
+        phase = ctx.info.get("jump_phase", np.zeros(ctx.num_envs, dtype=np.float64))
+        crouch = (self._fsm_state == 0).astype(np.float64)
+        active = crouch * (phase >= 1.0).astype(np.float64)
+        L0 = self._leg_L0(ctx.dof_pos)  # (N, 2) [L, R]
+        bound = float(getattr(self._vmc_cfg, "crouch_upper_bound", 0.38))
+        excess = np.clip(L0 - bound, 0.0, 0.30)
+        return -np.sum(excess, axis=1) * active
 
     def _pre_step_vmc_control(self, backend, policy_ctrl: np.ndarray) -> np.ndarray:
         dof_pos = stack_joint_sensors(backend, dtype=self.default_angles.dtype)
