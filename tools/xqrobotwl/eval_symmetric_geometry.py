@@ -139,9 +139,17 @@ def main() -> int:
     # 兼容 dict (model_N.pt) 与 TorchScript (policy.pt) 两种格式
     ckpt_obj = torch.load(str(ckpt), map_location="cpu", weights_only=False)
     if isinstance(ckpt_obj, dict):
-        pol = load_actor(str(ckpt), obs_dim, na, hidden_dims(args.task))
-        # ★ obs_normalizer (walk_rough/stairs 用 empirical_normalization=true)
+        # ★ 从 checkpoint mlp 权重形状推导 hidden dims (比 config 可靠, stairs/np3o 无 algo.policy 段)
         act_state = ckpt_obj.get("actor_state_dict", {})
+        hidden = [
+            act_state[f"mlp.{i}.weight"].shape[0]
+            for i in range(0, 40, 2)
+            if f"mlp.{i}.weight" in act_state
+        ][:-1]  # 末层是动作输出, 非 hidden
+        if not hidden:
+            hidden = hidden_dims(args.task)
+        pol = load_actor(str(ckpt), obs_dim, na, hidden)
+        # ★ obs_normalizer (walk_rough/stairs 用 empirical_normalization=true)
         if any(k.startswith("obs_normalizer.") for k in act_state):
             from rsl_rl.modules.normalization import EmpiricalNormalization
 
@@ -158,7 +166,7 @@ def main() -> int:
             def pol(x, _r=_raw, _n=normalizer):  # noqa: E731
                 return _r(_n(x))
     else:
-        pol = ckpt_obj  # TorchScript 模块, 直接调用
+        pol = ckpt_obj  # TorchScript 模块 (policy.pt 已内置 normalizer), 直接调用
 
     env.init_state()
     cmd_dim = int(env.state.info["commands"].shape[1])  # 动态取命令维度 (flat=5D/rough=4D...)
