@@ -481,7 +481,7 @@ class XqRobotWLJumpFlatEnv(XqRobotWLWalkFlatEnv):
         if just_started.any():
             self._jump_start_z[just_started] = base_z_now[just_started]
         state.info["jump_start_z"] = self._jump_start_z.copy()
-        self._update_wheel_contact(state.info)
+        self._update_wheel_contact_geom(state.info)
         self._update_jump_air_progress(state.info, base_z_now)
         terminated = self._compute_terminated(gravity, dof_pos)
         reward = self._compute_reward(state.info, linvel, gyro, gravity, dof_pos, dof_vel)
@@ -507,6 +507,38 @@ class XqRobotWLJumpFlatEnv(XqRobotWLWalkFlatEnv):
             info["wheel_contact"] = np.stack([left_contact, right_contact], axis=1)
         except (KeyError, AttributeError):
             info["wheel_contact"] = np.zeros((self._num_envs, 2), dtype=np.float64)
+
+    def _update_wheel_contact_geom(self, info: dict) -> None:
+        """Robust wheel-ground contact from the wheel body height (isolated).
+
+        The force-magnitude heuristic (``norm(wheel_force) > 10``) reports
+        contact even in mid-air: while the legs are moving the wheel is
+        accelerated relative to free-fall, so the wheel-site force exceeds
+        10 N (the wheel alone weighs ~23 N). A pure-PPO policy that flails its
+        legs in the air therefore reads as permanently grounded, the air-gated
+        rewards (jump_height / wheel_air_time / landing_soft) never activate,
+        and ``verify_jump`` reports air=0 while the robot is actually flying.
+
+        Instead we detect contact geometrically: the wheel centre is on the
+        ground iff its world z is within the wheel radius (+ penetration
+        margin) of the floor plane (z=0). Robust to leg flailing and to the
+        hover-keyframe reset (wheels ~0.035 m up -> no contact).
+
+        Only the *left* wheel framepos sensor is defined in the robot XML, so
+        the symmetric right-wheel contact is inferred from the left. Isolated to
+        ``XqRobotWLJumpFlatEnv.update_state`` (VMC / VMC+SRL re-implement
+        ``update_state`` and keep the force heuristic).
+        """
+        try:
+            left = np.asarray(
+                self._backend.get_sensor_data("left_wheel_world_pos"),
+                dtype=get_global_dtype(),
+            ).reshape(-1, 3)[: self._num_envs]
+            wheel_radius = 0.11
+            contact = (left[:, 2] < wheel_radius + 0.02).astype(np.float64)
+            info["wheel_contact"] = np.stack([contact, contact], axis=1)
+        except (KeyError, AttributeError):
+            self._update_wheel_contact(info)
 
     def _update_jump_air_progress(self, info: dict, base_z: np.ndarray) -> None:
         """Track real jumps so passive standing cannot farm ``landing_soft``.
