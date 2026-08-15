@@ -273,6 +273,28 @@ def _reward_landing_recovery(ctx: RewardContext) -> np.ndarray:
     return both_contact * upright * height_ok * idle * weight
 
 
+def _reward_jump_land(ctx: RewardContext, jump_cfg: XqRobotWLJumpRewardConfig) -> np.ndarray:
+    """Phase 4: 每次真实跳跃落地时, 按本窗口腾空峰值高度一次性奖励。
+
+    ``jump_height`` 是逐步的绝对高度奖励, 被"悬空/火箭/小跳"利用过。本奖励按
+    ``window_max_z - window_min_z`` (腾空峰值 - 下蹲最低点) 在真实腾空→落地
+    (just_landed) 时发放: 悬空不落地拿不到, 火箭落地前终止拿不到, 小跳峰值低
+    奖励小, 跳得高才拿大额 → 直接编码 §7.5 "跳高 + 落地恢复"。
+    """
+    peak = ctx.info.get(
+        "window_max_z", np.full(ctx.num_envs, jump_cfg.base_height_target, dtype=np.float64)
+    )
+    floor = ctx.info.get(
+        "window_min_z", np.full(ctx.num_envs, jump_cfg.base_height_target, dtype=np.float64)
+    )
+    rise = np.clip(peak - floor, 0.0, 1.5)
+    just_landed = ctx.info.get("just_landed", np.zeros(ctx.num_envs, dtype=np.float64))
+    target = jump_cfg.jump_height_target
+    height_score = np.clip(rise / max(target, 1e-6), 0.0, 1.5)
+    weight = ctx.info.get("jump_curriculum", 1.0)
+    return height_score * just_landed * weight
+
+
 def _reward_anti_loiter(ctx: RewardContext) -> np.ndarray:
     # Penalize staying crouched after the crouch window closes (phase > 30)
     phase = ctx.info.get("jump_phase", np.zeros(ctx.num_envs, dtype=np.float64))
@@ -358,6 +380,9 @@ class XqRobotWLJumpFlatEnv(XqRobotWLWalkFlatEnv):
         self._grounded_steps = np.zeros(num_envs, dtype=np.float64)
         self._window_crouched = np.zeros(num_envs, dtype=np.float64)
         self._window_min_z = np.full(num_envs, 0.55, dtype=np.float64)
+        # jump_land (Phase4): 本窗口真实腾空期间的最高 base_z, 落地时按峰值一次性奖励。
+        # 悬空/火箭 (不落地) 刷不到, 小跳 (峰值低) 奖励小, 跳高才能拿大额 → 逼高跳跃。
+        self._window_max_z = np.full(num_envs, 0.55, dtype=np.float64)
         super().__init__(cfg, num_envs=num_envs, backend_type=backend_type)
         self._dr_manager._provider = XqRobotWLJumpDRProvider()  # type: ignore[union-attr]
         self._obs_frame_dim = 33
@@ -399,6 +424,7 @@ class XqRobotWLJumpFlatEnv(XqRobotWLWalkFlatEnv):
             "anti_loiter": self._reward_anti_loiter,
             "lean_forward": self._reward_lean_forward,
             "anti_lazy": self._reward_anti_lazy,
+            "jump_land": self._reward_jump_land,
         }
 
     def _reward_jump_height(self, ctx: RewardContext) -> np.ndarray:
@@ -436,6 +462,9 @@ class XqRobotWLJumpFlatEnv(XqRobotWLWalkFlatEnv):
 
     def _reward_landing_recovery(self, ctx: RewardContext) -> np.ndarray:
         return _reward_landing_recovery(ctx)
+
+    def _reward_jump_land(self, ctx: RewardContext) -> np.ndarray:
+        return _reward_jump_land(ctx, self._jump_cfg)
 
     def _reward_wheel_air_time(self, ctx: RewardContext) -> np.ndarray:
         return _reward_wheel_air_time(ctx)
@@ -601,6 +630,7 @@ class XqRobotWLJumpFlatEnv(XqRobotWLWalkFlatEnv):
             self._prev_airborne[fresh] = 0.0
             self._window_crouched[fresh] = 0.0
             self._window_min_z[fresh] = 0.55
+            self._window_max_z[fresh] = 0.55
         # Consecutive grounded steps (checked on the PREVIOUS step, so the
         # step that lifts off still sees its standing history).
         prev_grounded = self._grounded_steps
@@ -649,10 +679,22 @@ class XqRobotWLJumpFlatEnv(XqRobotWLWalkFlatEnv):
                 self._window_min_z,
             ),
         )
+        # window_max_z: peak base_z during REAL-AIR flight this window (jump_land
+        # 奖励用). 仅真实腾空 (排除 reset 自由落体) 计峰, 窗口结束重置。
+        self._window_max_z = np.where(
+            idle > 0,
+            base_z_arr,
+            np.maximum(
+                self._window_max_z,
+                np.where(real_air > 0, base_z_arr, self._window_max_z),
+            ),
+        )
         info["had_air"] = self._had_air.copy()
         info["landing_timer"] = self._landing_timer.copy()
         info["window_crouched"] = self._window_crouched.copy()
         info["window_min_z"] = self._window_min_z.copy()
+        info["window_max_z"] = self._window_max_z.copy()
+        info["just_landed"] = just_landed.copy()
 
     def _compute_terminated(self, gravity: np.ndarray, dof_pos: np.ndarray) -> np.ndarray:
         tilt = np.arccos(np.clip(gravity[:, 2], -1, 1))

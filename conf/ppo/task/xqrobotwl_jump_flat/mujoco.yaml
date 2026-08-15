@@ -79,6 +79,7 @@ reward:
     tsk: -2.0
     alive: 1.0
     jump_height: 15.0  # v6: 降回 v12 水平 (contact bug 时代它从未生效; 现在生效但有 vz>0+深蹲双门控防火箭)
+    jump_land: 150.0  # v7: 落地时按腾空峰值一次性奖励 (window_max_z-window_min_z) — 悬空/火箭/小跳刷不到, 逼高跳跃
     crouch_prep: 4.0
     landing_soft: 30.0  # 门控后只在真实腾空落地后 ~10 步激活 (原40白嫖: 站着不动也拿)
     landing_recovery: 10.0  # 强化落地恢复 (原4): 高速落地后恢复直立
