@@ -197,8 +197,23 @@ def _reward_jump_height(ctx: RewardContext, jump_cfg: XqRobotWLJumpRewardConfig)
     # "悬空不落地" (v3 iter1000 实测 air_frac 0.76, 悬空刷 jump_height+wheel_air_time)。
     # 门控 vz>0 后, 悬停在顶点 (vz≈0) 不再得分, 必须落地恢复 (landing_recovery) 才有持续收益。
     ascending = (ctx.linvel[:, 2] > 0.0).astype(np.float64)
+    # Phase 3 (anti-rocket): 还须本窗口先深蹲过 (window_crouched)。v4 iter1000 实测
+    # crouch_prep≈0 (策略不深蹲就原地起跳弹跳, air 0.81), 升空段仍被刷分。
+    # 与 launch_rise 同一门控: 必须先蹲到 <0.42, 升空才有跳高奖励 → 逼出"先蹲后蹬"。
+    window_crouched = ctx.info.get(
+        "window_crouched", np.ones(ctx.num_envs, dtype=np.float64)
+    )
     weight = ctx.info.get("jump_curriculum", 1.0)
-    return clamped * active * air_factor * knee_ok * ascending * 2.0 * weight
+    return (
+        clamped
+        * active
+        * air_factor
+        * knee_ok
+        * ascending
+        * (window_crouched > 0).astype(np.float64)
+        * 2.0
+        * weight
+    )
 
 
 def _reward_wheel_air_time(ctx: RewardContext) -> np.ndarray:
@@ -250,8 +265,12 @@ def _reward_landing_recovery(ctx: RewardContext) -> np.ndarray:
     tilt = np.arccos(np.clip(ctx.gravity[:, 2], -1, 1))
     upright = np.exp(-np.square(tilt) / 0.15)
     height_ok = np.exp(-np.square(ctx.base_height - ctx.base_height_target) / 0.05)
+    # Phase 3: 门控到 trigger-off (命令关闭) — ON 时段站着不奖, 逼出跳跃;
+    # OFF 时段站立恢复才有收益 → 策略学"ON 跳 / OFF 站稳" (对齐 §7.5 评估)。
+    trigger = ctx.info["commands"][:, 4]
+    idle = (trigger <= 0.5).astype(np.float64)
     weight = ctx.info.get("jump_curriculum", 1.0)
-    return both_contact * upright * height_ok * weight
+    return both_contact * upright * height_ok * idle * weight
 
 
 def _reward_anti_loiter(ctx: RewardContext) -> np.ndarray:
