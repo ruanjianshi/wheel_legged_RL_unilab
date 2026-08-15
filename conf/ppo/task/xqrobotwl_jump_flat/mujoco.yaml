@@ -79,13 +79,13 @@ reward:
     tsk: -2.0
     alive: 1.0
     jump_height: 15.0  # v6: 降回 v12 水平 (contact bug 时代它从未生效; 现在生效但有 vz>0+深蹲双门控防火箭)
-    jump_land: 250.0  # v9: 150→250 真实跳高奖励 (落地按腾空峰值) — 真跳+落地明显优于任何 farm
+    jump_land: 150.0  # v10: 回退 v7 (v9 的 250+launch_rise 降幅使纯PPO 退化回站立+开车)
     crouch_prep: 4.0
     landing_soft: 30.0  # 门控后只在真实腾空落地后 ~10 步激活 (原40白嫖: 站着不动也拿)
     landing_recovery: 10.0  # 强化落地恢复 (原4): 高速落地后恢复直立
     wheel_air_time: 30.0
-    launch_rise: 15.0  # v9: 40→15 大幅降低 — v8 实测策略"接地慢伸"刷 launch_rise (准静态抬升不腾空, air 1/16)
-    crouch_depth: 15.0  # v8: 8→15 深蹲回报加强, 逼出真正下蹲蓄力
+    launch_rise: 40.0  # v10: 回退 v7 最优 (v9 降到 15 使纯PPO 彻底停止跳跃)
+    crouch_depth: 8.0  # v10: 回退 v7 (深蹲强化在纯PPO 无参考下无效, 反而促退化)
     anti_loiter: 12.0  # 增强: 跳完后逼机器人站起来
     lean_forward: 5.0
     anti_lazy: 60.0  # 反惰性: 触发窗口内膝盖幅值<0.5rad 重罚, 逼真实蹲-蹬 (破"缓慢站起"局部最优)
@@ -95,9 +95,8 @@ reward:
   crouch_height_target: 0.40
   max_tilt_deg: 45.0
   min_base_height: 0.15
-  # v8: 放宽深蹲解锁阈值 (0.45→0.48), landing_soft 已门控深蹲, 让"小跳不蹲"失去白拿奖励,
-  # 轻度下蹲即可解锁全部跳跃奖励
-  window_crouch_threshold: 0.48
+  # v10: 回退 v7 阈值 0.45; landing_soft 深蹲门控关闭 (landing_soft_requires_crouch 默认 false)
+  window_crouch_threshold: 0.45
   # 跳跃课程: [start, end] 环境步数, 线性 ramp jump_trigger + 跳跃奖励权重
   # 24_576 步/iter (1024 envs × 24 steps)
   jump_curriculum_start: 0

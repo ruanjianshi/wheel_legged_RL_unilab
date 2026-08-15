@@ -102,9 +102,9 @@ env:
     # Full-action 参考混合: fb<1.0 使 SLIP-FSM 参考主导, 策略保留大部分权限但
     # 无法取消蹲→蹬时序 (基线 fb=1.0 时策略在下蹲相慢慢伸腿白拿 launch_rise,
     # 轮子不离地 air=2%。SRL+VMC 用 0.5 验证有效)。
-    # v8: 0.7→0.5 — 策略对下蹲参考的对抗减小 (实测 v3 下蹲相 base_z 只到 0.52,
-    # 策略在对抗压缩, 参考 L0→0.28 没执行到位)
-    feedback_gain: 0.5
+    # v10: 0.5→0.2 — 参考主导, 策略小残差。实测零策略动作 FSM 本身就能腾空
+    # (air 27%, 深蹲到 0.26m), 策略 (fb 0.5) 会干扰破坏跳跃 → 参考主导逼出真跳
+    feedback_gain: 0.2
     # v8: 加长下蹲相 0.35→0.50s — VMC 压缩腿需 ~40 步 (实测), 0.35s 内蹲不到位
     # 就切蹬伸 → 深蹲不足 → 跳高卡 0.16m
     fsm_crouch_time: 0.50
@@ -131,12 +131,13 @@ reward:
     landing_soft: 15.0
     landing_recovery: 8.0  # 落地后恢复稳定站立 (双轮着地+直立+高度) — 修复前遗漏, 其他三算法均有
     wheel_air_time: 20.0
-    launch_rise: 15.0  # v9: 35→15 大幅降低 — v8 实测 FSM 蹬伸相"接地慢伸"刷 launch_rise (不腾空)
+    launch_rise: 35.0  # v10: 回退 v3 水平 (v9 降到 15 使策略退化); fb 0.2 下慢伸被参考主导堵住
     crouch_depth: 15.0  # v8: 8→15 深蹲回报加强, 逼出真正下蹲蓄力
     anti_loiter: 12.0
     lean_forward: 5.0
     anti_early_extend: 8.0  # 下蹲相提前伸腿惩罚 (堵住慢伸 exploit)
   tracking_sigma: 0.3
+  landing_soft_requires_crouch: true  # v10: fsm 强制下蹲, landing_soft 深蹲门控可开
   base_height_target: 0.55
   jump_height_target: 1.0
   crouch_height_target: 0.40
