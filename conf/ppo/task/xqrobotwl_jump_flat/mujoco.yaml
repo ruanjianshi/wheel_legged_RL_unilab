@@ -66,8 +66,9 @@ env:
 reward:
   only_positive_rewards: false
   scales:
-    tracking_lin_vel: 2.0
-    tracking_ang_vel: 1.0
+    # v6: 降低追踪奖励 (v5 策略刷 tracking 站住不动), 让跳跃路径收益占优
+    tracking_lin_vel: 1.0
+    tracking_ang_vel: 0.5
     lin_vel_z: -0.2
     ang_vel_xy: -0.05
     base_height: -60.0
@@ -77,12 +78,12 @@ reward:
     leg_mirror: -12.0
     tsk: -2.0
     alive: 1.0
-    jump_height: 30.0  # 强化跳跃激励: 腾空最高 ~60/步 (改 15→30, 让"受控跳"跑赢"火箭/原地拉伸")
+    jump_height: 15.0  # v6: 降回 v12 水平 (contact bug 时代它从未生效; 现在生效但有 vz>0+深蹲双门控防火箭)
     crouch_prep: 4.0
     landing_soft: 30.0  # 门控后只在真实腾空落地后 ~10 步激活 (原40白嫖: 站着不动也拿)
     landing_recovery: 10.0  # 强化落地恢复 (原4): 高速落地后恢复直立
     wheel_air_time: 30.0
-    launch_rise: 20.0  # 实际升高奖励 (40→20): 旧阈值下 40 驱动"火箭发射"行为 (飞到3m 不落地)
+    launch_rise: 40.0  # v6: 恢复 v12 主导奖励 (40→20 是 force-contact bug 时代的保守降幅, 几何接触修复后 40 安全)
     crouch_depth: 8.0  # 深蹲回报 (原4): 逼出"先蹲后蹬" (窗口内 base_height 已归零不罚款)
     anti_loiter: 12.0  # 增强: 跳完后逼机器人站起来
     lean_forward: 5.0
@@ -93,6 +94,8 @@ reward:
   crouch_height_target: 0.40
   max_tilt_deg: 45.0
   min_base_height: 0.15
+  # v6: 放宽深蹲解锁阈值 (0.42→0.45), 让"先蹲后蹬"更易被发现 (v5 卡在鸡生蛋: 不蹲→无跳高奖励→不蹲)
+  window_crouch_threshold: 0.45
   # 跳跃课程: [start, end] 环境步数, 线性 ramp jump_trigger + 跳跃奖励权重
   # 24_576 步/iter (1024 envs × 24 steps)
   jump_curriculum_start: 0
