@@ -193,8 +193,12 @@ def _reward_jump_height(ctx: RewardContext, jump_cfg: XqRobotWLJumpRewardConfig)
     knee_ok = ((np.abs(ctx.dof_pos[:, 2]) < 0.8) & (np.abs(ctx.dof_pos[:, 5]) < 0.8)).astype(
         np.float64
     )
+    # Phase 2 (anti-hover): 只奖上升段 (vz>0)。旧公式奖绝对高度, 纯PPO 策略收敛到
+    # "悬空不落地" (v3 iter1000 实测 air_frac 0.76, 悬空刷 jump_height+wheel_air_time)。
+    # 门控 vz>0 后, 悬停在顶点 (vz≈0) 不再得分, 必须落地恢复 (landing_recovery) 才有持续收益。
+    ascending = (ctx.linvel[:, 2] > 0.0).astype(np.float64)
     weight = ctx.info.get("jump_curriculum", 1.0)
-    return clamped * active * air_factor * knee_ok * 2.0 * weight
+    return clamped * active * air_factor * knee_ok * ascending * 2.0 * weight
 
 
 def _reward_wheel_air_time(ctx: RewardContext) -> np.ndarray:
@@ -202,11 +206,12 @@ def _reward_wheel_air_time(ctx: RewardContext) -> np.ndarray:
     air = 1.0 - np.mean(wheel_contact, axis=1)
     phase = ctx.info.get("jump_phase", np.zeros(ctx.num_envs, dtype=np.float64))
     active = (phase >= 1.0).astype(np.float64)
-    # Penalize wheel spinning in the air
+    # Phase 2 (anti-hover): 去掉正 air 项 (air*0.5 奖励"待在空中的时间", 被悬空策略刷),
+    # 只罚空中转轮。腾空收益由 jump_height (vz>0 门控) 负责。
     wheel_vel = ctx.info["current_actions"][:, -2:]
     wheel_spin = np.sum(np.abs(wheel_vel), axis=1) * air
     weight = ctx.info.get("jump_curriculum", 1.0)
-    return (air * 0.5 - wheel_spin * 0.1) * weight * active
+    return (-wheel_spin * 0.1) * weight * active
 
 
 def _reward_landing_soft(ctx: RewardContext) -> np.ndarray:
