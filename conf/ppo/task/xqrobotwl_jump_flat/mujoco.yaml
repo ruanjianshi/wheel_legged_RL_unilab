@@ -36,7 +36,7 @@ algo:
     init_noise_std: 0.3
   algorithm:
     learning_rate: 1.0e-4
-    entropy_coef: 0.003  # 中度探索: 0.005过度探索落地乱, 0.002太保守不学跳
+    entropy_coef: 0.004  # 中度探索: 0.005过度探索落地乱, 0.002太保守不学跳
     clip_param: 0.2
     gamma: 0.99
     lam: 0.95
@@ -72,17 +72,17 @@ reward:
     ang_vel_xy: -0.05
     base_height: -60.0
     orientation: -5.0
-    joint_action_rate: -0.1
-    wheel_action_rate: -0.015
+    joint_action_rate: -0.15  # 反空中蹬腿乱动 (旧 -0.1: 火箭策略空中扇腿免罚)
+    wheel_action_rate: -0.02
     leg_mirror: -12.0
     tsk: -2.0
     alive: 1.0
-    jump_height: 15.0  # 强化跳跃激励 (原12): 克服"站住不跳"
+    jump_height: 30.0  # 强化跳跃激励: 腾空最高 ~60/步 (改 15→30, 让"受控跳"跑赢"火箭/原地拉伸")
     crouch_prep: 4.0
-    landing_soft: 20.0  # 门控后只在真实腾空落地后 ~10 步激活 (原40白嫖: 站着不动也拿)
-    landing_recovery: 4.0  # 强化落地恢复 (原2): 高速落地后恢复直立
-    wheel_air_time: 20.0
-    launch_rise: 40.0  # 实际升高奖励 (替换 vz²thrust: 推而不起=0, 真正升高才给奖)
+    landing_soft: 30.0  # 门控后只在真实腾空落地后 ~10 步激活 (原40白嫖: 站着不动也拿)
+    landing_recovery: 10.0  # 强化落地恢复 (原4): 高速落地后恢复直立
+    wheel_air_time: 30.0
+    launch_rise: 20.0  # 实际升高奖励 (40→20): 旧阈值下 40 驱动"火箭发射"行为 (飞到3m 不落地)
     crouch_depth: 8.0  # 深蹲回报 (原4): 逼出"先蹲后蹬" (窗口内 base_height 已归零不罚款)
     anti_loiter: 12.0  # 增强: 跳完后逼机器人站起来
     lean_forward: 5.0
