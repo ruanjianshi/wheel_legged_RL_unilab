@@ -85,7 +85,7 @@ reward:
     landing_recovery: 10.0  # 强化落地恢复 (原4): 高速落地后恢复直立
     wheel_air_time: 30.0
     launch_rise: 40.0  # v6: 恢复 v12 主导奖励 (40→20 是 force-contact bug 时代的保守降幅, 几何接触修复后 40 安全)
-    crouch_depth: 8.0  # 深蹲回报 (原4): 逼出"先蹲后蹬" (窗口内 base_height 已归零不罚款)
+    crouch_depth: 15.0  # v8: 8→15 深蹲回报加强, 逼出真正下蹲蓄力
     anti_loiter: 12.0  # 增强: 跳完后逼机器人站起来
     lean_forward: 5.0
     anti_lazy: 60.0  # 反惰性: 触发窗口内膝盖幅值<0.5rad 重罚, 逼真实蹲-蹬 (破"缓慢站起"局部最优)
@@ -95,8 +95,9 @@ reward:
   crouch_height_target: 0.40
   max_tilt_deg: 45.0
   min_base_height: 0.15
-  # v6: 放宽深蹲解锁阈值 (0.42→0.45), 让"先蹲后蹬"更易被发现 (v5 卡在鸡生蛋: 不蹲→无跳高奖励→不蹲)
-  window_crouch_threshold: 0.45
+  # v8: 放宽深蹲解锁阈值 (0.45→0.48), landing_soft 已门控深蹲, 让"小跳不蹲"失去白拿奖励,
+  # 轻度下蹲即可解锁全部跳跃奖励
+  window_crouch_threshold: 0.48
   # 跳跃课程: [start, end] 环境步数, 线性 ramp jump_trigger + 跳跃奖励权重
   # 24_576 步/iter (1024 envs × 24 steps)
   jump_curriculum_start: 0

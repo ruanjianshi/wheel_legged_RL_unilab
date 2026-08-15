@@ -239,14 +239,20 @@ def _reward_landing_soft(ctx: RewardContext) -> np.ndarray:
     jump_height ~0). Now it is gated on ``landing_timer``: the wheels must have
     left the ground this window (had_air) and come back down (airborne ->
     grounded transition) before the reward arms for ``landing_window`` steps.
+
+    Phase 5 (v8): additionally requires ``window_crouched`` (deep crouch this
+    window). v6/v7 纯PPO 收敛到"小跳不深蹲" (起跳前 base_z 0.51, 膝屈 0.04),
+    landing_soft (不门控深蹲) 成了它白拿的主奖励 → 高度卡 0.12m。门控深蹲后,
+    必须先蹲到 < window_crouch_threshold 才配拿落地缓冲奖励 → 逼出下蹲蓄力。
     """
     base_linvel_z = ctx.linvel[:, 2]
     vz_mag = np.abs(base_linvel_z)
     soft = np.exp(-vz_mag / 0.5)
     timer = ctx.info.get("landing_timer", np.zeros(ctx.num_envs, dtype=np.float64))
     active = (timer > 0.0).astype(np.float64)
+    window_crouched = ctx.info.get("window_crouched", np.ones(ctx.num_envs, dtype=np.float64))
     weight = ctx.info.get("jump_curriculum", 1.0)
-    return soft * 1.0 * weight * active
+    return soft * 1.0 * weight * active * (window_crouched > 0).astype(np.float64)
 
 
 def _reward_landing_recovery(ctx: RewardContext) -> np.ndarray:
