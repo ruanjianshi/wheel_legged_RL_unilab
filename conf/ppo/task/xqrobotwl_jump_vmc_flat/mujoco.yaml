@@ -126,11 +126,12 @@ reward:
     tsk: -2.0
     alive: 1.0
     jump_height: 15.0
+    jump_land: 250.0  # v9: 真实跳高奖励 (落地按腾空峰值) — 逼真跳, 与 launch_rise 降幅配套
     crouch_prep: 4.0
     landing_soft: 15.0
     landing_recovery: 8.0  # 落地后恢复稳定站立 (双轮着地+直立+高度) — 修复前遗漏, 其他三算法均有
     wheel_air_time: 20.0
-    launch_rise: 35.0  # 实际升高奖励 (已门控到 FSM 蹬伸相: 慢伸白拿被堵住)
+    launch_rise: 15.0  # v9: 35→15 大幅降低 — v8 实测 FSM 蹬伸相"接地慢伸"刷 launch_rise (不腾空)
     crouch_depth: 15.0  # v8: 8→15 深蹲回报加强, 逼出真正下蹲蓄力
     anti_loiter: 12.0
     lean_forward: 5.0
