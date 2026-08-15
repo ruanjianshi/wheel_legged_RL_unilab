@@ -331,7 +331,10 @@ class XqRobotWLJumpVMCFlatEnv(XqRobotWLJumpFlatEnv):
         )
         self._episode_max_height = np.maximum(self._episode_max_height, base_z)
         state.info["episode_max_height"] = self._episode_max_height.copy()
-        self._update_wheel_contact(state.info)
+        # 几何接触检测 (轮心世界 z < 0.13): 对空中扇腿免疫, 修复 force 阈值法
+        # 把腾空误判为着地 → air 门控奖励 (jump_height/wheel_air_time) 从未生效的 bug。
+        # 依赖 xqrobotwl_vmc.xml 新增的 left_wheel_world_pos framepos 传感器。
+        self._update_wheel_contact_geom(state.info)
         self._update_jump_air_progress(state.info, base_z)
         terminated = self._compute_terminated(gravity, dof_pos)
         reward = self._compute_reward(state.info, linvel, gyro, gravity, dof_pos, dof_vel)

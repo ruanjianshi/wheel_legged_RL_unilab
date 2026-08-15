@@ -240,7 +240,9 @@ def _reward_landing_recovery(ctx: RewardContext) -> np.ndarray:
     assert ctx.gravity is not None
     wheel_contact = ctx.info.get("wheel_contact", np.ones((ctx.num_envs, 2)))
     both_contact = (np.min(wheel_contact, axis=1) > 0.5).astype(np.float64)
-    tilt = np.arccos(np.clip(-ctx.gravity[:, 2], -1, 1))
+    # upvector 传感器直立时 gravity[:,2]≈+1; 用正值算 tilt (负号会让 upright 恒 0)。
+    # 与 jump_srl._reward_landing_recovery / _compute_terminated 一致。
+    tilt = np.arccos(np.clip(ctx.gravity[:, 2], -1, 1))
     upright = np.exp(-np.square(tilt) / 0.15)
     height_ok = np.exp(-np.square(ctx.base_height - ctx.base_height_target) / 0.05)
     weight = ctx.info.get("jump_curriculum", 1.0)

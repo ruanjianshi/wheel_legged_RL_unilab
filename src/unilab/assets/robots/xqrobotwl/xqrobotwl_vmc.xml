@@ -123,6 +123,7 @@
     <jointvel name="right_wheel_vel" joint="joint_right_wheel" />
     <force name="left_wheel_force" site="left_wheel_site" />
     <force name="right_wheel_force" site="right_wheel_site" />
+    <framepos name="left_wheel_world_pos" objtype="body" objname="left_link_wheel" />
     <torque name="left_hip_torque" site="left_hip_site" />
     <torque name="left_thigh_torque" site="left_thigh_site" />
     <torque name="left_calf_torque" site="left_calf_site" />
