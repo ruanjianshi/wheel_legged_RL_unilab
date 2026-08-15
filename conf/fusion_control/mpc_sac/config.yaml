@@ -55,8 +55,8 @@ residual_scale:
   vx: 0.2            # ★ vx 残差 ±0.2 m/s (收窄防过冲)
   vyaw: 0.05         # ★ vyaw 残差 ±0.05 (MPC yaw 跟踪不稳, 限制转弯)
   height: 0.02       # height 残差 ±0.02 m
-  vx_rough: 0.3
-  vyaw_rough: 0.1
+  vx_rough: 0.12     # ★ F2 数据: 残差幅度↑ rough 存活↓ (5.4→9.0s @scale 0.2), 地形上 MPC 主导
+  vyaw_rough: 0.05
   tsk: 0.0
 
 # ── 期望命令采样 (训练) ──

@@ -69,8 +69,8 @@ class MpcSacConfig:
     res_vx: float = 0.2
     res_vyaw: float = 0.05
     res_height: float = 0.02
-    res_vx_rough: float = 0.3
-    res_vyaw_rough: float = 0.1
+    res_vx_rough: float = 0.12
+    res_vyaw_rough: float = 0.05
     res_tsk: float = 0.0
 
     # ── 期望命令采样 ──
