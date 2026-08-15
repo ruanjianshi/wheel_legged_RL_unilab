@@ -146,6 +146,9 @@ class XqRobotWLJumpRewardConfig:
     # 跳跃课程: [start, end] step 范围, 线性插值 jump_trigger + 跳跃奖励
     jump_curriculum_start: int = 0
     jump_curriculum_end: int = 100_000
+    # 落地恢复: 真实腾空→落地后 landing_timer 持续步数 (landing_soft/landing_recovery 门控)
+    landing_window: int = 30
+    min_grounded_steps: int = 5
     # 消融实验
     feedback_gain: float = 0.15  # SLIP FSM 前馈混合比 (no_fsm=0.0)
     ablation_mode: str = "full"
@@ -279,11 +282,21 @@ def _reward_wheel_air_time(ctx: RewardContext) -> np.ndarray:
 
 
 def _reward_landing_soft(ctx: RewardContext) -> np.ndarray:
+    """落地缓冲: 真实腾空落地后的窗口内, 奖低垂直冲击 (vz→0).
+
+    门控 ``landing_timer`` (仅真实腾空→落地后 >0), 防"触发时站着不动白拿
+    phase>=35 奖励"。SRL+VMC (jump_srl_vmc) 不填充 landing_timer, 回退到
+    旧的 phase>=35 行为, 保持兼容。
+    """
     base_linvel_z = ctx.linvel[:, 2]
     vz_mag = np.abs(base_linvel_z)
     soft = np.exp(-vz_mag / 0.5)
-    phase = ctx.info.get("jump_phase", np.zeros(ctx.num_envs, dtype=np.float64))
-    active = (phase >= 35.0).astype(np.float64)
+    if "landing_timer" in ctx.info:
+        timer = ctx.info.get("landing_timer", np.zeros(ctx.num_envs, dtype=np.float64))
+        active = (timer > 0.0).astype(np.float64)
+    else:
+        phase = ctx.info.get("jump_phase", np.zeros(ctx.num_envs, dtype=np.float64))
+        active = (phase >= 35.0).astype(np.float64)
     weight = ctx.info.get("jump_curriculum", 1.0)
     return soft * 0.3 * weight * active
 
@@ -296,6 +309,66 @@ def _reward_height_progress(ctx: RewardContext) -> np.ndarray:
     active = (phase >= 1.0).astype(np.float64)
     weight = ctx.info.get("jump_curriculum", 1.0)
     return new_max * active * 5.0 * weight
+
+
+def _reward_landing_recovery(ctx: RewardContext) -> np.ndarray:
+    """落地后恢复稳定站立: 双轮着地 + 直立 + 高度接近目标.
+
+    门控 ``landing_timer`` (真实腾空→落地后窗口), 只奖"跳完重新站稳",
+    不奖触发时原地站着。直接针对 §7.5 成功率: 每次落地必须恢复站立。
+    """
+    assert ctx.gravity is not None
+    wheel_contact = ctx.info.get("wheel_contact", np.ones((ctx.num_envs, 2)))
+    both_contact = (np.min(wheel_contact, axis=1) > 0.5).astype(np.float64)
+    # upvector 传感器直立时 gravity[:,2]≈+1, 用正值算 tilt (负号会让 upright 恒 0)
+    tilt = np.arccos(np.clip(ctx.gravity[:, 2], -1, 1))
+    upright = np.exp(-np.square(tilt) / 0.15)
+    height_ok = np.exp(-np.square(ctx.base_height - ctx.base_height_target) / 0.05)
+    timer = ctx.info.get("landing_timer", np.zeros(ctx.num_envs, dtype=np.float64))
+    active = (timer > 0.0).astype(np.float64)
+    weight = ctx.info.get("jump_curriculum", 1.0)
+    return both_contact * upright * height_ok * active * weight
+
+
+def _reward_anti_drift(ctx: RewardContext) -> np.ndarray:
+    """站立期微动平衡: 触发关闭时惩罚水平速度超出指令的残余漂移.
+
+    站立 (trigger≤0.5) 时机器人应保持位置; 残余水平速度 (超出 vx 指令) 被惩罚,
+    落地后吸收前冲动量、停止滑动, 解决 §7.5 落地后漂移。
+    """
+    trigger = ctx.info["commands"][:, 4]
+    active = (trigger <= 0.5).astype(np.float64)
+    v_xy = np.hypot(ctx.linvel[:, 0], ctx.linvel[:, 1])
+    vx_cmd = np.abs(ctx.info["commands"][:, 0])
+    residual = np.clip(v_xy - vx_cmd - 0.05, 0.0, None)
+    pen = np.clip(residual / 0.3, 0.0, 2.0)
+    weight = ctx.info.get("jump_curriculum", 1.0)
+    return -pen * active * weight
+
+
+def _reward_action_magnitude(ctx: RewardContext) -> np.ndarray:
+    """动作幅度惩罚 (修复 config 中 action_magnitude 键无对应 fn 的静默失效)."""
+    return np.sum(np.square(ctx.info["current_actions"]), axis=1)
+
+
+def _reward_wheel_ground_matching(ctx: RewardContext) -> np.ndarray:
+    """轮地速度匹配: 落地/蹬伸 (FSM 1/3/4) 轮速与地面速度一致, 飞行 (FSM 2) 轮不空转.
+
+    修复 config 键 ``wheel_ground_matching`` 与 env fn 键 ``wheel_air_time``
+    不一致导致奖励从未生效的 bug。轮速换算为线速度 (rad/s × WHEEL_R → m/s)
+    并截断, 避免原始角速度平方 (58 rad/s → 3364) 造成的惩罚爆炸 (基线空中
+    轮速峰值 58 rad/s, 若不截断 scale 20 下每步 -6.7k, 会压垮训练)。
+    """
+    fsm = ctx.info.get("fsm_state", -np.ones(ctx.num_envs, dtype=np.float64))
+    wheel_vel = ctx.info.get("wheel_vel", np.zeros((ctx.num_envs, 2)))
+    lin_x = ctx.linvel[:, 0:1]
+    wheel_lin = wheel_vel * WHEEL_R
+    contact_error = np.clip(np.sum(np.square(wheel_lin - lin_x), axis=1), 0.0, 4.0)
+    contact_active = np.isin(fsm, [1, 3, 4]).astype(np.float64)
+    spin = np.clip(np.sum(np.square(wheel_lin), axis=1), 0.0, 2.0)
+    flight_active = (fsm == 2).astype(np.float64)
+    weight = ctx.info.get("jump_curriculum", 1.0)
+    return (-contact_error * contact_active - spin * flight_active) * weight
 
 
 @registry.envcfg("XqRobotWLJumpSRLFlat")
@@ -342,6 +415,11 @@ class XqRobotWLJumpSRLFlatEnv(XqRobotWLWalkFlatEnv):
         self._fsm_state = -np.ones(num_envs, dtype=np.int32)
         self._fsm_timer = np.zeros(num_envs, dtype=np.float64)
         self._episode_max_height = np.zeros(num_envs, dtype=np.float64)
+        # 落地恢复追踪 (真实腾空→落地, 用于 landing_soft/landing_recovery 门控)
+        self._grounded_steps = np.zeros(num_envs, dtype=np.float64)
+        self._had_air = np.zeros(num_envs, dtype=np.float64)
+        self._landing_timer = np.zeros(num_envs, dtype=np.float64)
+        self._prev_airborne = np.zeros(num_envs, dtype=np.float64)
         self._obs_frame_dim = 33
         self._critic_frame_dim = 36
         self._obs_history = np.zeros(
@@ -375,6 +453,10 @@ class XqRobotWLJumpSRLFlatEnv(XqRobotWLWalkFlatEnv):
             "crouch_prep": self._reward_crouch_prep,
             "landing_soft": self._reward_landing_soft,
             "wheel_air_time": self._reward_wheel_air_time,
+            "wheel_ground_matching": self._reward_wheel_ground_matching,
+            "landing_recovery": self._reward_landing_recovery,
+            "anti_drift": self._reward_anti_drift,
+            "action_magnitude": self._reward_action_magnitude,
             "vertical_thrust": self._reward_vertical_thrust,
             "crouch_depth": self._reward_crouch_depth,
             "lean_forward": self._reward_lean_forward,
@@ -404,6 +486,18 @@ class XqRobotWLJumpSRLFlatEnv(XqRobotWLWalkFlatEnv):
 
     def _reward_height_progress(self, ctx: RewardContext) -> np.ndarray:
         return _reward_height_progress(ctx)
+
+    def _reward_landing_recovery(self, ctx: RewardContext) -> np.ndarray:
+        return _reward_landing_recovery(ctx)
+
+    def _reward_anti_drift(self, ctx: RewardContext) -> np.ndarray:
+        return _reward_anti_drift(ctx)
+
+    def _reward_action_magnitude(self, ctx: RewardContext) -> np.ndarray:
+        return _reward_action_magnitude(ctx)
+
+    def _reward_wheel_ground_matching(self, ctx: RewardContext) -> np.ndarray:
+        return _reward_wheel_ground_matching(ctx)
 
     def _reward_joint_action_rate(self, ctx: RewardContext) -> np.ndarray:
         current = ctx.info["current_actions"][:, :NUM_LEG_ACTIONS]
@@ -472,7 +566,13 @@ class XqRobotWLJumpSRLFlatEnv(XqRobotWLWalkFlatEnv):
         # Track episode max height for progress reward
         self._episode_max_height = np.maximum(self._episode_max_height, base_z)
         state.info["episode_max_height"] = self._episode_max_height.copy()
-        self._update_wheel_contact(state.info)
+        # 几何接触检测 (对空中扇腿免疫) — 与 jump.py/jump_vmc 同款修复
+        self._update_wheel_contact_geom(state.info)
+        # 供奖励使用: FSM 状态 + 轮子角速度 (wheel_ground_matching)
+        state.info["fsm_state"] = self._fsm_state.astype(np.float64).copy()
+        state.info["wheel_vel"] = dof_vel[:, NUM_LEG_ACTIONS:].copy()
+        # 落地恢复追踪: 真实腾空→落地后开窗 (landing_soft/landing_recovery 门控)
+        self._update_jump_air_progress(state.info, base_z)
         terminated = self._compute_terminated(gravity, dof_pos)
         reward = self._compute_reward(state.info, linvel, gyro, gravity, dof_pos, dof_vel)
         obs = self._compute_obs(state.info, linvel, gyro, gravity, dof_pos, dof_vel)
@@ -497,6 +597,66 @@ class XqRobotWLJumpSRLFlatEnv(XqRobotWLWalkFlatEnv):
             info["wheel_contact"] = np.stack([left_contact, right_contact], axis=1)
         except (KeyError, AttributeError):
             info["wheel_contact"] = np.zeros((self._num_envs, 2), dtype=np.float64)
+
+    def _update_wheel_contact_geom(self, info: dict) -> None:
+        """几何接触检测 (轮心世界 z < 0.13): 对空中扇腿免疫。
+
+        与 jump.py 同款修复 — force 阈值法 (norm>10) 在 SRL 空中若腿部动作会误判
+        着地, 使 air 门控奖励 (jump_height/wheel_air_time/landing_soft) 失真。
+        SRL 的 FSM 参考让空中收腿 (轮力~0), 所以接触大多正确; 但几何法更稳。
+        """
+        try:
+            left = np.asarray(
+                self._backend.get_sensor_data("left_wheel_world_pos"),
+                dtype=get_global_dtype(),
+            ).reshape(-1, 3)[: self._num_envs]
+            wheel_radius = 0.11
+            contact = (left[:, 2] < wheel_radius + 0.02).astype(np.float64)
+            info["wheel_contact"] = np.stack([contact, contact], axis=1)
+        except (KeyError, AttributeError):
+            self._update_wheel_contact(info)
+
+    def _update_jump_air_progress(self, info: dict, base_z: np.ndarray) -> None:
+        """追踪真实腾空→落地, 使 landing_soft/landing_recovery 只在真跳落地后开窗.
+
+        - ``had_air``: 触发窗口内双轮真正离地 (需腾空前已稳定接地
+          ``min_grounded_steps`` 步, 排除 reset 初始自由落体)
+        - ``landing_timer``: 腾空→落地转换后从 ``landing_window`` 倒数, 空中/窗外归零
+        """
+        phase = info.get("jump_phase", np.zeros(self._num_envs, dtype=np.float64))
+        wheel_contact = info.get("wheel_contact", np.ones((self._num_envs, 2)))
+        air = 1.0 - np.mean(wheel_contact, axis=1)
+        airborne = (air > 0.5).astype(np.float64)
+        window_active = (phase >= 1.0).astype(np.float64)
+        idle = (window_active <= 0.0).astype(np.float64)
+        fresh = np.asarray(info.get("steps", np.zeros(self._num_envs)))[: self._num_envs] <= 1
+        if fresh.any():
+            self._grounded_steps[fresh] = 0.0
+            self._had_air[fresh] = 0.0
+            self._landing_timer[fresh] = 0.0
+            self._prev_airborne[fresh] = 0.0
+        prev_grounded = self._grounded_steps
+        self._grounded_steps = np.where(airborne > 0, np.float64(0), prev_grounded + 1.0)
+        min_grounded = int(getattr(self._jump_cfg, "min_grounded_steps", 5))
+        real_air = np.where(
+            (window_active > 0) & (prev_grounded >= min_grounded),
+            airborne,
+            np.float64(0),
+        )
+        self._had_air = np.where(idle > 0, np.float64(0), np.maximum(self._had_air, real_air))
+        just_landed = ((self._prev_airborne > 0) & (airborne <= 0) & (self._had_air > 0)).astype(
+            np.float64
+        )
+        landing_window = int(getattr(self._jump_cfg, "landing_window", 30))
+        self._landing_timer = np.where(
+            just_landed > 0, np.float64(landing_window), self._landing_timer
+        )
+        self._landing_timer = np.maximum(self._landing_timer - 1.0, 0.0)
+        self._landing_timer = np.where(airborne > 0, np.float64(0), self._landing_timer)
+        self._landing_timer = np.where(idle > 0, np.float64(0), self._landing_timer)
+        self._prev_airborne = airborne
+        info["had_air"] = self._had_air.copy()
+        info["landing_timer"] = self._landing_timer.copy()
 
     def _compute_obs(self, info, linvel, gyro, gravity, dof_pos, dof_vel):
         base = super()._compute_obs(info, linvel, gyro, gravity, dof_pos, dof_vel)
