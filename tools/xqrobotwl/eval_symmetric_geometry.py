@@ -68,8 +68,13 @@ def build_env(task_key: str, num_envs: int = 1):
     override["noise_config"] = {"level": 0.0}
     override["control_config"] = {**override.get("control_config", {}), "action_smoothing": 0.0}
     override["commands"] = {**override.get("commands", {}), "resampling_time": 0.0}
-    if task_key in ("walk_rough", "stairs", "jump_vmc", "jump_srl_vmc"):
+    # ★ 评估期间禁用 episode 截断 (否则 max_episode_seconds=10 会在 sim_time 边界误判跌倒)
+    override["max_episode_seconds"] = 1000.0
+    # ★ terrain 字段仅当任务配置声明时覆盖 (jump_vmc 等平地任务无 terrain_curriculum)
+    env_sec = cfg.get("env", {})
+    if "terrain_curriculum" in env_sec:
         override.setdefault("terrain_curriculum", {})["enabled"] = False
+    if "terrain_scan" in env_sec:
         override.setdefault("terrain_scan", {})["enabled"] = False
     env = registry.make(cfg["training"]["task_name"], sim_backend="mujoco",
                         num_envs=num_envs, env_cfg_override=override)
@@ -130,10 +135,28 @@ def main() -> int:
         print(f"[{args.task}] ❌ 无 checkpoint"); return 1
     env, cfg = build_env(args.task, args.num_envs)
     na = int(env._backend._model.nu)  # 执行器数 (8)
+    obs_dim = int(env.obs_groups_spec["obs"])
     # 兼容 dict (model_N.pt) 与 TorchScript (policy.pt) 两种格式
     ckpt_obj = torch.load(str(ckpt), map_location="cpu", weights_only=False)
     if isinstance(ckpt_obj, dict):
-        pol = load_actor(str(ckpt), env.obs_groups_spec["obs"], na, hidden_dims(args.task))
+        pol = load_actor(str(ckpt), obs_dim, na, hidden_dims(args.task))
+        # ★ obs_normalizer (walk_rough/stairs 用 empirical_normalization=true)
+        act_state = ckpt_obj.get("actor_state_dict", {})
+        if any(k.startswith("obs_normalizer.") for k in act_state):
+            from rsl_rl.modules.normalization import EmpiricalNormalization
+
+            normalizer = EmpiricalNormalization(obs_dim)
+            nk = {
+                k.replace("obs_normalizer.", ""): v
+                for k, v in act_state.items()
+                if k.startswith("obs_normalizer.")
+            }
+            normalizer.load_state_dict(nk)
+            normalizer.eval()
+            _raw = pol
+
+            def pol(x, _r=_raw, _n=normalizer):  # noqa: E731
+                return _r(_n(x))
     else:
         pol = ckpt_obj  # TorchScript 模块, 直接调用
 
@@ -144,7 +167,7 @@ def main() -> int:
     survivals = []
     with torch.no_grad():
         for ep in range(args.episodes):
-            env.init_state()
+            env.reset(np.arange(env.num_envs, dtype=np.int32))  # ★ 站姿复位, 有效 obs
             active = True
             steps = 0
             while steps * dt < args.sim_time and active:
@@ -159,8 +182,9 @@ def main() -> int:
                 st = env.step(np.asarray(a)[None, :])
                 active = not bool(st.terminated[0]) and not bool(st.truncated[0])
                 steps += 1
-            survivals.append(1.0 if active else 0.0)
-            print(f"[{args.task}] ep{ep}: {'存活' if active else '跌倒'} "
+            survived = steps * dt >= args.sim_time - 1e-6  # ★ 跑满 sim_time = 存活
+            survivals.append(1.0 if survived else 0.0)
+            print(f"[{args.task}] ep{ep}: {'存活' if survived else '跌倒'} "
                   f"{steps*dt:.1f}s/{args.sim_time:.0f}s")
     rate = np.mean(survivals)
     print(f"[{args.task}] 存活率 {rate*100:.0f}% ({int(np.sum(survivals))}/{args.episodes}) ckpt={ckpt}")
