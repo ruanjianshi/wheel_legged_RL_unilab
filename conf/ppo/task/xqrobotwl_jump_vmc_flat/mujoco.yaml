@@ -123,6 +123,7 @@ reward:
     jump_height: 15.0
     crouch_prep: 4.0
     landing_soft: 15.0
+    landing_recovery: 8.0  # 落地后恢复稳定站立 (双轮着地+直立+高度) — 修复前遗漏, 其他三算法均有
     wheel_air_time: 20.0
     launch_rise: 35.0  # 实际升高奖励 (已门控到 FSM 蹬伸相: 慢伸白拿被堵住)
     crouch_depth: 8.0  # 深蹲回报 (原4): 逼出"先蹲后蹬"
