@@ -84,14 +84,16 @@ reward:
     leg_mirror: -12.0
     tsk: -2.0
     alive: 1.0
-    jump_height: 15.0
+    jump_height: 25.0  # v4: 15→25 — 恢复跳高 (原 15 被落地/防漂移奖励压过)
     crouch_prep: 8.0
-    landing_soft: 4.0
-    wheel_ground_matching: 20.0
+    landing_soft: 8.0          # 落地缓冲 (门控到真实腾空落地, 防白嫖)
+    wheel_ground_matching: 8.0  # 轮地速度匹配 (落地/飞行) — 修复键名与fn对齐, 降幅避免惩罚爆炸
+    landing_recovery: 4.0      # v4: 8→4 — 原 8 使策略偏向"安全低跳" (跳高 0.57→0.23), 恢复稳定已由其他项保持
+    anti_drift: -2.0           # v4: -4→-2 — 放宽, 允许跳跃自然前冲, 恢复跳高
     vertical_thrust: 30.0
-    crouch_depth: 6.0
+    crouch_depth: 4.0  # v4: 6→4 — 降低深蹲奖励, 防下蹲过深 (实测蹲到 0.24 "倒地")
     action_magnitude: -0.1
-    height_progress: 10.0
+    height_progress: 20.0  # v4: 10→20 — 强化"跳到新高度"激励, 恢复跳高
     lean_forward: 3.0
   tracking_sigma: 0.3
   base_height_target: 0.55
@@ -101,6 +103,9 @@ reward:
   min_base_height: 0.15
   jump_curriculum_start: 0
   jump_curriculum_end: 0  # 无预热，直接全开跳跃
+  # 落地恢复窗口 (真实腾空→落地后计时, 用于 landing_soft/landing_recovery 门控)
+  landing_window: 30
+  min_grounded_steps: 5
   # 消融实验
   feedback_gain: 0.15  # SLIP FSM 前馈混合比 (no_fsm消融=0.0)
   ablation_mode: full
