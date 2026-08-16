@@ -82,7 +82,7 @@ env:
     kp_theta: 60.0
     kd_theta: 3.0
     kp_l0: 800.0
-    kd_l0: 5.0  # 低阻尼爆发蹬伸 (原20)
+    kd_l0: 8.0  # v5: 5→8 增加腿阻尼, 抑制 SRL+VMC 站立/恢复晃动 (实测 |gyro| 3.6/4.8)
     feedforward_force: 110.0  # 支撑前馈: 需 > 体重/腿(~91N), 否则无法起跳
     kp_roll: 40.0
     kd_roll: 2.0
@@ -127,9 +127,9 @@ reward:
     tracking_lin_vel: 2.0
     tracking_ang_vel: 1.0
     lin_vel_z: -0.2
-    ang_vel_xy: -0.05
+    ang_vel_xy: -0.2  # v5: -0.05→-0.2 加强晃动惩罚 (站立/恢复 |gyro| 3.6/4.8)
     base_height: -60.0
-    orientation: -5.0
+    orientation: -10.0  # v5: -5→-10 加强直立惩罚
     joint_action_rate: -0.1
     wheel_action_rate: -0.015
     leg_mirror: -12.0
