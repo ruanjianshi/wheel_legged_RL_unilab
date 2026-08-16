@@ -303,7 +303,9 @@ def _reward_landing_soft(ctx: RewardContext) -> np.ndarray:
 
 def _reward_height_progress(ctx: RewardContext) -> np.ndarray:
     base_z = ctx.base_height
-    max_z = ctx.info.get("episode_max_height", base_z)
+    # 用更新前的 episode max (update_state 已存 episode_prev_max_height), 修复
+    # "base_z - max_z 恒 0 → 奖励从未生效" bug (原用 episode_max_height 已在更新后)。
+    max_z = ctx.info.get("episode_prev_max_height", ctx.info.get("episode_max_height", base_z))
     new_max = np.clip(base_z - max_z, 0, 1.0)
     phase = ctx.info.get("jump_phase", np.zeros(ctx.num_envs, dtype=np.float64))
     active = (phase >= 1.0).astype(np.float64)
@@ -564,6 +566,9 @@ class XqRobotWLJumpSRLFlatEnv(XqRobotWLWalkFlatEnv):
             self._cfg.ctrl_dt,
         )
         # Track episode max height for progress reward
+        # 保存更新前的 max (height_progress 奖励用 — 修复 bug: 原在更新后算,
+        # base_z - max_z 恒 0, 奖励从未生效)
+        state.info["episode_prev_max_height"] = self._episode_max_height.copy()
         self._episode_max_height = np.maximum(self._episode_max_height, base_z)
         state.info["episode_max_height"] = self._episode_max_height.copy()
         # 几何接触检测 (对空中扇腿免疫) — 与 jump.py/jump_vmc 同款修复
