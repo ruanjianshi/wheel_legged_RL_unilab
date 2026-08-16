@@ -104,19 +104,22 @@ env:
     flight_retract_length: 0.26
     prelanding_length: 0.42
     landing_absorption_length: 0.30
-    prelanding_start_vz: 0.0
+    prelanding_start_vz: 0.2   # 提前一点开始伸腿准备落地 (原 0.0)
     prelanding_full_vz: -0.6
-    landing_compression_time: 0.18
+    landing_compression_time: 0.12  # 压缩在 landing 阶段 0.15s 窗口内完成 (原 0.18)
     # FSM 阶段时长 (s): VMC 力控制比关节位置控制慢, 需更长下蹲/蹬伸窗口
-    fsm_crouch_time: 0.35
+    fsm_crouch_time: 0.45  # v4: 0.35→0.45 更深下蹲 → 更大蹬伸行程 → 更高跳跃
     fsm_thrust_time: 0.30
-    # 阶段相关 VMC 增益 (优化: 更强蹬伸 + 低阻尼)
-    thrust_kp_scale: 3.0
-    thrust_ff_scale: 3.0
-    thrust_kd_scale: 0.25
+    # 阶段相关 VMC 增益 (v4: 蹬伸略加强 2.0→2.5, 同时保持收敛防俯仰)
+    thrust_kp_scale: 2.5
+    thrust_ff_scale: 2.5
+    thrust_kd_scale: 0.5
     flight_ff_scale: 0.40
-    landing_kd_scale: 2.5
-    landing_ff_scale: 1.20
+    landing_kd_scale: 3.0    # 落地吸收更高阻尼 (原 2.5)
+    landing_ff_scale: 1.30   # 落地吸收更高前馈支撑 (原 1.2)
+
+  # 落地恢复窗口 (ctrl 步): 真实落地后 landing_recovery/landing_soft 保持 0.5s
+  landing_window: 50
 
 reward:
   only_positive_rewards: false
@@ -132,14 +135,16 @@ reward:
     leg_mirror: -12.0
     tsk: -2.0
     alive: 1.0
-    jump_height: 15.0
+    jump_height: 25.0  # v4: 15→25 恢复跳高 (SRL+VMC 理论上应最优, 实测 0.172m 需提升)
     crouch_prep: 8.0
     landing_soft: 4.0
+    landing_recovery: 12.0  # 落地后双轮着地+直立+高度恢复 (新增, 驱动落地恢复)
+    jump_upright: 12.0  # 跳跃全程直立奖励 (新增, 抑制蹬伸/腾空俯仰)
     wheel_ground_matching: 20.0
     vertical_thrust: 30.0
-    crouch_depth: 6.0
+    crouch_depth: 4.0  # v4: 6→4 防下蹲过深
     action_magnitude: -0.1
-    height_progress: 10.0
+    height_progress: 20.0  # v4: 10→20 强化跳高激励
     lean_forward: 3.0
   tracking_sigma: 0.3
   base_height_target: 0.55
@@ -149,5 +154,5 @@ reward:
   min_base_height: 0.15
   jump_curriculum_start: 0
   jump_curriculum_end: 0  # 无预热, 直接全开跳跃
-  feedback_gain: 0.5  # FSM 残差比例: 提高策略权限以跳更高 (原 0.15)
+  feedback_gain: 0.35  # v4: 0.5→0.35 — 参考更主导, 防策略干扰破坏 FSM 蹲→蹬时序 (SRL+VMC 理论最优需参考主导)
   ablation_mode: full
