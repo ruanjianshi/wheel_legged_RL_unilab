@@ -16,6 +16,13 @@
 task=XqRobotWLJumpVMC survived=600/600 terminated=False max_base_z=0.752 standing_z=0.490 jump_height=0.262 air_frac=0.02
 ```
 
+§7.5 重复跳基线 (eval_jump_repeat.py, 3 跳 1 episode):
+```
+attempts=3 airborne=3/3 recovered=2/3 terminated=1/3 成功率=0.67
+跳高 0.254±0.036 m, 恢复窗口漂移 0.129±0.089 m, 空中轮速峰值 9.1 rad/s
+```
+(注: airborne=3/3 但每跳 air_steps 仅 3-9 步 — 短促离地即落, 非完整腾空)
+
 ## 诊断 (数据驱动)
 
 1. **diag_jump_trajectory.py + 深度 VMC 诊断** 显示: FSM 下蹲相(fsm=0, trigger 开
@@ -71,8 +78,11 @@ PPO+VMC 是 **full-action 参考叠加** (`final_L0 = 参考 + 1.0×策略动作
 
 ## 训练后效果 (训练中, 待评估补充)
 
-- 启动后早期 reward log: `launch_rise≈0.001` (门控生效), `jump_height≈0.06-0.09`,
-  `wheel_air_time≈0.03-0.05`。需等 3000-10000 iter 评估。
+- 启动后早期 reward log (iter ~100-200): `launch_rise≈0.001` (门控生效, 基线同阶段
+  是 4.5), `jump_height≈0.06-0.09`, `wheel_air_time≈0.03-0.05`, `anti_early_extend`
+  惩罚从 -0.22 降到 -0.10 (策略在学习不要提前伸腿), mean reward 从 -1.4 爬到 ~+0.9。
+- 训练 iter ~200 时 `launch_rise` 开始 > 0 (策略开始在 FSM 蹬伸相上升)。
+- 需等 1000/3000/5000 iter 用 verify_jump.py 实测 jump_height / air_frac / survived。
 
 ## 参数调整好坏
 

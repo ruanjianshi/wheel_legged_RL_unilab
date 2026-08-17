@@ -55,6 +55,7 @@ env:
     action_scale: 0.6
     wheel_action_scale: 10.0
     clip_actions: 100.0
+    action_smoothing: 0.3  # v7: 动作一阶低通 (文献: 4Hz LPF 消抖动) — 压站立期自持"蹲-起"高频摆腿 (问题 P3)
   commands:
     vel_limit:
       - [-0.3, 0.0, -0.5, -0.1, 0]
@@ -76,7 +77,7 @@ reward:
     tracking_lin_vel: 2.0
     tracking_ang_vel: 1.0
     lin_vel_z: -0.2
-    ang_vel_xy: -0.05
+    ang_vel_xy: -0.5  # v7: -0.15→-0.5 — 强化站立期摆动惩罚 (问题 P3: 跳后 |gyro| 最高 5.2 自持振荡)。配合 landing_recovery 恒开 + LPF
     base_height: -60.0
     orientation: -5.0
     joint_action_rate: -0.1
@@ -88,8 +89,8 @@ reward:
     crouch_prep: 8.0
     landing_soft: 8.0          # 落地缓冲 (门控到真实腾空落地, 防白嫖)
     wheel_ground_matching: 8.0  # 轮地速度匹配 (落地/飞行) — 修复键名与fn对齐, 降幅避免惩罚爆炸
-    landing_recovery: 4.0      # v4: 8→4 — 原 8 使策略偏向"安全低跳" (跳高 0.57→0.23), 恢复稳定已由其他项保持
-    anti_drift: -2.0           # v4: -4→-2 — 放宽, 允许跳跃自然前冲, 恢复跳高
+    landing_recovery: 8.0      # v6: 4→8; v7: 奖励从 landing_timer 窗口改为整个站立期恒开 (jump_srl.py) — 站立期显式稳定奖励 (文献 standing cost), 压跳后自持"蹲-起"振荡 (问题 P3)
+    anti_drift: -3.0           # v6: -2→-3 — 略收紧防恢复期漂移 (v5 恢复期漂移未控)
     vertical_thrust: 30.0
     crouch_depth: 4.0  # v4: 6→4 — 降低深蹲奖励, 防下蹲过深 (实测蹲到 0.24 "倒地")
     action_magnitude: -0.1

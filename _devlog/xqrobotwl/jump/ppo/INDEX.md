@@ -2,6 +2,29 @@
 
 XqRobotWL 跳跃训练 — PPO 算法 + phase-gated 奖励 / Wheeled-SRL。
 
+## 2026-08-17
+
+| 序号 | 标题 | 文件 |
+|------|------|------|
+| 52 | 四算法 final10000 轮最终训练 (纯PPO/PPO+VMC/SRL/SRL+VMC) | 本索引 |
+| 53 | SRL+VMC v8e5: 消灭"下蹲相提前升起"双重运动 (跳跃不干净根因) | [→](2026-08-17/NN_jump_srl_vmc_v8e5_clean_jump.md) |
+
+## 2026-08-16
+
+| 序号 | 标题 | 文件 |
+|------|------|------|
+| 41 | SRL v5 跳高修复: height_progress episode_prev_max_height 时序 bug | [→](2026-08-16/NN_jump_srl_v5_heightfix.md) |
+| 42 | SRL v6 姿态: 站立/落地奖励重平衡 | [→](2026-08-16/NN_jump_srl_v6_posture.md) |
+| 43 | SRL v7 站立稳定: LPF + 站立显式奖励 + ang_vel 增强 | [→](2026-08-16/NN_jump_srl_v7_standing_fix.md) |
+| 44 | SRL+VMC v5 防侧摆 + SRL+VMC v6 奖励重平衡 | [→](2026-08-16/NN_jump_srl_vmc_v5_antisway.md) / [→](2026-08-16/NN_jump_srl_vmc_v6_rebalance.md) |
+| 45 | SRL+VMC v7 髋外展修复: 参考主导 + lateral_posture | [→](2026-08-16/NN_jump_srl_vmc_v7_abduction_fix.md) |
+| 46 | SRL+VMC v8 干净消融: 与 SRL 仅输出层不同 (2×2) | [→](2026-08-16/NN_jump_srl_vmc_v8_clean_ablation.md) |
+| 47 | PPO+VMC v9 无参考消融: 与纯PPO 仅输出层不同 (2×2) | [→](2026-08-16/NN_ppo_vmc_v9_no_reference_ablation.md) |
+| 48 | SRL+VMC v8d 调优: 最高+最干净 (膝止位/外展/深蹲) | [→](2026-08-16/NN_jump_srl_vmc_v8d_best_tuning.md) |
+| 49 | SRL+VMC v8e 根因修复: 蹲下相前馈归零 + 跳高门槛 + roll 速度罚 | [→](2026-08-16/NN_jump_srl_vmc_v8e_rootfix.md) |
+| 50 | SRL+VMC v8e3: 参考文档深查 + 空中姿态奖励 (膝止位碰撞决定性验证) | [→](2026-08-16/NN_jump_srl_vmc_v8e3_posture.md) |
+| 51 | SRL+VMC v8e4: 姿态奖励重平衡 (跳高 0.283→0.166 塌陷回拉) | [→](2026-08-16/NN_jump_srl_vmc_v8e4_rebalance.md) |
+
 ## 2026-08-15
 
 | 序号 | 标题 | 文件 |
@@ -55,6 +78,7 @@ XqRobotWL 跳跃训练 — PPO 算法 + phase-gated 奖励 / Wheeled-SRL。
 | 序号 | 标题 | 文件 |
 |------|------|------|
 | NN | PPO+VMC 跳跃改进: 堵住下蹲相慢伸 exploit, 参考主导混合+蹬伸相门控 launch_rise+anti_early_extend | [→](2026-08-15/NN_jump_vmc_improve.md) |
+| NN | SRL+VMC 跳跃改进: FSM 阶段映射修复 (落地吸收绑对相位) + landing_recovery/jump_upright/wheel_ground_matching 奖励 + 落地恢复 | [→](2026-08-15/NN_jump_srl_vmc_improve.md) |
 
 ## 2026-08-11
 

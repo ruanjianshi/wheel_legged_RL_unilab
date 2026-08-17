@@ -206,8 +206,8 @@ def test_env_build_reset_step(env_name: str) -> None:
 def test_vmc_obs_dims_match_spec() -> None:
     env = _make_env("XqRobotWLJumpVMC")
     try:
-        # PPO+VMC now carries the SLIP-FSM phase/timer features too (41*9 + 18).
-        assert env.obs_groups_spec == {"obs": 387, "critic": 486}
+        # v9: 干净消融 — PPO+VMC 观测对齐纯PPO (无 SLIP 参考, 无 FSM/虚拟腿特征).
+        assert env.obs_groups_spec == {"obs": 297, "critic": 324}
     finally:
         env.close()
 
@@ -215,7 +215,9 @@ def test_vmc_obs_dims_match_spec() -> None:
 def test_srl_vmc_obs_dims_match_spec() -> None:
     env = _make_env("XqRobotWLJumpSRLVMC")
     try:
-        assert env.obs_groups_spec == {"obs": 387, "critic": 486}
+        # v8: 干净消融 — SRL+VMC 观测对齐 SRL (关节空间 33*9 + 18 = 315),
+        # 只输出层 (VMC) 与 SRL 不同。
+        assert env.obs_groups_spec == {"obs": 315, "critic": 342}
     finally:
         env.close()
 

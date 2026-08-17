@@ -9,6 +9,8 @@
 | [PAI 12DOF](pai_12dof.md) | 2026-06-29 | 12DOF 纯下肢双足, 内置蹲姿, 保守超参 |
 | [WTW-NEW / Go1](wtw_new.md) | 2026-06-29 | 12DOF 四足, AER能量正则, RMA适应, 步态条件化 |
 | [Wheel-Legged-Lab](wheel_legged_lab.md) | 2026-08-06 | 轮腿双足, Isaac Lab, VMC虚拟腿+六状态跳跃FSM, 阶段参考/策略残差, 10阶段流水线 |
+| [跳跃站立稳定 RL](2026-08-16_jump_standing_stabilization_rl.md) | 2026-08-16 | P3 站立振荡: 站立显式奖励 + 动作LPF + smoothing + gait-conditioned 奖励路由 |
+| [跳跃姿态 + 膝限约束 VMC](2026-08-16_jump_posture_knee_limit_vmc.md) | 2026-08-16 | P4 髋外展/无下蹲 + 膝过伸: 侧向对称姿态奖励 + 反向下蹲(CMJ) + L0膝限裁剪 + CaT |
 
 ## 规范
 

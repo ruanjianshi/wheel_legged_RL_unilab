@@ -100,6 +100,18 @@ class XqRobotWLVMCConfig:
     flight_ff_scale: float = 0.40
     landing_kd_scale: float = 2.5
     landing_ff_scale: float = 1.20
+    # ── 膝关节守卫参数 (vmc.py 方向性前馈削减 + 力矩硬守卫) ──
+    # 蹬伸相前馈从膝伸展 >knee_guard_start 开始削减, >knee_guard_limit 归零。
+    # 提高 start = 允许更完整的蹬伸力 (但膝过冲更多); 降低 = 更早削力护膝。
+    knee_guard_start: float = 0.50
+    knee_guard_limit: float = 0.85
+    # ── 主动膝超伸刹车 (v8e3) ──
+    # 爆炸式蹬伸把膝以 ~17 rad/s 甩向机械止位(±0.873), 动量冲过守卫 → 撞止位
+    # (实测膝 -0.97)。电机力矩(±50N·m)无法在止位前刹停(需~160), 但从膝"过直"
+    # (伸展量 ext>knee_brake_start) 就持续反制, 有 ~0.87 rad 行程, 可以刹住。
+    # 只对"已过直且仍向极限伸展"的膝生效 — 不干扰蹬伸主行程 (屈曲→伸直那段)。
+    knee_brake_start: float = 0.0  # 伸展量超过此值启动刹车 (0 = 过直即刹)
+    knee_brake_kd: float = 0.0  # 刹车刚度 (v8e3 扫描验证: 无法刹住动量且毁跳高, 默认关闭)
     # ── PPO+VMC full-action reference blend ──
     # fb<1.0 keeps the SLIP-FSM reference dominant so the policy cannot cancel
     # the crouch->thrust timing (baseline fb=1.0 let it pre-extend during the
@@ -243,6 +255,27 @@ class VirtualLegVMC:
             l0_kp = kp_l0 if l0_kp is None else l0_kp
             l0_kd = kd_l0 if l0_kd is None else l0_kd
             feedforward = ff if feedforward is None else feedforward
+        # ── 膝关节机械极限守卫: 削减蹬伸前馈 (reflex 式, 文献 MARCO Hopper II) ──
+        # MuJoCo 关节限位准静态有效 (±0.873), 但高速蹬伸冲击会瞬态过冲至 ±1.0
+        # (膝"砸"向机械止位, 实测 PPO+VMC/SRL/SRL+VMC)。根因是蹬伸相大前馈
+        # (110N×thrust_ff_scale) 在膝接近伸直时仍持续推 L0。
+        # 方向性判断: 只削"伸展方向"接近极限的前馈 (L 腿膝负向伸展, R 腿膝正向
+        # 伸展)。深蹲屈膝 (|knee| 大但方向相反) **不削支撑前馈** — 否则深蹲
+        # 时支撑前馈被削 → 蹲不住/蹬不起来 (v7 SRL+VMC 深蹲后不跳的根因之一)。
+        # 用一步预测 (伸展位 + 伸展速×预测窗口) 提前判定, 避免位置守卫滞后。
+        knee_pos = dof_pos[:, [2, 5]]
+        knee_vel = dof_vel[:, [2, 5]]
+        ext = np.stack([-knee_pos[:, 0], knee_pos[:, 1]], axis=1)  # L: 负向伸展, R: 正向
+        ext_vel = np.stack([-knee_vel[:, 0], knee_vel[:, 1]], axis=1)
+        ext_pred = ext + ext_vel * 0.02  # ~2 ctrl 步预测
+        ff_guard_start = float(getattr(cfg, "knee_guard_start", 0.50))
+        ff_guard_limit = float(getattr(cfg, "knee_guard_limit", 0.85))
+        ff_scale = np.clip(
+            (ff_guard_limit - ext_pred) / (ff_guard_limit - ff_guard_start), 0.0, 1.0
+        )
+        ff_scale = np.where(ext_pred >= ff_guard_limit, 0.0, ff_scale)
+        feedforward = np.asarray(feedforward, dtype=self._dtype) * ff_scale
+
         force_L0 = l0_kp * (L0_ref - L0) - l0_kd * L0_dot + feedforward
 
         wheel_vel = dof_vel[:, [6, 7]]
@@ -268,4 +301,39 @@ class VirtualLegVMC:
         torques[:, 5] = self._hip_sign[1] * T1[:, 1]  # pitch_R
         torques[:, 6] = self._knee_sign[1] * T2[:, 1]  # knee_R
         torques[:, 7] = torque_wheel[:, 1]  # wheel_R
+
+        # ── 膝关节机械极限守卫 (|q_knee| ≤ 0.85, CLAUDE.md §1.3) ─────────────
+        # 蹬伸相低阻尼 (thrust_kd_scale) + 大前馈会让膝力矩把膝关节推出极限
+        # (实测 PPO+VMC/SRL/SRL+VMC 膝过伸至 ±1.0)。守卫在膝接近极限且力矩
+        # 推向外时按接近程度削减, 越过极限硬置零。guard_start=0.55 需足够早:
+        # 蹬伸是爆发式的 (一两个 ctrl 步内膝从 ~0 冲到 ~1.0), 太晚 (0.70) 时
+        # 动量已把膝冲出极限。0.55 对应 L0≈0.48, 低于 thrust 目标 0.50 所需
+        # 膝位 (~0.62), 所以只在蹬伸末段减速, 不破坏主要推力。
+        knee_pos = dof_pos[:, [2, 5]]
+        knee_tau = torques[:, [2, 6]]
+        pushing_out = ((knee_pos > 0.0) & (knee_tau > 0.0)) | (
+            (knee_pos < 0.0) & (knee_tau < 0.0)
+        )
+        guard_start, guard_limit = 0.55, 0.85
+        abs_knee = np.abs(knee_pos)
+        scale = np.clip((guard_limit - abs_knee) / (guard_limit - guard_start), 0.0, 1.0)
+        scale = np.where(pushing_out, scale, 1.0)
+        scale = np.where(abs_knee >= guard_limit, 0.0, scale)
+        torques[:, 2] *= scale[:, 0]
+        torques[:, 6] *= scale[:, 1]
+
+        # ── 主动膝超伸刹车 (v8e3) ─────────────────────────────────────────
+        # 前馈守卫只削"推"的力, 挡不住腿的伸展动量 (实测膝仍冲到 -0.97 撞止位)。
+        # 这里在膝"过直"(伸展量>knee_brake_start) 且仍向极限伸展时, 施加反向
+        # 力矩持续反制, 把膝刹在机械止位之前。刹车方向: L 腿伸展=负向膝速 →
+        # 反向(+); R 腿伸展=正向膝速 → 反向(−)。
+        brake_start = float(getattr(cfg, "knee_brake_start", 0.0))
+        brake_kd = float(getattr(cfg, "knee_brake_kd", 8.0))
+        ext = np.stack([-knee_pos[:, 0], knee_pos[:, 1]], axis=1)
+        ext_vel = np.stack([-knee_vel[:, 0], knee_vel[:, 1]], axis=1)
+        past = ext - brake_start
+        ramp = np.clip(past / max(0.85 - brake_start, 1e-6), 0.0, 1.0)
+        brake = brake_kd * np.maximum(ext_vel, 0.0) * np.where(past > 0, ramp, 0.0)
+        torques[:, 2] += brake[:, 0]
+        torques[:, 6] -= brake[:, 1]
         return torques

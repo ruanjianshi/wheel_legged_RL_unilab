@@ -113,35 +113,36 @@ env:
 
 reward:
   only_positive_rewards: false
+  # v9: 与纯PPO (jump_flat) 的奖励集完全一致 — 干净消融, 只输出层 (VMC) 不同。
   scales:
-    tracking_lin_vel: 2.0
-    tracking_ang_vel: 1.0
+    tracking_lin_vel: 1.0
+    tracking_ang_vel: 0.5
     lin_vel_z: -0.2
     ang_vel_xy: -0.05
     base_height: -60.0
     orientation: -5.0
-    joint_action_rate: -0.1
-    wheel_action_rate: -0.015
+    joint_action_rate: -0.15
+    wheel_action_rate: -0.02
     leg_mirror: -12.0
     tsk: -2.0
     alive: 1.0
     jump_height: 15.0
-    jump_land: 250.0  # v9: 真实跳高奖励 (落地按腾空峰值) — 逼真跳, 与 launch_rise 降幅配套
+    jump_land: 150.0
     crouch_prep: 4.0
-    landing_soft: 15.0
-    landing_recovery: 8.0  # 落地后恢复稳定站立 (双轮着地+直立+高度) — 修复前遗漏, 其他三算法均有
-    wheel_air_time: 20.0
-    launch_rise: 35.0  # v10: 回退 v3 水平 (v9 降到 15 使策略退化); fb 0.2 下慢伸被参考主导堵住
-    crouch_depth: 15.0  # v8: 8→15 深蹲回报加强, 逼出真正下蹲蓄力
+    landing_soft: 30.0
+    landing_recovery: 10.0
+    wheel_air_time: 30.0
+    launch_rise: 40.0
+    crouch_depth: 8.0
     anti_loiter: 12.0
     lean_forward: 5.0
-    anti_early_extend: 8.0  # 下蹲相提前伸腿惩罚 (堵住慢伸 exploit)
+    anti_lazy: 60.0
   tracking_sigma: 0.3
-  landing_soft_requires_crouch: true  # v10: fsm 强制下蹲, landing_soft 深蹲门控可开
   base_height_target: 0.55
   jump_height_target: 1.0
   crouch_height_target: 0.40
   max_tilt_deg: 45.0
   min_base_height: 0.15
+  window_crouch_threshold: 0.45  # v9: 与纯PPO 一致
   jump_curriculum_start: 0
   jump_curriculum_end: 0  # 对比公平: 四版本统一无热身, 立即全开跳跃

@@ -65,7 +65,7 @@ def main() -> int:
         env.init_state()
 
         total = args.settle + args.pulse + args.tail
-        t, base_z, hip, knee, phase = [], [], [], [], []
+        t, base_z, hip, knee, phase, linvel = [], [], [], [], [], []
         with torch.no_grad():
             for step in range(total):
                 trigger = 1.0 if args.settle <= step < args.settle + args.pulse else 0.0
@@ -76,6 +76,9 @@ def main() -> int:
                 dof_pos = env.get_dof_pos()
                 t.append(step * float(env._cfg.ctrl_dt))
                 base_z.append(float(np.asarray(env._backend.get_base_pos())[0, 2]))
+                # 本地线速度 (vx, vy, vz)
+                lv = env.get_local_linvel()[0]
+                linvel.append([float(lv[0]), float(lv[1]), float(lv[2])])
                 # dof order: [L_roll, L_pitch, L_knee, R_roll, R_pitch, R_knee, L_wheel, R_wheel]
                 hip.append([float(dof_pos[0, 1]), float(dof_pos[0, 4])])
                 knee.append([float(dof_pos[0, 2]), float(dof_pos[0, 5])])
@@ -89,6 +92,7 @@ def main() -> int:
             out,
             t=np.array(t),
             base_z=np.array(base_z),
+            linvel=np.array(linvel),
             hip_pitch=np.array(hip),
             knee=np.array(knee),
             phase=np.array(phase),

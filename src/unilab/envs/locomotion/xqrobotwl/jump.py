@@ -709,6 +709,17 @@ class XqRobotWLJumpFlatEnv(XqRobotWLWalkFlatEnv):
         info["window_max_z"] = self._window_max_z.copy()
         info["just_landed"] = just_landed.copy()
 
+    # 膝关节机械极限 (rad, CLAUDE.md §1.3: knee ±0.85)
+    KNEE_LIMIT = 0.85
+
+    def apply_action(self, actions: np.ndarray, state: NpEnvState) -> np.ndarray:
+        out = super().apply_action(actions, state)
+        # 裁剪膝位置目标到机械极限: actuator 序 [L_roll, L_pitch, L_calf(2), L_wheel,
+        # R_roll, R_pitch, R_calf(6), R_wheel]。实测蹬伸/收腿会把膝目标推到 ±1.0。
+        out[:, 2] = np.clip(out[:, 2], -self.KNEE_LIMIT, self.KNEE_LIMIT)
+        out[:, 6] = np.clip(out[:, 6], -self.KNEE_LIMIT, self.KNEE_LIMIT)
+        return out
+
     def _compute_terminated(self, gravity: np.ndarray, dof_pos: np.ndarray) -> np.ndarray:
         tilt = np.arccos(np.clip(gravity[:, 2], -1, 1))
         max_tilt = np.deg2rad(self._jump_cfg.max_tilt_deg)

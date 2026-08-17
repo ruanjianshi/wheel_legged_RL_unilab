@@ -152,6 +152,8 @@ class XqRobotWLJumpRewardConfig:
     # 消融实验
     feedback_gain: float = 0.15  # SLIP FSM 前馈混合比 (no_fsm=0.0)
     ablation_mode: str = "full"
+    # SRL+VMC 真跳事件阈值 (base_z 超此值触发一次性 jump_event 奖励)
+    jump_event_threshold: float = 0.72
 
 
 @dataclass
@@ -314,10 +316,13 @@ def _reward_height_progress(ctx: RewardContext) -> np.ndarray:
 
 
 def _reward_landing_recovery(ctx: RewardContext) -> np.ndarray:
-    """落地后恢复稳定站立: 双轮着地 + 直立 + 高度接近目标.
+    """站立期显式稳定奖励: 双轮着地 + 直立 + 高度接近目标 (trigger≤0.5 恒开).
 
-    门控 ``landing_timer`` (真实腾空→落地后窗口), 只奖"跳完重新站稳",
-    不奖触发时原地站着。直接针对 §7.5 成功率: 每次落地必须恢复站立。
+    v7 改动: 由 ``landing_timer`` 窗口 (30 步=0.3s) 改为 **整个站立期恒开**
+    (文献: "站立不会从移动/跳跃奖励自然涌现, 必须显式奖励" — standing cost)。
+    落地后持续 1-2s 的"蹲-起"振荡 (实测 |gyro| 最高 5.2) 在旧版只在 0.3s 窗口
+    内被纠正, 窗口一过就回落到弱站立惩罚区 → 策略自持极限环。恒开后站立期
+    每步都能挣恢复奖励, 持续把策略推向稳定站立。
     """
     assert ctx.gravity is not None
     wheel_contact = ctx.info.get("wheel_contact", np.ones((ctx.num_envs, 2)))
@@ -326,8 +331,8 @@ def _reward_landing_recovery(ctx: RewardContext) -> np.ndarray:
     tilt = np.arccos(np.clip(ctx.gravity[:, 2], -1, 1))
     upright = np.exp(-np.square(tilt) / 0.15)
     height_ok = np.exp(-np.square(ctx.base_height - ctx.base_height_target) / 0.05)
-    timer = ctx.info.get("landing_timer", np.zeros(ctx.num_envs, dtype=np.float64))
-    active = (timer > 0.0).astype(np.float64)
+    trigger = ctx.info["commands"][:, 4]
+    active = (trigger <= 0.5).astype(np.float64)  # 站立期 (trigger off) 恒开
     weight = ctx.info.get("jump_curriculum", 1.0)
     return both_contact * upright * height_ok * active * weight
 
@@ -527,6 +532,17 @@ class XqRobotWLJumpSRLFlatEnv(XqRobotWLWalkFlatEnv):
         ff = _compute_feedforward(self._fsm_state, self.default_angles, dof_pos)
         gain = getattr(self._jump_cfg, "feedback_gain", SLIP_FF_GAIN)
         return super().step(ff * gain + actions)
+
+    # 膝关节机械极限 (rad, CLAUDE.md §1.3: knee ±0.85)
+    KNEE_LIMIT = 0.85
+
+    def apply_action(self, actions: np.ndarray, state: NpEnvState) -> np.ndarray:
+        out = super().apply_action(actions, state)
+        # 裁剪膝位置目标到机械极限: actuator 序 [.., L_calf(2), .., R_calf(6), ..]。
+        # SRL 蹬伸 FSM 前馈 + 策略会把膝目标推到 ±1.0 (实测 1.04), 超膝机械极限。
+        out[:, 2] = np.clip(out[:, 2], -self.KNEE_LIMIT, self.KNEE_LIMIT)
+        out[:, 6] = np.clip(out[:, 6], -self.KNEE_LIMIT, self.KNEE_LIMIT)
+        return out
 
     def update_state(self, state: NpEnvState) -> NpEnvState:
         self._update_commands(state.info)

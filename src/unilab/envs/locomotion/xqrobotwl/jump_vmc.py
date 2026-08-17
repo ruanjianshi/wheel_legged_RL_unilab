@@ -1,23 +1,22 @@
-"""xqrobotwl PPO+VMC jump env with SLIP-FSM leg-length reference.
+"""xqrobotwl PPO+VMC jump env — 干净消融: 无参考, 只输出层与纯PPO 不同.
 
-Same phase-gated jump rewards, commands, curriculum and termination as the pure
-PPO ``XqRobotWLJumpFlat`` env -- but the 8D policy action is interpreted in the
-virtual-leg space (hip-roll reference + virtual leg angle/length + wheel speed)
-and realised as joint torques through the VMC layer (see ``vmc.py``).
+v9 消融设计 (2×2): 纯PPO vs PPO+VMC 应只在**输出/控制层**不同 —
+同样的纯PPO 奖励、同样的 297D 关节观测、同样的训练, 唯一的区别是:
+纯PPO 输出关节位置目标 (PD 控制), PPO+VMC 输出虚拟腿参考 (VMC 力控)。
 
-The SLIP-FSM provides a per-phase virtual-leg-length reference (crouch -> thrust
--> flight retract -> landing absorb).  This env applies it in FULL-ACTION mode:
+  * **无 SLIP-FSM 参考**: 策略直接输出虚拟腿参考 (roll + θ₀ + L₀ + 轮速),
+    VMC 经雅可比映射为关节力矩; 没有参考混合, 没有分阶段 VMC 增益 (恒定)。
+  * **奖励**: 与纯PPO 完全相同 (继承 jump.py, 含 launch_rise/jump_height
+    phase-gated 版; 无 anti_early_extend — 那是 SLIP 参考时代的产物)。
+  * **观测**: 与纯PPO 完全相同 (297D 关节空间, 无虚拟腿/FSM 特征) —
+    策略从关节角度推断腿长, 只输出虚拟腿参考。
 
-    final_L0_action = phase_reference_action + policy_L0_action
-
-(the policy keeps full authority on top of the reference, distinct from the
-residual mode used by ``XqRobotWLJumpSRLVMCFlatEnv``).
-
-Action layout (dof order, matching the pure-PPO policy space so the reward
-functions stay valid):
+Action layout (dof order):
     [roll_L, theta_L, L0_L, roll_R, theta_R, L0_R, wheel_L, wheel_R]
 
-Observation frame (41 base + 18 FSM features = 387 / critic 486).
+SRL+VMC (``XqRobotWLJumpSRLVMCFlatEnv``) 继承本类并在 step/_compute_obs/
+get_l0_control_parameters 中覆盖, 加回 SLIP-FSM 参考 — 顺带修复了原
+SRL+VMC 的"参考双重混合" (jump_vmc.step 在 SRL+VMC.step 之后再混一次)。
 """
 
 from __future__ import annotations
@@ -82,9 +81,10 @@ class XqRobotWLJumpVMCFlatEnv(XqRobotWLJumpFlatEnv):
         self._vmc = VirtualLegVMC(cfg.vmc, num_envs, dtype=self._np_dtype)
         self._last_vmc_ctrl = np.zeros((num_envs, NUM_ACTIONS), dtype=self._np_dtype)
 
-        # Extend observation frames with virtual-leg state + torques.
-        self._obs_frame_dim = 41
-        self._critic_frame_dim = 52
+        # v9: PPO+VMC 为无参考消融臂 — 观测对齐纯PPO (33D/帧, 无虚拟腿/FSM 特征)。
+        # SRL+VMC 在自己的 __init__ 里按需重设。
+        self._obs_frame_dim = 33
+        self._critic_frame_dim = 36
         self._obs_history = np.zeros(
             (num_envs, self._hist_len, self._obs_frame_dim), dtype=self._np_dtype
         )
@@ -96,10 +96,10 @@ class XqRobotWLJumpVMCFlatEnv(XqRobotWLJumpFlatEnv):
 
     @property
     def obs_groups_spec(self) -> dict[str, int]:
-        fsm_extra = 2 * self._hist_len  # 2 FSM features tiled across history
+        # v9: 无参考消融臂 — 与纯PPO 相同 (无 FSM 特征): 33*9=297 / 36*9=324。
         return {
-            "obs": self._obs_frame_dim * self._hist_len + fsm_extra,
-            "critic": self._critic_frame_dim * self._hist_len + fsm_extra,
+            "obs": self._obs_frame_dim * self._hist_len,
+            "critic": self._critic_frame_dim * self._hist_len,
         }
 
     # ------------------------------------------------------------------ #
@@ -142,17 +142,10 @@ class XqRobotWLJumpVMCFlatEnv(XqRobotWLJumpFlatEnv):
         return np.clip((target - cfg.l0_offset) / cfg.action_scale_l0, -1.0, 1.0)
 
     def step(self, actions):
-        actions = np.asarray(actions, dtype=self._np_dtype).copy()
-        target_action = self._jump_leg_reference_action()
-        # Reference-dominant blend: the policy keeps most authority but cannot
-        # fully cancel the SLIP-FSM crouch->thrust trajectory.  Baseline
-        # full-action (fb=1.0) let the policy override the crouch reference and
-        # slowly extend during the crouch phase to farm launch_rise while the
-        # wheels never left the ground (air_frac ~2%).  fb<1.0 keeps the
-        # reference in control of the crouch->thrust timing (see devlog).
-        fb = float(getattr(self._vmc_cfg, "feedback_gain", 1.0))
-        actions[:, 2] = target_action + fb * actions[:, 2]  # L0_L
-        actions[:, 5] = target_action + fb * actions[:, 5]  # L0_R
+        # v9: PPO+VMC 为无参考消融臂 — 策略直接输出虚拟腿参考, VMC 转力矩,
+        # 无 SLIP-FSM 参考混合。SRL+VMC 在自己的 step 里做残差参考混合后调用
+        # 本方法 (透传) — 顺带修复原 SRL+VMC 的"参考双重混合" (jump_vmc.step
+        # 再混一次, 使参考 L0 目标 ×2)。
         return super().step(actions)
 
     # ------------------------------------------------------------------ #
@@ -166,6 +159,14 @@ class XqRobotWLJumpVMCFlatEnv(XqRobotWLJumpFlatEnv):
         )
         state.info["last_actions"] = state.info.get("current_actions", np.zeros_like(clipped))
         state.info["current_actions"] = clipped
+        # v7c: 动作一阶低通 (control_config.action_smoothing, 文献 LPF 消高频抖动)
+        # VMC 变体原本不走 joystick.apply_action 的 smoothing, 这里补上 —
+        # 配合 ang_vel_xy 加强压站立期振荡 (v7b 收敛后站立 |gyro| 2.25 超标)。
+        if getattr(self._cfg.control_config, "action_smoothing", 0.0) > 0.0:
+            alpha = float(self._cfg.control_config.action_smoothing)
+            prev = getattr(self, "_prev_vmc_filtered_action", clipped)
+            clipped = alpha * prev + (1.0 - alpha) * clipped
+            self._prev_vmc_filtered_action = clipped
         # Policy/dof order: [roll_L, theta_L, L0_L, roll_R, theta_R, L0_R, wheel_L, wheel_R]
         roll_L = clipped[:, 0] * cfg.action_scale_roll + cfg.roll_default[0]
         theta_L = clipped[:, 1] * cfg.action_scale_theta + cfg.theta0_offset
@@ -179,82 +180,18 @@ class XqRobotWLJumpVMCFlatEnv(XqRobotWLJumpFlatEnv):
         return np.stack([roll_L, theta_L, L0_L, wheel_L, roll_R, theta_R, L0_R, wheel_R], axis=1)
 
     def get_l0_control_parameters(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        # Start from the VMC layer's default gains, then scale by FSM phase.
-        kp, kd, ff = self._vmc.get_l0_control_parameters()
-        cfg = self._vmc_cfg
-        phase = self._fsm_state
-        thrust = (phase == 1)[:, None]
-        flight = (phase == 2)[:, None]
-        landing = (phase == 3)[:, None]
-        kp = np.where(thrust, kp * cfg.thrust_kp_scale, kp)
-        # Thrust uses low leg damping (kd_l0 * thrust_kd_scale) so the extension
-        # is explosive enough to break wheel contact -> real lift-off.
-        kd = np.where(thrust, kd * cfg.thrust_kd_scale, kd)
-        ff = np.where(thrust, ff * cfg.thrust_ff_scale, ff)
-        ff = np.where(flight, ff * cfg.flight_ff_scale, ff)
-        kd = np.where(landing, kd * cfg.landing_kd_scale, kd)
-        ff = np.where(landing, ff * cfg.landing_ff_scale, ff)
-        return kp, kd, ff
+        # v9: 无参考消融臂 — 恒定默认增益 (无 SLIP-FSM 分阶段缩放)。
+        # SRL+VMC 覆盖此方法保留分阶段增益。
+        return self._vmc.get_l0_control_parameters()
 
     # ------------------------------------------------------------------ #
     # Reward overrides (PPO+VMC-specific, isolated from shared jump.py)    #
     # ------------------------------------------------------------------ #
 
     def _init_reward_functions(self) -> None:
+        # v9: 无参考消融臂 — 奖励与纯PPO 完全相同 (继承 jump.py, 不加
+        # anti_early_extend; launch_rise 用 jump.py 的 phase-gated 版)。
         super()._init_reward_functions()
-        self._reward_fns["anti_early_extend"] = self._reward_anti_early_extend
-
-    def _leg_L0(self, dof_pos6: np.ndarray) -> np.ndarray:
-        """Virtual leg length L0 for both legs from a (N,6) leg-joint array."""
-        theta1, theta2 = self._vmc._theta_from_joints(dof_pos6)
-        L0, _ = self._vmc.forward_kinematics(theta1, theta2)
-        return L0
-
-    def _reward_launch_rise(self, ctx) -> np.ndarray:
-        """Rise reward gated to the SLIP-FSM THRUST phase + grounded.
-
-        The shared ``launch_rise`` rewards any on-ground rise while the trigger
-        is held, which let the full-action PPO+VMC policy farm it by slowly
-        extending the legs during the FSM CROUCH phase (wheels never leave the
-        ground -> air_frac 2%).  Gating on ``fsm_state == 1`` (thrust) means
-        rise credit is only earned while the explosive thrust gains are active,
-        so the policy must wait for the SLIP-FSM to switch to thrust.
-        """
-        base_z = ctx.base_height
-        floor = ctx.info.get(
-            "window_min_z",
-            np.full(ctx.num_envs, self._jump_cfg.base_height_target, dtype=get_global_dtype()),
-        )
-        rise = np.clip(base_z - floor, 0.0, 1.0)
-        wheel_contact = ctx.info.get("wheel_contact", np.ones((ctx.num_envs, 2)))
-        on_ground = (np.max(wheel_contact, axis=1) > 0.5).astype(np.float64)
-        thrust = (self._fsm_state == 1).astype(np.float64)
-        active = thrust * on_ground
-        if getattr(self._jump_cfg, "thrust_requires_crouch", True):
-            window_crouched = ctx.info.get(
-                "window_crouched", np.ones(ctx.num_envs, dtype=get_global_dtype())
-            )
-            active = active * window_crouched
-        weight = ctx.info.get("jump_curriculum", 1.0)
-        return rise * active * weight
-
-    def _reward_anti_early_extend(self, ctx) -> np.ndarray:
-        """Penalise extending the virtual legs before the FSM thrust phase.
-
-        In the baseline the policy overrode the SLIP-FSM crouch reference and
-        extended L0 during the crouch window, converting the jump into a slow
-        quasi-static rise with wheels never leaving the ground.  This term
-        penalises any L0 above ``crouch_upper_bound`` while fsm_state==0
-        (crouch) and the trigger window is active, so the only way to rise is
-        to wait for the thrust phase.
-        """
-        phase = ctx.info.get("jump_phase", np.zeros(ctx.num_envs, dtype=np.float64))
-        crouch = (self._fsm_state == 0).astype(np.float64)
-        active = crouch * (phase >= 1.0).astype(np.float64)
-        L0 = self._leg_L0(ctx.dof_pos)  # (N, 2) [L, R]
-        bound = float(getattr(self._vmc_cfg, "crouch_upper_bound", 0.38))
-        excess = np.clip(L0 - bound, 0.0, 0.30)
-        return -np.sum(excess, axis=1) * active
 
     def _pre_step_vmc_control(self, backend, policy_ctrl: np.ndarray) -> np.ndarray:
         dof_pos = stack_joint_sensors(backend, dtype=self.default_angles.dtype)
@@ -282,6 +219,8 @@ class XqRobotWLJumpVMCFlatEnv(XqRobotWLJumpFlatEnv):
             self._fsm_state[env_ids] = -1
             self._fsm_timer[env_ids] = 0.0
             self._episode_max_height[env_ids] = 0.0
+            if hasattr(self, "_prev_vmc_filtered_action"):
+                self._prev_vmc_filtered_action[env_ids] = 0.0
         return out
 
     # ------------------------------------------------------------------ #
@@ -344,86 +283,8 @@ class XqRobotWLJumpVMCFlatEnv(XqRobotWLJumpFlatEnv):
     def _compute_obs(
         self, info: dict, linvel, gyro, gravity, dof_pos, dof_vel
     ) -> dict[str, np.ndarray]:
-        noise_cfg = self._cfg.noise_config
-        leg_diff = dof_pos[:, :NUM_LEG_ACTIONS] - DEFAULT_ANGLES[:NUM_LEG_ACTIONS]
-        leg_vel = dof_vel[:, :NUM_LEG_ACTIONS]
-        wheel_vel = dof_vel[:, NUM_LEG_ACTIONS:]
-        theta1, theta2, theta0, L0, theta0_dot, L0_dot = self._vmc.compute_kinematics(
-            dof_pos, dof_vel
+        # v9: 无参考消融臂 — 观测与纯PPO 完全相同 (33D/帧, 无虚拟腿/FSM 特征)。
+        # 策略从关节角度/速度推断腿长, 只输出层 (虚拟腿参考) 与纯PPO 不同。
+        return super(XqRobotWLJumpVMCFlatEnv, self)._compute_obs(
+            info, linvel, gyro, gravity, dof_pos, dof_vel
         )
-        last_actions = info.get("current_actions", np.zeros((linvel.shape[0], NUM_ACTIONS)))
-
-        noisy_gyro = self._obs_noise(gyro, noise_cfg.scale_gyro)
-        noisy_gravity = self._obs_noise(gravity, noise_cfg.scale_gravity)
-        noisy_leg_diff = self._obs_noise(leg_diff, noise_cfg.scale_joint_angle)
-        noisy_leg_vel = self._obs_noise(leg_vel, noise_cfg.scale_joint_vel)
-        noisy_theta0 = self._obs_noise(theta0, noise_cfg.scale_joint_angle)
-        noisy_theta0_dot = self._obs_noise(theta0_dot, noise_cfg.scale_joint_vel)
-        noisy_L0 = self._obs_noise(L0, noise_cfg.scale_joint_angle)
-        noisy_L0_dot = self._obs_noise(L0_dot, noise_cfg.scale_joint_vel)
-        noisy_wheel_vel = self._obs_noise(wheel_vel, noise_cfg.scale_wheel_vel)
-
-        obs_frame = np.concatenate(
-            [
-                noisy_gyro,
-                -noisy_gravity,
-                noisy_leg_diff,
-                noisy_leg_vel,
-                noisy_theta0,
-                noisy_theta0_dot,
-                noisy_L0,
-                noisy_L0_dot,
-                noisy_wheel_vel,
-                last_actions,
-                info["commands"],
-            ],
-            axis=1,
-            dtype=get_global_dtype(),
-        )
-
-        torques = info.get("torques", np.zeros((linvel.shape[0], NUM_ACTIONS)))
-        critic_frame = np.concatenate(
-            [
-                gyro,
-                -gravity,
-                leg_diff,
-                leg_vel,
-                theta0,
-                theta0_dot,
-                L0,
-                L0_dot,
-                wheel_vel,
-                last_actions,
-                info["commands"],
-                linvel,
-                torques,
-            ],
-            axis=1,
-            dtype=get_global_dtype(),
-        )
-
-        batch_size = obs_frame.shape[0]
-        steps_val = int(info.get("steps", np.zeros(1, dtype=np.uint32))[0])
-        if steps_val <= 1:
-            for i in range(self._hist_len):
-                self._obs_history[:batch_size, i, :] = obs_frame
-                self._critic_history[:batch_size, i, :] = critic_frame
-        else:
-            self._obs_history[:batch_size, :-1, :] = self._obs_history[:batch_size, 1:, :]
-            self._obs_history[:batch_size, -1, :] = obs_frame
-            self._critic_history[:batch_size, :-1, :] = self._critic_history[:batch_size, 1:, :]
-            self._critic_history[:batch_size, -1, :] = critic_frame
-
-        obs = self._obs_history[:batch_size].reshape(batch_size, -1)
-        critic = self._critic_history[:batch_size].reshape(batch_size, -1)
-
-        # Append FSM features (state + timer) tiled across the history frames.
-        fsm_feat = self._fsm_state.astype(np.float64).reshape(-1, 1)[:batch_size] / 5.0
-        timer_feat = np.clip(self._fsm_timer.reshape(-1, 1)[:batch_size] / 0.8, 0, 1)
-        extra = np.tile(
-            np.concatenate([fsm_feat, timer_feat], axis=1, dtype=get_global_dtype())[:, None, :],
-            (1, self._hist_len, 1),
-        ).reshape(batch_size, -1)
-        obs = np.concatenate([obs, extra], axis=1)
-        critic = np.concatenate([critic, extra], axis=1)
-        return {"obs": obs, "critic": critic}

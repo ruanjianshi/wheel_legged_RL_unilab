@@ -15,6 +15,23 @@ _devlog/<robot>/<task>/<algo>/<date>/<序号>_<slug>.md
 
 ## 时间线 (最新在前)
 
+### 2026-08-16
+
+| 机器人 | 任务 | 算法 | 标题 |
+|--------|------|------|------|
+| xqrobotwl | jump | ppo | [SRL v5: height_progress 修复 + 中间评估 (跳高 0.347m, 姿态待收敛)](xqrobotwl/jump/ppo/2026-08-16/NN_jump_srl_v5_heightfix.md) |
+| xqrobotwl | jump | ppo | [SRL+VMC v5: anti-sway 改进 + 中间评估 (跳高 0.267m, 晃动未消除)](xqrobotwl/jump/ppo/2026-08-16/NN_jump_srl_vmc_v5_antisway.md) |
+| xqrobotwl | jump | ppo | [SRL v6: 加强姿态项 (晃动 + 落地恢复)](xqrobotwl/jump/ppo/2026-08-16/NN_jump_srl_v6_posture.md) |
+| xqrobotwl | jump | ppo | [SRL+VMC v6: 重平衡 anti-sway 与跳高](xqrobotwl/jump/ppo/2026-08-16/NN_jump_srl_vmc_v6_rebalance.md) |
+| xqrobotwl | jump | assess | [可视化问题量化诊断: 四算法问题数据确认 (纯PPO无跳跃/PPO+VMC膝过伸/SRL站立振荡/SRL+VMC髋外展)](assess/reports/jump/2026-08-16_four_algo_visual_problems_diag.md) |
+| xqrobotwl | jump | ppo | [SRL v7: 站立稳定修复 (landing_recovery 站立期恒开 + LPF + ang_vel_xy 加强 + 膝目标裁剪)](xqrobotwl/jump/ppo/2026-08-16/NN_jump_srl_v7_standing_fix.md) |
+| xqrobotwl | jump | ppo | [SRL+VMC v7: 髋外展跳跃修复 (lateral_posture + 下蹲门控 + VMC膝守卫)](xqrobotwl/jump/ppo/2026-08-16/NN_jump_srl_vmc_v7_abduction_fix.md) |
+| xqrobotwl | jump | ppo | [SRL+VMC v8: 干净消融 (只输出层与SRL不同, 统一奖励/观测)](xqrobotwl/jump/ppo/2026-08-16/NN_jump_srl_vmc_v8_clean_ablation.md) |
+| xqrobotwl | jump | ppo | [PPO+VMC v9: 无参考消融臂 + SRL+VMC 双混合修复 (2×2 消融)](xqrobotwl/jump/ppo/2026-08-16/NN_ppo_vmc_v9_no_reference_ablation.md) |
+| xqrobotwl | jump | ppo | [SRL+VMC v8d: 实用版调优 (lateral_posture 加回 + 强蹬伸 + 深蹲, 最高+最干净)](xqrobotwl/jump/ppo/2026-08-16/NN_jump_srl_vmc_v8d_best_tuning.md) |
+| xqrobotwl | jump | ppo | [SRL+VMC v8e: 根因修复 (蹲下相前馈归零 + 跳高最低门槛 + roll速度罚)](xqrobotwl/jump/ppo/2026-08-16/NN_jump_srl_vmc_v8e_rootfix.md) |
+| xqrobotwl | jump | assess | [外部调研参考: 站立稳定 RL + 跳跃姿态/膝限约束 VMC](references) |
+
 ### 2026-08-10
 
 | 机器人 | 任务 | 算法 | 标题 |
