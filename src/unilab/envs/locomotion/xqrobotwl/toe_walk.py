@@ -57,6 +57,7 @@ class XqRobotToeWalkRewardConfig:
     ref_scale: float = 0.18
     use_reference: bool = True  # False = 相位门控奖励, 不跟踪参考轨迹
     curriculum_steps: int = 4000  # 前 N iter 缓升, 防止过早罚崩溃
+    symmetry_decay: float = 0.98  # v11: 预留 (窗级机制不依赖, 保持 conf 兼容)
 
 
 def _reward_ref_tracking(ctx: RewardContext) -> np.ndarray:
@@ -151,13 +152,13 @@ def _reward_phase_swing_lift(ctx: RewardContext) -> np.ndarray:
 
 
 def _reward_phase_knee_lift(ctx: RewardContext) -> np.ndarray:
-    """摆动相: 奖弯腿 (不要求离地, 先让策略敢做动作)"""
+    """摆动相: 奖弯腿 — v11: 弯幅上限 0.5 (小幅弯膝即满分, 弯太多无额外收益 → 平缓)"""
     phase = ctx.info.get("phase", np.zeros((ctx.num_envs, 1)))
     sin_p = np.sin(2 * np.pi * phase)[:, 0]
     left_swing = (sin_p > 0.2).astype(np.float64)
     right_swing = (sin_p < -0.2).astype(np.float64)
-    l_bend = np.clip(ctx.dof_pos[:, 2] - 0.15, 0, 1.5) * left_swing
-    r_bend = np.clip(-ctx.dof_pos[:, 5] - 0.15, 0, 1.5) * right_swing
+    l_bend = np.clip(ctx.dof_pos[:, 2] - 0.15, 0, 0.5) * left_swing
+    r_bend = np.clip(-ctx.dof_pos[:, 5] - 0.15, 0, 0.5) * right_swing
     return l_bend + r_bend
 
 
@@ -167,9 +168,33 @@ def _reward_phase_knee_stance(ctx: RewardContext) -> np.ndarray:
     sin_p = np.sin(2 * np.pi * phase)[:, 0]
     left_stance = (sin_p < -0.2).astype(np.float64)
     right_stance = (sin_p > 0.2).astype(np.float64)
-    l_penalty = np.clip(ctx.dof_pos[:, 2] - 0.15, 0, 1.0) * left_stance
-    r_penalty = np.clip(-ctx.dof_pos[:, 5] - 0.15, 0, 1.0) * right_stance
+    l_penalty = np.clip(ctx.dof_pos[:, 2] - 0.15, 0, 0.5) * left_stance
+    r_penalty = np.clip(-ctx.dof_pos[:, 5] - 0.15, 0, 0.5) * right_stance
     return -(l_penalty + r_penalty)
+
+
+# ---------- v11: 窗级交替考核 ----------
+
+
+def _reward_window_lift(ctx: RewardContext) -> np.ndarray:
+    """窗级结算奖励: 摆动窗结束若曾离地且交错链完整 → +窗内离地占比 (结算脉冲)."""
+    return np.asarray(ctx.info.get("lift_win_award", np.zeros((ctx.num_envs,))), dtype=np.float64)
+
+
+def _reward_window_penalty(ctx: RewardContext) -> np.ndarray:
+    """窗级结算惩罚: 摆动窗结束仍未离过地 → -1 (×权重)."""
+    return -np.asarray(ctx.info.get("lift_win_penalty", np.zeros((ctx.num_envs,))), dtype=np.float64)
+
+
+def _reward_lift_symmetry(ctx: RewardContext) -> np.ndarray:
+    """摆动相轮离地滑动均值 L/R 差惩罚 (v12: 防单侧偏, 周期级比较).
+
+    EMA 由 env._compute_reward 维护 (info["lift_sym_ema"]).
+    """
+    ema = ctx.info.get("lift_sym_ema")
+    if ema is None:
+        return np.zeros((ctx.num_envs,), dtype=np.float64)
+    return -np.abs(ema[:, 0] - ema[:, 1])
 
 
 def _reward_phase_stance_penalty(ctx: RewardContext) -> np.ndarray:
@@ -233,6 +258,14 @@ class XqRobotWLToeWalkFlatEnv(XqRobotWLWalkFlatEnv):
             (num_envs, self._hist_len, self._critic_frame_dim), dtype=self._np_dtype
         )
         self._total_env_steps = 0  # ★ 课程训练计数器
+        # v11: 窗级交替状态 + 终止异常帧计数
+        self._win_cur = np.full((num_envs,), -1, dtype=np.int64)
+        self._win_lifted = np.zeros((num_envs,), dtype=bool)
+        self._win_air_steps = np.zeros((num_envs,), dtype=np.float64)
+        self._win_steps = np.zeros((num_envs,), dtype=np.float64)
+        self._win_last_ok = np.ones((num_envs,), dtype=bool)
+        self._bad_frames = np.zeros((num_envs,), dtype=np.int64)
+        self._air_ema = np.zeros((num_envs, 2), dtype=get_global_dtype())  # v12: lift_sym EMA [L,R]
 
     def _init_reward_functions(self) -> None:
         if self._toe_cfg.use_reference:
@@ -284,6 +317,10 @@ class XqRobotWLToeWalkFlatEnv(XqRobotWLWalkFlatEnv):
                 "wheel_symmetry": _reward_wheel_symmetry,
                 "hip_roll": _reward_hip_roll,
             }
+        # v11: 窗级交替考核奖励
+        self._reward_fns["window_lift"] = _reward_window_lift
+        self._reward_fns["window_penalty"] = _reward_window_penalty
+        self._reward_fns["lift_symmetry"] = _reward_lift_symmetry
 
     def _reward_joint_action_rate(self, ctx: RewardContext) -> np.ndarray:
         current = ctx.info["current_actions"][:, :NUM_LEG_ACTIONS]
@@ -406,6 +443,59 @@ class XqRobotWLToeWalkFlatEnv(XqRobotWLWalkFlatEnv):
         except Exception:
             info["wheel_contact"] = np.zeros((self._num_envs, 2), dtype=np.float64)
 
+    # ── v11: 窗级交替考核状态机 ─────────────────────────────
+    #   摆动窗 (相位 sin>0.2 → L, sin<-0.2 → R) 结束时结算:
+    #     - 本窗曾离地 且 上一结算窗也离地 (交替链完整) → 奖 ×窗内离地占比
+    #     - 本窗离地但链断 → 半奖
+    #     - 本窗从未离地 → 罚 (一次)
+    #   经济性: 双侧交替每周期 +2×lift×占比; 单侧抬 (0.36×30-300) 亏损; 不抬 -600 亏损
+
+    def _update_lift_windows(self, info: dict) -> None:
+        n = self._num_envs
+        award = np.zeros((n,), dtype=get_global_dtype())
+        penalty = np.zeros((n,), dtype=get_global_dtype())
+        phase = np.asarray(info.get("phase", np.zeros((n, 1), dtype=get_global_dtype())))[:, 0]
+        sin_p = np.sin(2 * np.pi * phase)
+        win = np.where(sin_p > 0.2, 0, np.where(sin_p < -0.2, 1, -1)).astype(np.int64)
+        contact = info.get("wheel_contact", np.zeros((n, 2), dtype=get_global_dtype()))
+
+        changed = win != self._win_cur
+        settle = changed & (self._win_cur >= 0)
+        if np.any(settle):
+            prev_lifted = self._win_lifted[settle]
+            frac = np.where(
+                self._win_steps[settle] > 0,
+                np.clip(self._win_air_steps[settle] / self._win_steps[settle], 0.0, 1.0),
+                0.0,
+            )
+            ok_prev = self._win_last_ok[settle]
+            full = prev_lifted & ok_prev
+            recover = prev_lifted & ~ok_prev
+            a = np.zeros(np.count_nonzero(settle), dtype=get_global_dtype())
+            a[full] = frac[full]
+            a[recover] = frac[recover] * 0.5
+            p = np.zeros(np.count_nonzero(settle), dtype=get_global_dtype())
+            p[~prev_lifted] = 1.0
+            award[settle] = a
+            penalty[settle] = p
+            self._win_last_ok[settle] = prev_lifted
+        start = changed & (win >= 0)
+        if np.any(start):
+            self._win_lifted[start] = False
+            self._win_air_steps[start] = 0.0
+            self._win_steps[start] = 0.0
+        self._win_cur[:] = win
+        active = win >= 0
+        if np.any(active):
+            left_air = (1.0 - contact[:, 0]) * (win == 0)
+            right_air = (1.0 - contact[:, 1]) * (win == 1)
+            self._win_steps[active] += 1.0
+            self._win_air_steps[active] += (left_air + right_air)[active]
+            self._win_lifted[active] |= (left_air + right_air)[active] > 0.5
+        info["lift_win_award"] = award
+        info["lift_win_penalty"] = penalty
+        info["win_lifted_cur"] = self._win_lifted.astype(get_global_dtype())
+
     def _compute_obs(
         self, info: dict, linvel, gyro, gravity, dof_pos, dof_vel
     ) -> dict[str, np.ndarray]:
@@ -487,51 +577,73 @@ class XqRobotWLToeWalkFlatEnv(XqRobotWLWalkFlatEnv):
     def _compute_terminated(self, gravity: np.ndarray, dof_pos: np.ndarray) -> np.ndarray:
         tilt = np.arccos(np.clip(gravity[:, 2], -1, 1))
         max_tilt = np.deg2rad(self._toe_cfg.max_tilt_deg)
-        terminated = tilt > max_tilt
+        bad = tilt > max_tilt
         base_height = np.asarray(self._backend.get_base_pos(), dtype=get_global_dtype())[:, 2]
-        terminated |= base_height < self._toe_cfg.min_base_height
-        thigh_collapsed = (dof_pos[:, 1] < -0.5) | (dof_pos[:, 4] > 0.5)
-        calf_extreme = (np.abs(dof_pos[:, 2]) > 2.0) | (np.abs(dof_pos[:, 5]) > 2.0)
-        terminated |= thigh_collapsed
-        terminated |= calf_extreme
-        # 腿碰地终止: 摆动腿蹭地皮 → 直接死
+        bad |= base_height < self._toe_cfg.min_base_height
+        # v11: thigh ±0.9 (原 -0.5/0.5, 抬腿探索动作常越界被单帧误杀); knee ±2.0 保留
+        bad |= (np.abs(dof_pos[:, 1]) > 0.9) | (np.abs(dof_pos[:, 4]) > 0.9)
+        bad |= (np.abs(dof_pos[:, 2]) > 2.0) | (np.abs(dof_pos[:, 5]) > 2.0)
+        # 腿碰地: 轻蹭不死, 力阈值 5N→8N
         for name in getattr(self._cfg, "contact_body_names", []):
             try:
                 cf = self._backend.get_sensor_data(name)
                 if cf is not None:
                     c = np.asarray(cf, dtype=np.float64).reshape(self._num_envs, -1)
-                    contact = np.any(np.abs(c) > 5.0, axis=1)
-                    terminated |= contact
+                    bad |= np.any(np.abs(c) > 8.0, axis=1)
             except (KeyError, AttributeError):
                 pass
-        return terminated
+        # v11: 异常帧延迟终止 (连续 5 帧 = 50ms 才判死, 防单帧瞬态误杀)
+        self._bad_frames = np.where(bad, self._bad_frames + 1, 0)
+        return self._bad_frames >= 5
 
     def _compute_reward(self, info: dict, linvel, gyro, gravity, dof_pos, dof_vel) -> np.ndarray:
         dtype = get_global_dtype()
         num_obs = linvel.shape[0]
 
-        # ★ 课程训练: 前 N iter 只练抬腿, 之后逐步加入行走
+        # v11: 平衡预热课程 — 前 curriculum_steps (1200) iter 无任何抬腿奖励, 只学站立
+        # 之后抬腿奖励全开 + window_penalty 从 60 课程升到 conf 值 (300) — 交替考核渐紧
         if not self._toe_cfg.use_reference and self._toe_cfg.curriculum_steps > 0:
             self._total_env_steps += self._num_envs
             warmup_cutoff = (
                 0 if self._num_envs <= 1 else self._toe_cfg.curriculum_steps * 24 * self._num_envs
             )
             scales = dict(self._toe_cfg.scales)
-            spc = self._toe_cfg.scales.get("swing_contact_penalty", 25.0)
             if self._total_env_steps < warmup_cutoff:
-                # Stage 1: 站立 + 抬腿, 不追速, 接触惩罚弱
-                scales["tracking_lin_vel"] = 0.0
-                scales["tracking_ang_vel"] = 0.0
-                scales["swing_contact_penalty"] = spc * 0.1
-            elif self._total_env_steps < warmup_cutoff * 2:
-                # Stage 2: 线性斜坡加入行走 + 接触惩罚
-                alpha = (self._total_env_steps - warmup_cutoff) / warmup_cutoff
-                scales["tracking_lin_vel"] = self._toe_cfg.scales.get("tracking_lin_vel", 0) * alpha
-                scales["tracking_ang_vel"] = self._toe_cfg.scales.get("tracking_ang_vel", 0) * alpha
-                scales["swing_contact_penalty"] = spc * (0.1 + 0.9 * alpha)
-            # Stage 3: 全开 (scales unchanged)
+                # 预热: 关抬腿奖励 (只留站立/高度/直立/平滑/alive)
+                for key in (
+                    "phase_swing_lift",
+                    "phase_knee_lift",
+                    "phase_knee_stance",
+                    "phase_stance_penalty",
+                    "window_lift",
+                    "window_penalty",
+                    "swing_contact_penalty",
+                    "feet_regulation",
+                ):
+                    scales[key] = 0.0
+            else:
+                # 预热后: 窗罚从 60 课程升到配置值 (300), 由"只站"到"交替考核"渐进
+                iters_after = (self._total_env_steps - warmup_cutoff) / max(
+                    24.0 * float(self._num_envs), 1.0
+                )
+                alpha = min(1.0, iters_after / 2500.0)  # 2500 iter 内斜坡
+                wp = scales.get("window_penalty", 300.0)
+                scales["window_penalty"] = 60.0 + (wp - 60.0) * alpha
         else:
-            scales = self._toe_cfg.scales
+            scales = dict(self._toe_cfg.scales)
+
+        # v11: 窗级交替考核状态机 (结算 award/penalty → info)
+        self._update_lift_windows(info)
+        # v12: lift_sym EMA (摆动相轮离地 L/R 滑动均值)
+        dec = float(getattr(self._toe_cfg, "symmetry_decay", 0.98))
+        phase_a = np.asarray(info.get("phase", np.zeros((num_obs, 1), dtype=dtype)))[:, 0]
+        sin_a = np.sin(2 * np.pi * phase_a)
+        contact_a = info.get("wheel_contact", np.zeros((num_obs, 2), dtype=dtype))
+        airL = (1.0 - contact_a[:, 0]) * (sin_a > 0.2).astype(dtype)
+        airR = (1.0 - contact_a[:, 1]) * (sin_a < -0.2).astype(dtype)
+        self._air_ema[:, 0] = dec * self._air_ema[:, 0] + (1.0 - dec) * airL
+        self._air_ema[:, 1] = dec * self._air_ema[:, 1] + (1.0 - dec) * airR
+        info["lift_sym_ema"] = self._air_ema
 
         ctx = RewardContext(
             info=info,

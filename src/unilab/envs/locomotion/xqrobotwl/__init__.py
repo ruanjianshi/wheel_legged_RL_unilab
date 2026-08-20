@@ -16,3 +16,4 @@ from .single_leg_unicycle import (
 )
 from .stairs import XqRobotWLStairsCfg, XqRobotWLStairsEnv
 from .toe_walk import XqRobotWLToeWalkFlatCfg, XqRobotWLToeWalkFlatEnv
+from .toe_walk_mode import XqRobotWLToeWalkModeCfg, XqRobotWLToeWalkModeEnv

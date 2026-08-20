@@ -94,6 +94,9 @@ class KeyboardCommander:
     height_max: float = 0.90
     mode: str = "forward"  # "forward" (↑↓→Vx) or "lateral" (↑↓→Vy)
     jump_trigger: int = 0  # 0=off, 1=jump requested
+    trigger_mode: str = "jump"  # "jump"=短脉冲, "single_leg"=按键锁存
+    toe_mode: int = 0  # 点足抬腿模式: 0=站立, 1=抬腿 (H 键锁存, toe_walk_mode 任务)
+    task_is_toe_mode: bool = False  # 当前任务是否为双模式点足 (H 键语义切换)
 
     AXIS_VX: ClassVar[int] = 0
     AXIS_VY: ClassVar[int] = 1
@@ -111,6 +114,11 @@ class KeyboardCommander:
         else:
             self.mode = "forward"
         return self.mode
+
+    def toggle_toe_mode(self) -> int:
+        """切换 站立/点足抬腿 模式 (H 键, 锁存)."""
+        self.toe_mode = 1 if self.toe_mode == 0 else 0
+        return self.toe_mode
 
     @classmethod
     def from_vel_limit(
@@ -146,10 +154,13 @@ class KeyboardCommander:
         self.command[:] = 0.0
 
     def describe(self) -> str:
-        return (
+        base = (
             f"cmd vx={self.command[0]:+.2f} vy={self.command[1]:+.2f} vyaw={self.command[2]:+.2f}"
             f"  h={self.height_target:.2f} [{self.mode}]"
         )
+        if self.task_is_toe_mode:
+            base += f"  toe_mode={'抬腿' if self.toe_mode else '站立'}"
+        return base
 
 
 @dataclass(frozen=True)

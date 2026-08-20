@@ -883,6 +883,13 @@ def _build_keyboard_commander(env: Any, args) -> KeyboardCommander | None:
         step_lin=float(getattr(args, "keyboard_step_lin", 0.1)),
         step_ang=float(getattr(args, "keyboard_step_ang", 0.2)),
     )
+    is_single_leg = "single_leg" in str(getattr(args, "task", "")).lower()
+    if is_single_leg:
+        commander.trigger_mode = "single_leg"
+    # 双模式点足: 仅任务名/类名为双模式时启用 H 键模式切换
+    # (勿用环境属性如 _win_cur 判定 — 单模式 toe_walk 也带窗状态机, 会误判 → 4D命令越界, 老板实测抓出)
+    _task_norm = str(getattr(args, "task", "")).lower().replace("_", "")
+    commander.task_is_toe_mode = "toewalkmode" in _task_norm or type(env).__name__ == "XqRobotWLToeWalkModeEnv"
     reward_cfg = getattr(env, "_reward_cfg", None)
     if reward_cfg is not None and hasattr(reward_cfg, "base_height_target"):
         commander.height_target = float(reward_cfg.base_height_target)
@@ -893,11 +900,18 @@ def _build_keyboard_commander(env: Any, args) -> KeyboardCommander | None:
     # (backflip warmup 在 [warmup, 2*warmup] 区间斜坡, 需跳到 2*warmup)
     if hasattr(env, "_flip_warmup_env_steps") and hasattr(env, "_total_env_steps"):
         env._total_env_steps = 2 * env._flip_warmup_env_steps + 1
+    # 单腿交互必须让按键立即生效，跳过仅用于训练的站立预热。
+    if is_single_leg and hasattr(env, "_sl_warmup_env_steps"):
+        env._total_env_steps = 2 * env._sl_warmup_env_steps + 1
+        env._warmup_progress = 1.0
     if limit.shape[1] >= 5:
         commander.height_min = float(limit[0, 4])
         commander.height_max = float(limit[1, 4])
     env.state.info["commands"][:, :3] = commander.command
-    if env.state.info["commands"].shape[1] >= 5:
+    if commander.task_is_toe_mode:
+        # 双模式点足: 第 5 维是 mode (0=站立 / 1=点足抬腿), 不写 height
+        env.state.info["commands"][:, 4] = float(commander.toe_mode)
+    elif env.state.info["commands"].shape[1] >= 5 and not is_single_leg:
         if not (
             str(getattr(args, "task", "")).startswith("xqrobotV2_jump")
             or str(getattr(args, "task", "")).startswith("xqrobotwl_jump")
@@ -1022,8 +1036,13 @@ def _handle_command_key(commander: KeyboardCommander, keycode: int) -> None:
         m = commander.toggle_mode()
         print(f"[play_interactive] mode: {m}")
     elif keycode == ord("H"):
-        commander.jump_trigger = 1 if commander.jump_trigger == 0 else 0
-        print(f"[play_interactive] jump: {'ON' if commander.jump_trigger else 'OFF'}")
+        if commander.task_is_toe_mode:
+            m = commander.toggle_toe_mode()
+            print(f"[play_interactive] 点足抬腿模式: {'ON' if m else 'OFF'}")
+        else:
+            commander.jump_trigger = 1 if commander.jump_trigger == 0 else 0
+            label = "single-leg balance" if commander.trigger_mode == "single_leg" else "jump"
+            print(f"[play_interactive] {label}: {'ON' if commander.jump_trigger else 'OFF'}")
     elif keycode in (_KEY_ENTER, _KEY_KP_ENTER):
         commander.zero()
     else:
@@ -1031,13 +1050,21 @@ def _handle_command_key(commander: KeyboardCommander, keycode: int) -> None:
     print(f"[play_interactive] {commander.describe()}")
 
 
-def _print_keyboard_legend(args) -> None:
+def _print_keyboard_legend(args, is_toe_mode: bool = False) -> None:
     print("[play_interactive] Keyboard teleop ENABLED (drive style):")
     print("  ↑ / ↓       : forward / backward (vx)  [V to switch lateral mode]")
     print("  ← / →       : turn left / right  (vyaw)")
     print("  A / D       : strafe left / right (vy)")
     print("  Q / E       : lower / raise  body height")
-    print("  H           : jump (one-shot)")
+    trigger_help = (
+        "single-leg balance ON/OFF"
+        if "single_leg" in str(getattr(args, "task", "")).lower()
+        else "jump (one-shot)"
+    )
+    if is_toe_mode:
+        print("  H           : toggle 站立/点足抬腿 模式 (默认站立, H 切点足抬腿)")
+    else:
+        print(f"  H           : {trigger_help}")
     print("  V           : toggle forward/lateral mode")
     print("  Enter       : full stop")
     if str(getattr(args, "action_mode", "")) != "policy":
@@ -1305,7 +1332,7 @@ def play_interactive(args, cfg: DictConfig | None = None, *, algo: str | None = 
         "Ctrl+Right(drag)=torque pushes the robot in the live sim."
     )
     if commander is not None:
-        _print_keyboard_legend(args)
+        _print_keyboard_legend(args, is_toe_mode=bool(getattr(commander, "task_is_toe_mode", False)))
 
     with mujoco.viewer.launch_passive(mj_model, viz_data, key_callback=_on_key) as viewer:
         focus_body_id = _resolve_focus_body_id(
@@ -1339,23 +1366,33 @@ def play_interactive(args, cfg: DictConfig | None = None, *, algo: str | None = 
                     # Keyboard mode: lock all commands, only let keyboard override
                     env.state.info["commands"][:, :] = 0.0
                     env.state.info["commands"][:, :3] = commander.command
-                    nc = env.state.info["commands"].shape[1]
-                    if nc >= 5 and not (
-                        str(args.task).startswith("xqrobotV2_jump")
-                        or str(args.task).startswith("xqrobotwl_jump")
-                    ):
-                        env.state.info["commands"][:, 4] = commander.height_target
-                    if commander.jump_trigger:
-                        if nc >= 5:
-                            env.state.info["commands"][:, 4] = 1.0
-                        commander.jump_frames = getattr(commander, "jump_frames", 0)
-                        commander.jump_frames += 1
-                        if commander.jump_frames >= 80:
-                            commander.jump_trigger = 0
-                            commander.jump_frames = 0
-                    elif nc >= 5:
-                        # Keyboard mode: lock trigger=0, don't let env randomly jump
-                        env.state.info["commands"][:, 4] = 0.0
+                    if getattr(commander, "task_is_toe_mode", False):
+                        # 双模式点足: 第 5 维是 mode (0=站立 / 1=点足抬腿), 按键 H 切换
+                        env.state.info["commands"][:, 4] = float(commander.toe_mode)
+                    else:
+                        nc = env.state.info["commands"].shape[1]
+                        is_single_leg = "single_leg" in str(args.task).lower()
+                        if (
+                            nc >= 5
+                            and not is_single_leg
+                            and not (
+                                str(args.task).startswith("xqrobotV2_jump")
+                                or str(args.task).startswith("xqrobotwl_jump")
+                            )
+                        ):
+                            env.state.info["commands"][:, 4] = commander.height_target
+                        if commander.jump_trigger:
+                            if nc >= 5:
+                                env.state.info["commands"][:, 4] = 1.0
+                            if commander.trigger_mode != "single_leg":
+                                commander.jump_frames = getattr(commander, "jump_frames", 0)
+                                commander.jump_frames += 1
+                                if commander.jump_frames >= 80:
+                                    commander.jump_trigger = 0
+                                    commander.jump_frames = 0
+                        elif nc >= 5:
+                            # Keyboard mode: lock trigger=0, don't let env randomly jump
+                            env.state.info["commands"][:, 4] = 0.0
                     reward_cfg = getattr(env, "_reward_cfg", None)
                     if reward_cfg is not None and hasattr(reward_cfg, "base_height_target"):
                         reward_cfg.base_height_target = commander.height_target

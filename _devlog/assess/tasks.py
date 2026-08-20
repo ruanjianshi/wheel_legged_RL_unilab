@@ -104,6 +104,25 @@ register(
 
 register(
     TaskDef(
+        key="toe_walk_mode",
+        name="双模式点足行走 (站立⇄抬腿)",
+        env_name="XqRobotWLToeWalkMode",
+        cfg_path="conf/ppo/task/xqrobotwl_toe_walk_mode/mujoco.yaml",
+        log_root="logs/rsl_rl_ppo/XqRobotWLToeWalkMode",
+        algo="ppo",
+        ctrl_dt=0.01,
+        obs_dim=315,
+        long_eval="站立≥10s / 抬腿行走≥30s",
+        thresholds={
+            "base_height_err": Threshold("<", 0.05, "m"),  # 机身高度≈0.52±0.05
+            "vx_tracking_rmse": Threshold("<", 0.15, "m/s"),
+            "survival_rate": Threshold(">=", 0.90, ""),
+        },
+    )
+)
+
+register(
+    TaskDef(
         key="walk_rough",
         name="不平坦地形行走",
         env_name="XqRobotWLWalkRough",
