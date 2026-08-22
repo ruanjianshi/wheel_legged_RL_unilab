@@ -44,6 +44,11 @@
 - 双模式 (toe_walk_mode) v6.1 备选 (交替 PASS 但站立冲突)
 - devlog: `_devlog/xqrobotwl/toe_walk/ppo/2026-08-19/` + `2026-08-20/` 22-28 全记录
 
+## 当前状态 (2026-08-20 交付)
+- ✅ **v14 已交付**: `backup/XqRobotWLToeWalkFlat/toe_walk_v14/` (开箱即跑) + 视频 `video/toe_walk/2026-08-20_v14_点足演示_录屏.mp4`
+- 参考轨迹模式 (ref_scale 0.20): 一左一右交替 (ref 42.7/20) + 轮摆动窗近离地 (4-6N) + 幅度老板认可 (0.8 rad)
+- 高 0.485 / 完全离地待老板按需追加调优
+
 ## 下一步
-- [ ] 老板拍板: A) ref_scale 提高重训 (~40min) B) v1 兜底交付
-- [ ] 达标后: 视频 + 备份 toe_walk_v13b + 更新 thesis expert 03
+- [ ] (按需) 轮完全离地 (thigh 前摆加强) / 高度 0.485→0.52
+- [ ] 论文第5章素材: 参考轨迹点足 (正弦步态)
