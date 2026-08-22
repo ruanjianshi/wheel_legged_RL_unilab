@@ -1,12 +1,9 @@
 #!/usr/bin/env python3
-"""Generate the 2×2 framework figure for the wheel-legged jumping paper.
+"""Generate the SRL+VMC framework figure for the wheel-legged jumping paper.
 
-Panel (a): the 2×2 factorial design matrix -- control space (joint-position vs
-virtual-leg VMC) × reference trajectory (none vs SLIP-FSM), with the four
-variants and their headline numbers.
-Panel (b): the shared data-flow pipeline -- SLIP-FSM phase reference and the
-PPO policy are fused into an action, dispatched by the control layer (joint-PD
-or VMC) to the robot.
+Panel (a): the proposed method -- SLIP-FSM phase prior, PPO residual policy and
+the phase-adaptive VMC control layer.
+Panel (b): the 2×2 component-ablation matrix used to evaluate the method.
 
 Style follows the nature/dataviz conventions used by make_paper_figures.py:
 Okabe-Ito colourblind-safe palette, thin spines, no chartjunk.
@@ -78,8 +75,8 @@ def _arrow(ax, x0, y0, x1, y1, color="#555555", lw=1.2):
     ax.add_patch(a)
 
 
-def panel_a(ax):
-    """2×2 factorial design matrix."""
+def panel_b(ax):
+    """2×2 component-ablation matrix."""
     ax.set_xlim(0, 10)
     ax.set_ylim(0, 10)
     ax.axis("off")
@@ -102,10 +99,10 @@ def panel_a(ax):
     # Cell positions
     cells = [
         # (x, y, variant, name, line1, line2, color)
-        (1.6, 6.0, "纯PPO", "h=0.264 m  存活 35%", "#fdf3e0", C["PPO"]),
-        (5.2, 6.0, "PPO+VMC", "h=0.175 m  存活 95%", "#e8f5ee", C["PPO+VMC"]),
-        (1.6, 1.2, "SRL（最优）", "h=0.547 m  存活 100%", "#e1edf7", C["SRL"]),
-        (5.2, 1.2, "SRL+VMC", "h=0.352 m  存活 80%", "#f8e6dd", C["VMC+SRL"]),
+        (1.6, 6.0, "纯PPO", "无相位先验 / 关节PD", "#fdf3e0", C["PPO"]),
+        (5.2, 6.0, "PPO+VMC", "无相位先验 / 虚拟腿力控", "#e8f5ee", C["PPO+VMC"]),
+        (1.6, 1.2, "SRL", "SLIP-FSM / 关节PD", "#e1edf7", C["SRL"]),
+        (5.2, 1.2, "SRL+VMC（本文）", "SLIP-FSM / 虚拟腿力控", "#f8e6dd", C["VMC+SRL"]),
     ]
     for x, y, name, sub, fc, ec in cells:
         _box(ax, x, y, 3.3, 1.5, "", fc, ec, lw=1.1)
@@ -119,37 +116,26 @@ def panel_a(ax):
     ax.text(1.0, 2.55, "SLIP-FSM 参考", ha="center", fontsize=9, color=C["grey"])
 
 
-def panel_b(ax):
-    """Shared data-flow pipeline."""
+def panel_a(ax):
+    """Proposed SRL+VMC data-flow pipeline."""
     ax.set_xlim(0, 10)
     ax.set_ylim(0, 10)
     ax.axis("off")
 
-    # FSM reference block
-    _box(
-        ax, 0.3, 7.0, 2.6, 1.6, "SLIP-FSM\n六状态相位参考", C["box"], C["SRL"], fs=9, weight="bold"
-    )
-    _box(ax, 0.3, 5.0, 2.6, 1.4, "指令 $j_{cmd}$\n观测 $o_t$", C["box"], "#777777", fs=8.5)
-
-    # PPO policy
-    _box(ax, 3.6, 7.0, 2.6, 1.6, "PPO 策略 $\\pi$", C["box"], "#555555", fs=9, weight="bold")
-
-    # Fusion
-    _box(ax, 3.6, 4.6, 2.6, 1.4, "前馈+残差\na = g·a_ff + a_π", C["box2"], "#555555", fs=8.5)
-
-    # Control layer switch
-    _box(
-        ax, 6.9, 5.8, 2.6, 2.2, "控制层\n关节位置PD\n或 VMC 雅可比力矩", C["box"], "#555555", fs=8.5
-    )
+    _box(ax, 0.2, 7.0, 2.7, 1.6, "SLIP-FSM\n六状态相位先验", C["box"], C["SRL"], fs=9, weight="bold")
+    _box(ax, 0.2, 4.8, 2.7, 1.5, "本体观测 $o_t$\n跳跃指令 $j_{cmd}$", C["box"], "#777777", fs=8.5)
+    _box(ax, 3.6, 7.0, 2.7, 1.6, "PPO 残差策略\n$\\Delta u_t=\\pi(o_t,s_t)$", C["box"], "#555555", fs=9, weight="bold")
+    _box(ax, 3.6, 4.6, 2.7, 1.4, "虚拟腿目标融合\n$u_t=u_{FSM}+g\\Delta u_t$", C["box2"], "#555555", fs=8.5)
+    _box(ax, 6.9, 5.8, 2.7, 2.2, "相位自适应 VMC\n变刚度 / 变阻尼\n雅可比力矩映射", C["box"], C["VMC+SRL"], fs=8.5, weight="bold")
 
     # Robot
-    _box(ax, 6.9, 1.2, 2.6, 1.6, "xqrobotwl\n两轮足机器人", C["box"], C["ink"], fs=9, weight="bold")
+    _box(ax, 6.9, 1.2, 2.7, 1.6, "xqrobotwl\n两轮足机器人", C["box"], C["ink"], fs=9, weight="bold")
 
     # Arrows
-    _arrow(ax, 2.9, 7.8, 3.6, 7.8)  # FSM -> policy
+    _arrow(ax, 2.9, 7.8, 3.6, 7.8)
     _arrow(ax, 2.9, 5.7, 3.6, 5.4)  # obs -> policy (dashed below)
     _arrow(ax, 4.9, 7.0, 4.9, 6.0)  # policy -> fusion
-    _arrow(ax, 6.2, 5.3, 6.9, 6.4)  # fusion -> control
+    _arrow(ax, 6.3, 5.3, 6.9, 6.4)
     _arrow(ax, 8.2, 5.8, 8.2, 2.8)  # control -> robot
     # feedback arrow
     a = FancyArrowPatch(
@@ -164,8 +150,8 @@ def main() -> int:
     fig, axes = plt.subplots(1, 2, figsize=(9.4, 3.6), layout="constrained")
     panel_a(axes[0])
     panel_b(axes[1])
-    axes[0].set_title("(a) 2×2 对照设计", fontsize=10, color=C["ink"])
-    axes[1].set_title("(b) 共享控制流水线", fontsize=10, color=C["ink"])
+    axes[0].set_title("(a) SRL+VMC 控制框架", fontsize=10, color=C["ink"])
+    axes[1].set_title("(b) 组件消融设计", fontsize=10, color=C["ink"])
     fig.savefig(out, bbox_inches="tight")
     fig.savefig(out.with_suffix(".png"), dpi=300, bbox_inches="tight")
     plt.close(fig)

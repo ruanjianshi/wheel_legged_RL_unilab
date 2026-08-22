@@ -24,6 +24,8 @@ interactive:
   camera_follow_body: true
   camera_distance: 4.0
   camera_elevation: -15.0
+  keyboard: true
+  require_keyboard_command_obs: false
 
 algo:
   num_envs: 1024
@@ -57,8 +59,7 @@ env:
   control_config:
     action_scale: 0.6
     wheel_action_scale: 10.0
-    # 平衡需要大动作权限 (横滚修正), 不硬裁
-    clip_actions: 100.0
+    clip_actions: 1.0
   commands:
     vel_limit:
       - [-0.3, 0.0, -0.5, -0.1, 0]
@@ -111,7 +112,6 @@ reward:
   sl_warmup_iters: 100
   # 单轮平衡保持 0.5s 即算完成 (给大奖; 之后可落腿重置)
   balance_hold_time: 0.5
-  # ★ 从单轮平衡位直接起步 (跳过渡段, 先学"保持" — 后空翻 warmstart 同理)。
-  # 过渡段(站立→折腿)太难: 折腿时支撑腿膝 kp=60 撑不住, base 塌缩 z<0.40,
-  # balance_complete 的 height_ok 永不满足。先学保持, 再学过渡。
-  start_in_balance: true
+  # 最终任务必须从正常双轮站立开始，由 sl_trigger/H 键进入单腿平衡。
+  # 环境运行时将腿位置执行器同步提升至 kp=300, kv=10，避免单腿膝屈曲失稳。
+  start_in_balance: false

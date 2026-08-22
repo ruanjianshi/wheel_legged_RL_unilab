@@ -47,6 +47,21 @@ from unilab.envs.locomotion.xqrobotwl.vmc import VirtualLegVMC, XqRobotWLVMCConf
 from . import jump_srl as _srl
 
 
+def _latch_jump_request(
+    fsm_state: np.ndarray,
+    raw_trigger: np.ndarray,
+    armed: np.ndarray,
+    pending: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Convert a held command into one pending request per rising edge."""
+    raw = np.asarray(raw_trigger, dtype=bool)
+    armed[~raw] = True
+    new_request = raw & armed & (fsm_state == -1) & ~pending
+    pending[new_request] = True
+    armed[new_request] = False
+    return pending.astype(np.float64), new_request
+
+
 @registry.envcfg("XqRobotWLJumpVMC")
 @dataclass
 class XqRobotWLJumpVMCFlatCfg(XqRobotWLJumpFlatCfg):
@@ -70,6 +85,8 @@ class XqRobotWLJumpVMCFlatEnv(XqRobotWLJumpFlatEnv):
         self._fsm_state = -np.ones(num_envs, dtype=np.int32)
         self._fsm_timer = np.zeros(num_envs, dtype=np.float64)
         self._episode_max_height = np.zeros(num_envs, dtype=np.float64)
+        self._jump_trigger_armed = np.ones(num_envs, dtype=bool)
+        self._jump_request_pending = np.zeros(num_envs, dtype=bool)
         super().__init__(cfg, num_envs=num_envs, backend_type=backend_type)
         self._np_dtype = get_global_dtype()
 
@@ -219,6 +236,8 @@ class XqRobotWLJumpVMCFlatEnv(XqRobotWLJumpFlatEnv):
             self._fsm_state[env_ids] = -1
             self._fsm_timer[env_ids] = 0.0
             self._episode_max_height[env_ids] = 0.0
+            self._jump_trigger_armed[env_ids] = True
+            self._jump_request_pending[env_ids] = False
             if hasattr(self, "_prev_vmc_filtered_action"):
                 self._prev_vmc_filtered_action[env_ids] = 0.0
         return out
@@ -254,8 +273,18 @@ class XqRobotWLJumpVMCFlatEnv(XqRobotWLJumpFlatEnv):
         dof_vel = self.get_dof_vel()
         # SLIP FSM
         base_z = np.asarray(self._backend.get_base_pos(), dtype=get_global_dtype())[:, 2]
-        jt = state.info["commands"][:, 4]
+        jt, new_request = _latch_jump_request(
+            self._fsm_state,
+            trigger_active,
+            self._jump_trigger_armed,
+            self._jump_request_pending,
+        )
+        state.info["jump_request_event"] = new_request.astype(np.float64)
+        # A new jump window gets its own height-progress baseline; otherwise
+        # the reset pose's height can make height_progress identically zero.
+        self._episode_max_height[new_request] = base_z[new_request]
         vmc_cfg = self._vmc_cfg
+        previous_fsm = self._fsm_state.copy()
         self._fsm_state, self._fsm_timer = _srl._update_fsm_state(
             self._fsm_state,
             self._fsm_timer,
@@ -268,6 +297,13 @@ class XqRobotWLJumpVMCFlatEnv(XqRobotWLJumpFlatEnv):
             crouch_time=vmc_cfg.fsm_crouch_time,
             thrust_time=vmc_cfg.fsm_thrust_time,
         )
+        started = (previous_fsm == -1) & (self._fsm_state == 0)
+        self._jump_request_pending[started] = False
+        # Height-progress rewards must compare against the maximum from the
+        # previous control step.  SRL already exposes this snapshot; keep the
+        # VMC inheritance path equivalent so SRL+VMC does not silently receive
+        # an all-zero height_progress reward.
+        state.info["episode_prev_max_height"] = self._episode_max_height.copy()
         self._episode_max_height = np.maximum(self._episode_max_height, base_z)
         state.info["episode_max_height"] = self._episode_max_height.copy()
         # 几何接触检测 (轮心世界 z < 0.13): 对空中扇腿免疫, 修复 force 阈值法

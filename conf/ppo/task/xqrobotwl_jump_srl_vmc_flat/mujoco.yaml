@@ -35,10 +35,10 @@ algo:
     activation: elu
     actor_hidden_dims: [512, 512, 256, 128]
     critic_hidden_dims: [512, 512, 256, 128]
-    init_noise_std: 0.3
+    init_noise_std: 0.2
   algorithm:
     learning_rate: 1.0e-4
-    entropy_coef: 0.005
+    entropy_coef: 0.001
     clip_param: 0.2
     gamma: 0.99
     lam: 0.95
@@ -83,7 +83,7 @@ env:
     kp_theta: 60.0
     kd_theta: 3.0
     kp_l0: 800.0
-    kd_l0: 20.0  # v6: 8→12; v7d: 12→20 — 进一步增强腿长阻尼压站立振荡 (v7c 收敛后站立 |gyro| 3.06, 仍压不住)
+    kd_l0: 30.0  # 安全蹬伸: 增加任务空间阻尼，降低膝关节止位冲击
     feedforward_force: 110.0  # 支撑前馈: 需 > 体重/腿(~91N), 否则无法起跳
     kp_roll: 40.0
     kd_roll: 2.0
@@ -100,10 +100,12 @@ env:
     wheel_sign: [1.0, -1.0]
     clip_actions: 1.0
     # SLIP-FSM 阶段腿长参考 (L0, m)
-    crouch_length: 0.24  # v8d: 0.28→0.24 — 更深下蹲 → 更大蹬伸行程 → 更高跳跃
-    thrust_length: 0.50
+    crouch_length: 0.28
+    crouch_min_length: 0.28
+    thrust_length: 0.49
     flight_retract_length: 0.26
     prelanding_length: 0.42
+    prelanding_min_length: 0.40
     landing_absorption_length: 0.30
     prelanding_start_vz: 0.2   # 提前一点开始伸腿准备落地 (原 0.0)
     prelanding_full_vz: -0.6
@@ -113,12 +115,18 @@ env:
     fsm_thrust_time: 0.30
     # 阶段相关 VMC 增益 (v8d: 加强蹬伸 — 干净消融证明 VMC 靠外展借力起跳,
     # 加回 lateral_posture 压外展后必须靠更强 L0 力控起跳)
-    thrust_kp_scale: 3.0  # v8d: 2.5→3.0
-    thrust_ff_scale: 3.5  # v8d: 2.5→3.5 (更强蹬伸前馈)
+    thrust_kp_scale: 2.5
+    thrust_ff_scale: 2.0
     thrust_kd_scale: 0.3  # v8d: 0.5→0.3 (更低阻尼, 更爆发)
     flight_ff_scale: 0.40
     landing_kd_scale: 3.0    # 落地吸收更高阻尼 (原 2.5)
     landing_ff_scale: 1.30   # 落地吸收更高前馈支撑 (原 1.2)
+    knee_guard_start: 0.35   # 提前削减伸展方向前馈，给主动制动留出行程
+    knee_guard_limit: 0.82
+    knee_brake_start: 0.0
+    knee_brake_kd: 4.0       # 扫描验证: 保持约0.25m跳高且膝峰值约0.77rad
+    knee_limit_brake_start: 0.68
+    knee_limit_brake_kd: 10.0
 
   # 落地恢复窗口 (ctrl 步): 真实落地后 landing_recovery/landing_soft 保持 0.5s
   landing_window: 50
@@ -139,19 +147,20 @@ reward:
     alive: 1.0
     jump_height: 25.0  # v8: 与 SRL 一致 (v6 曾 30 强化)
     crouch_prep: 8.0
-    landing_soft: 8.0  # v8: 与 SRL 一致 (v6 曾 4)
-    landing_recovery: 8.0  # v8: 与 SRL 一致 (v6 曾 12); 奖励 fn 也用 SRL 的站立期恒开版
+    landing_soft: 12.0
+    landing_recovery: 12.0
     wheel_ground_matching: 8.0  # v8: 与 SRL 一致 (v6 曾 20)
     vertical_thrust: 30.0
     crouch_depth: 4.0
     action_magnitude: -0.1
-    anti_drift: -3.0  # v8: 补 SRL 有的项
-    height_progress: 20.0  # v8: 与 SRL 一致 (v6 曾 25)
+    anti_drift: -5.0
+    height_progress: 10.0
     lean_forward: 3.0
     lateral_posture: 15.0  # v8d: 加回跳跃期髋外展惩罚 (干净消融证实 VMC 靠外展借力, 压外展逼干净起跳)
-    jump_event: 100.0  # v8e2: 真跳事件一次性奖励 (base_z 首次>0.72, 每窗口一次) — 引导策略跨过小跳局部最优
+    jump_event: 100.0
     jump_upright: 5.0  # v8e4: 12→5 — 高跳(0.28m)比低跳每步多赚~5 jump_height, 姿态过强会把跳高压下去 (v8e3 实测 0.283→0.166m); 调轻后跳高重新主导, 姿态仍比 v8e2 干净
     jump_symmetry: 2.0  # v8e4: 5→2 — 同上, 只保留轻微左右腿协调倾向
+    knee_limit: -15.0   # 在软关节止位之前提供连续安全梯度
   tracking_sigma: 0.3
   base_height_target: 0.55
   jump_height_target: 1.0
@@ -160,6 +169,6 @@ reward:
   min_base_height: 0.15
   jump_curriculum_start: 0
   jump_curriculum_end: 0  # 无预热, 直接全开跳跃
-  feedback_gain: 0.35  # v4: 0.5→0.35 — 参考更主导, 防策略干扰破坏 FSM 蹲→蹬时序 (SRL+VMC 理论最优需参考主导)
-  jump_event_threshold: 0.72  # v8e2: base_z 超过此值触发真跳事件奖励 (站立 ~0.55 + 0.17m)
+  feedback_gain: 0.15
+  jump_event_threshold: 0.64  # 真腾空策略当前峰值约0.67m；旧0.72阈值从未触发
   ablation_mode: full

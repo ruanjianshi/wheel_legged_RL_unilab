@@ -1,15 +1,18 @@
 # Fdb version 3
-["biber out/main"] 1786427142 "out/main.bcf" "out/main.bbl" "out/main" 1786712014
+["biber out/main"] 1786957163 "out/main.bcf" "out/main.bbl" "out/main" 1786960007
   "data/ref.bib" 1786425509 7376 b96f533799587ed03e8f4afd7e054aab ""
-  "out/main.bcf" 1786712012 137705 0d2dd663b7f58d96cdd153e40e194d85 "xelatex"
+  "out/main.bcf" 1786960007 137646 56da611aa4d81d88960692d40271f85e "xelatex"
   (generated)
   "out/main.bbl"
   "out/main.blg"
-["xdvipdfmx"] 1786712012 "out/main.xdv" "out/main.pdf" "out/main" 1786712014
-  "out/main.xdv" 1786712012 238524 6a665d966c7b28aafb4451b683dcc582 "xelatex"
+["xdvipdfmx"] 1786960007 "out/main.xdv" "out/main.pdf" "out/main" 1786960007
+  "out/main.xdv" 1786960007 225224 b526c3d0569accf25fc1b6feea8c996a "xelatex"
   (generated)
   "out/main.pdf"
-["xelatex"] 1786712011 "main.tex" "out/main.xdv" "main" 1786712014
+["xelatex"] 1786960005 "main.tex" "out/main.xdv" "main" 1786960007
+  "../../picture/paper/jump/final_perf/2x1/v3//fig_jump_flat_final_perf_2x1_v3.pdf" 1786959998 33428 8ccdc840d5ba94db5c02dca04bf81c65 ""
+  "../../picture/paper/jump/training/2x2/v3//fig_jump_flat_training_2x2_v3.pdf" 1786959998 182672 888df7cfb7558d13d6cba3975823b18b ""
+  "../../picture/paper/jump/traj/2x1/v3//fig_jump_flat_traj_2x1_v3.pdf" 1786959999 42460 a6e45e19edcc251f6d88211b165394a4 ""
   "/etc/texmf/web2c/texmf.cnf" 1786376366 475 c0e671620eb5563b2130f56340a5fde8 ""
   "/usr/share/texlive/texmf-dist/fonts/map/fontname/texfonts.map" 1577235249 3524 cb3e574dea2d1052e39280babc910dc8 ""
   "/usr/share/texlive/texmf-dist/fonts/tfm/adobe/zapfding/pzdr.tfm" 1136768653 1528 f853c4d1b4e0550255e02831fdc8496f ""
@@ -164,18 +167,13 @@
   "/usr/share/texmf/tex/latex/CJK/CJKfntef.sty" 1485503905 12851 a92a26031294f6fa88114f524b3b794a ""
   "/usr/share/texmf/web2c/texmf.cnf" 1644012257 39432 7155514e09a3d69036fac785183a21c2 ""
   "/var/lib/texmf/web2c/xetex/xelatex.fmt" 1786376650 5131731 e2c10bf75c628cb5e6505c89a1c64c34 ""
-  "figures//fig_jump_flat_final_perf_2x1_v2.pdf" 1786711451 21142 4b00d7001a191dedffc2766cc9f8a885 ""
-  "figures//fig_jump_flat_joints_2x3_v2.pdf" 1786711453 30928 541251bfc55a245fc1b40a83a14dfed3 ""
-  "figures//fig_jump_flat_reward_split_2x2_v2.pdf" 1786711480 23299 0b096401246cbcbe862f688ffa736538 ""
-  "figures//fig_jump_flat_training_overview_2x2_v2.pdf" 1786711421 108629 bf24af34fe31aa71c31d70f1fce3672c ""
-  "figures//fig_jump_flat_traj_vel_2x1_v2.pdf" 1786711452 36613 c28bdead7d4496490133556fe11406f2 ""
-  "figures//framework.pdf" 1786708778 27236 de340b7db141233066ad87fc10bc7118 ""
+  "figures//framework.pdf" 1786957148 72074 3a58df3944fa9d8a071efe256fda8b84 ""
   "figures//xqrobotwl_render.png" 1786425563 156411 caef13dab0bf18b5d60078d99ac7556c ""
-  "main.tex" 1786711983 32740 5a801374e731dbc5aa57d96ef6939dca ""
-  "out/main.aux" 1786712012 12807 f30a125bd611ec3e2097f94e52860d40 "xelatex"
-  "out/main.bbl" 1786427143 56002 7f59e6eebdc54641fb49c976c0220ff9 "biber out/main"
-  "out/main.out" 1786712012 2330 5dd2d8db968a65e55067885ecef35b45 "xelatex"
-  "out/main.run.xml" 1786712012 2449 983c0f89a754f2b6a3fdeb656184d4d3 "xelatex"
+  "main.tex" 1786959961 31043 7bc5aef2dba5508d605cfcd9d0bc4219 ""
+  "out/main.aux" 1786960007 12328 b7dba277063920bd0fa9fc97db600806 "xelatex"
+  "out/main.bbl" 1786957167 56002 7f59e6eebdc54641fb49c976c0220ff9 "biber out/main"
+  "out/main.out" 1786960007 2212 6cfaf04a7ba2fed0dbf8de5e297c60cd "xelatex"
+  "out/main.run.xml" 1786960007 2449 983c0f89a754f2b6a3fdeb656184d4d3 "xelatex"
   (generated)
   "out/main.aux"
   "out/main.bcf"

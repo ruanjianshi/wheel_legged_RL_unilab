@@ -80,9 +80,13 @@ class XqRobotWLVMCConfig:
 
     # ── SLIP-FSM leg-length phase references (physical L0, metres) ──
     crouch_length: float = 0.28
+    # Hard reference floors for safety-critical phases. The policy is a
+    # residual controller and must not be able to cancel these constraints.
+    crouch_min_length: float = 0.28
     thrust_length: float = 0.50
     flight_retract_length: float = 0.26
     prelanding_length: float = 0.42
+    prelanding_min_length: float = 0.40
     landing_absorption_length: float = 0.30
     prelanding_start_vz: float = 0.0
     prelanding_full_vz: float = -0.6
@@ -112,6 +116,8 @@ class XqRobotWLVMCConfig:
     # 只对"已过直且仍向极限伸展"的膝生效 — 不干扰蹬伸主行程 (屈曲→伸直那段)。
     knee_brake_start: float = 0.0  # 伸展量超过此值启动刹车 (0 = 过直即刹)
     knee_brake_kd: float = 0.0  # 刹车刚度 (v8e3 扫描验证: 无法刹住动量且毁跳高, 默认关闭)
+    knee_limit_brake_start: float = 0.70
+    knee_limit_brake_kd: float = 8.0
     # ── PPO+VMC full-action reference blend ──
     # fb<1.0 keeps the SLIP-FSM reference dominant so the policy cannot cancel
     # the crouch->thrust timing (baseline fb=1.0 let it pre-extend during the
@@ -311,9 +317,7 @@ class VirtualLegVMC:
         # 膝位 (~0.62), 所以只在蹬伸末段减速, 不破坏主要推力。
         knee_pos = dof_pos[:, [2, 5]]
         knee_tau = torques[:, [2, 6]]
-        pushing_out = ((knee_pos > 0.0) & (knee_tau > 0.0)) | (
-            (knee_pos < 0.0) & (knee_tau < 0.0)
-        )
+        pushing_out = ((knee_pos > 0.0) & (knee_tau > 0.0)) | ((knee_pos < 0.0) & (knee_tau < 0.0))
         guard_start, guard_limit = 0.55, 0.85
         abs_knee = np.abs(knee_pos)
         scale = np.clip((guard_limit - abs_knee) / (guard_limit - guard_start), 0.0, 1.0)
@@ -336,4 +340,17 @@ class VirtualLegVMC:
         brake = brake_kd * np.maximum(ext_vel, 0.0) * np.where(past > 0, ramp, 0.0)
         torques[:, 2] += brake[:, 0]
         torques[:, 6] -= brake[:, 1]
+
+        # Symmetric joint-limit damper. The extension-specific reflex above
+        # cannot stop the opposite (deep-crouch/flexion) direction. Apply a
+        # dissipative torque whenever either knee is moving toward either
+        # mechanical stop; it never adds energy and therefore remains safe in
+        # crouch, thrust and landing alike.
+        limit_start = float(getattr(cfg, "knee_limit_brake_start", 0.70))
+        limit_kd = float(getattr(cfg, "knee_limit_brake_kd", 8.0))
+        limit_ramp = np.clip((np.abs(knee_pos) - limit_start) / (0.873 - limit_start), 0.0, 1.0)
+        moving_out = (knee_pos * knee_vel) > 0.0
+        limit_brake = -limit_kd * knee_vel * limit_ramp * moving_out
+        torques[:, 2] += limit_brake[:, 0]
+        torques[:, 6] += limit_brake[:, 1]
         return torques

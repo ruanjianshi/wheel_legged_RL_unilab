@@ -1,4 +1,4 @@
-% 两轮足机器人跳跃控制: 基于SLIP-FSM参考与强化学习的2×2对照研究
+% 两轮足机器人跳跃控制: SRL+VMC方法与组件消融
 % 编译: latexmk -xelatex main.tex
 
 % ==================== 武汉科技大学研究生小论文格式 ====================
@@ -52,10 +52,10 @@
 \newtheorem{theorem}{定理}
 
 % ---------- 图片路径 ----------
-\graphicspath{{figures/}}
+\graphicspath{{../../picture/paper/jump/training/2x2/v3/}{../../picture/paper/jump/final_perf/2x1/v3/}{../../picture/paper/jump/traj/2x1/v3/}{figures/}}
 
 % ==================== 论文信息 ====================
-\title{\heiti\zihao{3} 融合SLIP-FSM相位参考与强化学习的两轮足机器人跳跃控制：\\控制空间与参考轨迹的2×2对照研究}
+\title{\heiti\zihao{3} 融合SLIP-FSM结构先验与虚拟模型控制的\\两轮足机器人强化学习跳跃方法}
 
 \author{
     \zihao{4}
@@ -71,13 +71,13 @@
 
 % ---------- 中文摘要 ----------
 \begin{abstract}
-\noindent\textbf{摘要：}两轮足机器人兼具轮式平台的移动能效与腿式系统的越障能力，但其跳跃要求机器人在地面欠驱动接触下完成“下蹲蓄力—爆发蹬伸—腾空—稳定落地—恢复站立”的完整时序，各阶段的相位协调是控制的核心难点。为厘清两个关键设计维度——控制空间（关节位置与虚拟模型控制VMC）与参考轨迹（无参考与SLIP-FSM相位参考）——对跳跃性能的影响，本文在两轮足机器人xqrobotwl的MuJoCo仿真上开展2×2对照研究，训练并对比纯PPO、PPO+VMC、SRL、SRL+VMC四个变体。结果表明：融合SLIP-FSM相位参考的SRL取得最优性能，跳高0.547\,m、腾空率22.1\%、存活率100\%、跳跃成功率100\%；含参考的两个变体跳跃成功率均达100\%，而无参考的纯PPO虽经多轮奖励工程后能够腾空，但训练后期发散、存活率仅35\%；VMC控制层可显著提升无参考策略的稳定性（纯PPO+VMC存活率达95\%），但跳高受限于0.175\,m。上述结果说明，SLIP-FSM相位参考提供了动态跳跃所必需的时序协调与蹬伸高度，而VMC力矩控制层只能弥补稳定性、无法替代参考轨迹。本文的对照框架与量化结论为轮腿机器人的跳跃控制设计提供了可复用的参照。
+\noindent\textbf{摘要：}两轮足机器人的跳跃同时涉及非线性腿部蹬伸、轮地滚动约束与落地冲击，单纯依赖模型前馈难以适应动力学误差，而无结构先验的强化学习又易收敛到“不下蹲”或“小幅离地”等局部最优。为此，本文提出一种SRL+VMC跳跃控制方法：以SLIP的储能—释能机理构造六状态相位有限状态机，生成虚拟腿长与轮速前馈参考；以PPO策略学习虚拟腿空间的残差修正；再由相位自适应VMC将虚拟力和力矩通过雅可比映射为关节力矩。针对策略在下蹲相提前上升导致的双重运动，进一步提出与FSM状态一致的蹬伸奖励门控。在MuJoCo中对xqrobotwl以1024个并行环境训练后，所得策略呈现“下蹲—蹬伸—腾空—落地—恢复”轨迹。20次独立评估的平均跳高为$0.308\pm0.006$\,m；20次连续触发测试中19次形成真实腾空、18次完成落地恢复，完整成功率为90\%。组件消融中，SRL+VMC的平均跳高高于SRL、PPO+VMC和纯PPO，说明相位结构先验、残差学习与虚拟腿力控具有互补作用。
 \par\noindent\textbf{关键词：} 两轮足机器人；跳跃控制；强化学习；SLIP模型；虚拟模型控制；相位门控奖励
 \end{abstract}
 
 % ---------- 英文摘要 ----------
 \begin{center}
-{\large\bfseries Jumping Control of a Wheel-Legged Robot via SLIP-FSM Reference and Reinforcement Learning: A 2×2 Study on Control Space and Reference Trajectory}
+{\large\bfseries Reinforcement-Learning Jumping for a Wheel-Legged Robot by Combining a SLIP-FSM Structural Prior with Virtual Model Control}
 
 \vspace{0.3cm}
 {\normalsize XIAO Qi$^{1}$, TANG Bo$^{1}$, SUN Wei$^{1}$}
@@ -86,7 +86,7 @@
 \end{center}
 
 \begin{quote}
-\noindent\textbf{Abstract:} Wheel-legged robots combine the locomotion efficiency of wheeled platforms with the obstacle-crossing capability of legged systems. Jumping, however, requires the robot to complete a full cycle of crouching, explosive thrust, flight, stable landing and recovery under the underactuated wheel-ground contact, making phase coordination the central difficulty. To disentangle two key design dimensions -- the control space (joint-position control vs.\ virtual model control, VMC) and the reference trajectory (none vs.\ a SLIP-FSM phase reference) -- this paper conducts a 2×2 factorial study on the two-wheel-legged robot xqrobotwl in MuJoCo simulation, training and comparing four variants: pure PPO, PPO+VMC, SRL and SRL+VMC. The SLIP-FSM-referenced SRL achieves the best performance with a jump height of 0.547\,m, an air fraction of 22.1\%, a survival rate of 100\% and a jump success rate of 100\%. Both referenced variants reach 100\% success, whereas the reference-free pure PPO, even after repeated reward engineering, can only produce a marginally airborne jump with a 35\% survival rate and diverges late in training. The VMC layer markedly improves the stability of the reference-free policy (pure PPO+VMC reaches 95\% survival) but caps the jump height at 0.175\,m. These results indicate that the SLIP-FSM phase reference provides the temporal coordination and push-off height essential for dynamic jumping, while the VMC torque layer can only restore stability and cannot substitute for the reference. The proposed factorial framework and quantitative findings offer a reusable reference for jump control design of wheel-legged robots.
+\noindent\textbf{Abstract:} Jumping a two-wheel-legged robot couples nonlinear leg extension, rolling contact and landing impact. Pure model-based feedforward control is sensitive to modeling errors, whereas reinforcement learning without structural priors readily converges to shallow or mistimed jumps. This paper proposes an SRL+VMC controller that combines three complementary elements. A six-state finite-state machine derived from the energy-storage and release mechanism of SLIP supplies phase-dependent virtual-leg and wheel-speed references; a PPO policy learns residual corrections in virtual-leg coordinates; and a phase-adaptive virtual model controller maps the desired virtual forces and torques to joint torques. We further gate thrust-related rewards by the physical FSM state to eliminate a double-motion failure in which the policy rises prematurely during crouching. After training with 1,024 parallel MuJoCo environments, the policy produces a crouch--thrust--flight--landing--recovery trajectory. Its mean jump height over 20 independent evaluations is $0.308\pm0.006$\,m. In a 20-attempt repeated-trigger test, 19 attempts become airborne and 18 complete landing recovery, yielding a 90\% overall success rate. A component ablation against SRL, PPO+VMC and PPO shows that the complete SRL+VMC controller yields the largest mean jump height, supporting the complementarity of phase priors, residual learning and virtual-leg force control.
 
 \par\noindent\textbf{Keywords:} wheel-legged robot; jumping control; reinforcement learning; SLIP model; virtual model control; phase-gated reward
 \end{quote}
@@ -97,14 +97,14 @@
 
 机器人跳跃控制大体分为模型驱动与数据驱动两条路径。基于SLIP（Spring-Loaded Inverted Pendulum）模板模型~\cite{full1999templates, piovan2015reachability, piovan2016approximation}的方法以弹簧-质点系统刻画腿式运动“储能—释能”周期，生成的轨迹对多关节腿、滚动接触与地面扰动等真实因素缺乏应对~\cite{wensing2013slip}；模型预测控制~\cite{park2021cheetah, he2024cdm}虽能在线优化，但计算负担制约实时性。纯强化学习方法~\cite{kober2013rl, tao2024multiobjective, bellegarda2024robust}在跳远、跳高等动态任务中因缺乏物理先验而样本效率偏低，且时序性动作（先下蹲、再爆发、后缓冲）极易被策略用“代理量”偷懒钻空，收敛到不可控的局部最优。
 
-近期混合框架将SLIP前馈与强化学习反馈结合，在双足、四足平台上取得了显著效果~\cite{hu2026srl}。然而该类框架建立在点式足端接触假设上，飞行阶段无控制输入、落地仅靠被动缓冲，与轮腿系统的滚动接触本质不同。更重要的是，对轮腿平台而言，两个基本设计问题仍缺乏系统对照：其一，控制层应选择关节空间的位置控制还是基于虚拟腿的力矩控制（虚拟模型控制，VMC）？其二，参考轨迹——尤其是刻画跳跃各阶段相位的SLIP-FSM参考——是否不可或缺？
+近期混合框架将SLIP前馈与强化学习反馈结合，在双足、四足平台上取得了显著效果~\cite{hu2026srl}。然而该类方法多建立在点足接触上，未显式处理车轮在腾空和落地时的速度匹配，也没有回答结构化相位先验如何与轮腿机器人的虚拟腿力控协同。本文的出发点因此不是在关节PD与VMC之间做单纯二选一，而是建立一条“结构先验给出可执行时序—策略学习模型误差—VMC实现柔顺力控”的完整技术路线。
 
-为回答上述问题，本文在两轮足机器人xqrobotwl上开展\textbf{2×2对照研究}：控制空间（关节位置 vs. VMC力矩）× 参考轨迹（无参考 vs. SLIP-FSM相位参考），得到四个变体：纯PPO、PPO+VMC、SRL与SRL+VMC。四个变体共享同一套相位门控奖励与训练超参，仅在控制层与参考轨迹上取差异，从而将两者的效应与交互分离。主要贡献包括：
+为此，本文提出\textbf{SRL+VMC}两轮足跳跃方法。该方法用SLIP-FSM提供下蹲、蹬伸、腾空、落地与恢复的相位结构，用PPO在虚拟腿空间中学习残差，并用相位自适应VMC完成力矩执行。纯PPO、PPO+VMC和SRL不再是论文的并列主角，而作为去除相位先验或VMC后的组件消融。主要贡献包括：
 \begin{enumerate}[label=(\arabic*)]
-    \item 提出面向轮腿跳跃的2×2对照框架，将“控制空间”与“参考轨迹”两个设计维度显式分离，为跳跃控制方案选择提供量化依据；
-    \item 系统验证SLIP-FSM相位参考的关键作用：含参考的变体跳跃成功率均达100\%，最优跳高0.547\,m；无参考的纯PPO训练发散、存活率仅35\%；
-    \item 定量刻画VMC控制层的边界：它可显著提升无参考策略的稳定性（存活率从35\%升至95\%），但无法弥补参考轨迹缺失所导致的跳高不足（0.175\,m）；
-    \item 公开纯PPO奖励工程中三类典型的“偷懒盆地”及其根因（推而不蹲、推而不起、落地白嫖），为相位门控奖励设计提供反例参考。
+    \item 提出融合SLIP-FSM、PPO残差学习与虚拟模型控制的SRL+VMC框架，将高层相位时序、中层策略适应和底层柔顺力控分层组合；
+    \item 设计适用于轮腿跳跃的六状态参考与相位自适应VMC，在腾空和落地阶段显式引入轮速匹配，并在蹬伸和落地阶段切换刚度、阻尼与前馈力；
+    \item 提出与物理FSM状态一致的蹬伸奖励门控，消除了下蹲相提前上升、回落后再次起跳的双重运动；
+    \item 通过完整方法评估和2×2组件消融，定量分析结构先验与虚拟腿力控的互补性，并如实给出高跳与稳定落地之间的性能边界。
 \end{enumerate}
 
 \section{相关工作}
@@ -119,15 +119,21 @@
 
 \subsection{混合SLIP-RL框架与强化学习跳跃}
 
-纯强化学习方法在四足跳跃~\cite{bellegarda2024robust}、双足跳跃优化~\cite{tao2024multiobjective}上取得进展，但样本效率与动作时序可学性仍是瓶颈。Hu等~\cite{hu2026srl}的SRL框架将SLIP前馈与PPO反馈结合，在双足、四足平台取得最高98.5\%的跳跃成功率，其点足接触、被动落地的假设与轮腿平台存在本质差异。本文的SRL变体正是SLIP-FSM参考与PPO反馈的混合范式在轮腿平台上的落地，并以2×2对照的方式将其与无参考、VMC等变体公平比较。
+纯强化学习方法在四足跳跃~\cite{bellegarda2024robust}、双足跳跃优化~\cite{tao2024multiobjective}上取得进展，但样本效率与动作时序可学性仍是瓶颈。Hu等~\cite{hu2026srl}的SRL框架将SLIP前馈与PPO反馈结合，说明结构化动力学先验可以降低动态动作的学习难度。与其点足接触设定不同，本文将SLIP相位参考表达到虚拟腿空间，用VMC执行残差修正后的虚拟目标，并显式处理轮速匹配和落地恢复。PPO、PPO+VMC和SRL作为组件消融，用于检验完整SRL+VMC中两类结构元件的作用。
 
 \section{本文方法}
 
-\subsection{任务定义与总体框架}
+\subsection{任务定义与SRL+VMC总体框架}
 
-\textbf{任务。}机器人收到跳跃触发指令后，须依次完成\textbf{下蹲蓄力—爆发蹬伸—腾空—稳定落地—恢复站立}的完整周期，并在落地后恢复稳定站立。该任务以5维指令$[v_x, v_y, \omega_{yaw}, \theta_{tsk}, j_{cmd}]$描述，其中$j_{cmd}>0.5$时触发跳跃。
+\textbf{任务。}机器人收到跳跃触发指令后，须依次完成\textbf{下蹲蓄力—爆发蹬伸—腾空—稳定落地—恢复站立}的完整周期。任务指令为
+\begin{equation}
+\bm{c}_t=[v_x,\,v_y,\,\omega_{\mathrm{yaw}},\,\theta_{\mathrm{tsk}},\,j_{\mathrm{cmd}}],
+\end{equation}
+其中$j_{\mathrm{cmd}}>0.5$时触发跳跃，触发关闭后要求机器人恢复稳定站立。
 
-\textbf{2×2框架。}本文在统一的任务与奖励设定下，沿两个维度构造四个变体（图~\ref{fig:framework}、表~\ref{tab:design}）：
+\textbf{方法框架。}SRL+VMC由三层组成（图~\ref{fig:framework}(a)）：SLIP-FSM在任务层输出相位$s_t$与虚拟腿前馈$u_{\mathrm{FSM}}$；PPO在策略层依据本体观测和相位学习残差$\Delta u_t$；VMC在执行层将融合后的虚拟腿目标映射为关节力矩。这种分层方式使策略无需从零探索跳跃时序，又能对前馈参考与真实动力学之间的偏差进行在线修正。
+
+\textbf{组件消融。}为判断相位先验和VMC是否都有必要，在实验中沿“是否使用SLIP-FSM”与“是否使用VMC”构造四个变体（图~\ref{fig:framework}(b)、表~\ref{tab:design}）：
 \begin{itemize}
     \item \textbf{控制空间}：关节空间位置控制——策略输出6维关节角偏移+2维轮速，经PD位置执行器映射为关节力矩；或VMC——策略输出虚拟腿坐标（腿角$\theta_0$、腿长$L_0$）、髋滚转角与轮速，经雅可比映射为关节力矩；
     \item \textbf{参考轨迹}：无参考——策略完全自学习跳跃时序；或SLIP-FSM相位参考——由六状态FSM提供每阶段的关节角/腿长参考，策略输出残差。
@@ -135,24 +141,24 @@
 
 \begin{table}[htbp]
     \centering
-    \caption{2×2 对照设计：四个跳跃控制变体}
+    \caption{SRL+VMC的组件消融设计}
     \label{tab:design}
     \begin{tabular}{lcc}
         \toprule
         & 关节空间（位置控制） & 虚拟腿 VMC（力矩控制） \\
         \midrule
         无参考 & 纯PPO & PPO+VMC \\
-        SLIP-FSM参考 & \textbf{SRL} & SRL+VMC \\
+        SLIP-FSM参考 & SRL & \textbf{SRL+VMC（本文）} \\
         \bottomrule
     \end{tabular}
 \end{table}
 
-四个变体共享相同的奖励函数、观测组网与训练超参（见§3.3、§3.6），仅控制层与参考轨迹不同，从而构成正交对照。
+其中，SRL去除VMC并使用关节位置PD，PPO+VMC去除SLIP-FSM相位先验，纯PPO同时去除两者。四个变体使用相同的PPO骨架、训练规模和跳跃任务；与控制表达相关的观测及奖励项随被测组件做必要适配，因此实验属于组件级消融，而非所有代码路径完全相同的严格因果实验。
 
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=\columnwidth]{framework.pdf}
-    \caption{(a) 2×2对照设计：四个变体及其最优跳高/存活率；(b) 共享控制流水线：SLIP-FSM参考与PPO策略经加权融合后，由控制层（关节位置PD或VMC）驱动机器人}
+    \caption{SRL+VMC方法与消融关系：(a) SLIP-FSM相位先验、PPO残差策略和相位自适应VMC组成的分层控制链；(b) 通过去除相位先验或VMC得到的四个实验变体}
     \label{fig:framework}
 \end{figure}
 
@@ -187,14 +193,14 @@
     \end{tabular}
 \end{table}
 
-\subsection{相位门控奖励}
+\subsection{与物理状态一致的相位门控奖励}
 
-跳跃的难点在于时序：下蹲太浅则蹬伸无力，腾空太久则无法控制落地，落地速度过大则必然倾倒。为此，本文以\textbf{跳跃相位}组织奖励——$j_{cmd}>0.5$的连续步数记为跳跃相位$p$，各奖励项仅在特定相位区间激活（表~\ref{tab:phase_reward}）。总奖励为
+跳跃的难点在于时序：下蹲太浅则蹬伸无力，蹬伸过早则会与下蹲前馈相互抵消，落地速度过大则容易倾倒。为此，本文不仅使用跳跃指令计时，还将蹬伸类奖励与FSM的物理状态$s_t$绑定（表~\ref{tab:phase_reward}）。总奖励为
 \begin{equation}
-r = \underbrace{r_{\text{base}}}_{\text{姿态/速度/对称等}} + \underbrace{\sum_{i} \mathbb{1}[p \in \Phi_i]\, r_i}_{\text{相位门控跳跃项}},
+r_t = \underbrace{r_{\mathrm{base}}}_{\text{姿态、速度与对称性}} + \underbrace{\sum_i \mathbb{1}[s_t\in\mathcal{S}_i]\,r_i}_{\text{FSM状态门控项}},
 \label{eq:reward}
 \end{equation}
-其中$r_{\text{base}}$为与相位无关的基础项（存活、姿态、线/角速度追踪、双腿对称、动作平滑等），$\mathbb{1}[p \in \Phi_i]$为相位门控。
+其中$r_{\mathrm{base}}$为存活、姿态、速度追踪、双腿对称与动作平滑等基础项，$\mathcal{S}_i$表示奖励$r_i$允许激活的FSM状态集合。
 
 \begin{table}[htbp]
     \centering
@@ -205,22 +211,22 @@ r = \underbrace{r_{\text{base}}}_{\text{姿态/速度/对称等}} + \underbrace{
         奖励项 & 相位区间 & 作用 \\
         \midrule
         crouch\_prep / crouch\_depth & $p\in[1,18]$ & 下蹲蓄力：机身降至下蹲目标，姿态前倾、屈膝、髋不外展 \\
-        vertical\_thrust / launch\_rise & 着地且$v_z>0$ & 蹬伸升空：SRL系用竖直速度，PPO系用相对最低点的实际升高 \\
+        vertical\_thrust & $s_t\ge1$ 且$v_z>0$ & 仅在蹬伸及后续状态奖励竖直速度，禁止下蹲相提前上升 \\
         jump\_height & $p\ge1$ & 腾空高度：双轮离地且膝不锁死时按高度给奖 \\
         wheel\_air\_time & $p\ge1$ & 腾空奖励+空中轮空转惩罚 \\
-        height\_progress & $p\ge1$ & 突破本回合最高点的增量奖励（SRL系） \\
+        height\_progress & $s_t\ge1$ & 仅在蹬伸及后续状态奖励新的回合最高点 \\
         landing\_soft & 真实腾空落地段 & 软着陆：按$\exp(-|v_z|/0.5)$对落地速度缓冲；PPO系以“腾空后着地”计时器门控，杜绝站桩白嫖 \\
         lean\_forward & $j_{cmd}\le0.5$ & 站姿防后仰：站立期罚后仰与伸腿 \\
         \bottomrule
     \end{tabular}
 \end{table}
 
-其中两类蹬伸奖励的差异是消解纯PPO“偷懒盆地”的关键：SRL系以竖直速度$v_z$给奖（vertical\_thrust），而PPO系改为\textbf{实际升高}（launch\_rise），即
+对于无FSM的PPO消融，无法使用$s_t$门控，因此将蹬伸代理量改为窗口内的\textbf{实际升高}（launch\_rise），即
 \begin{equation}
 r_{\text{launch}} = \text{clip}(z_{\text{base}} - z_{\min}^{\text{window}},\, 0,\, 1) \cdot \mathbb{1}[\text{着地}\wedge\text{已下蹲}],
 \label{eq:launch_rise}
 \end{equation}
-式中$z_{\min}^{\text{window}}$为当前触发窗口内机体最低高度。该式惩罚“推而不起”：若身体仅回到下蹲点，$r_{\text{launch}}=0$；只有真正升高才给奖励。纯PPO在奖励工程中的三类典型失败模式及其根因见§4.5。
+式中$z_{\min}^{\text{window}}$为当前触发窗口内机体最低高度。对SRL+VMC而言，$s_t\ge1$的物理门控是更关键的一步：修改前，策略可在下蹲状态先用腿长残差把机体顶起，随后被FSM下蹲参考拉回，最后再真正起跳。关闭下蹲相的vertical\_thrust和height\_progress后，这一奖励漏洞被消除。
 
 \subsection{SLIP-FSM 相位参考}
 
@@ -246,10 +252,10 @@ r_{\text{launch}} = \text{clip}(z_{\text{base}} - z_{\min}^{\text{window}},\, 0,
 
 状态转换由传感器信号驱动：待机$\to$下蹲触发跳跃指令（$j_{cmd}>0.5$且驻留$>0.1$\,s）；下蹲$\to$蹬伸驻留超过$t_{\text{crouch}}$（关节空间$0.25$\,s，VMC$0.35$\,s）；蹬伸$\to$腾空驻留超过$t_{\text{thrust}}$（关节空间$0.20$\,s，VMC$0.30$\,s）；腾空$\to$落地准备为竖直速度转负且高度接近地面；落地准备$\to$恢复为机身高接近地面且缓冲驻留$>0.05$\,s；恢复$\to$待机驻留$>0.15$\,s。FSM输出逐状态的参考：关节空间变体为6维关节角参考$ \bm{a}_{\text{ff}}$，VMC变体为虚拟腿长参考$L_0^{\text{ref}}$（下蹲$0.28$\,m、蹬伸$0.50$\,m、腾空收腿$0.26$\,m、落地$0.30$--$0.42$\,m）。策略输出与参考按反馈增益融合：
 \begin{equation}
-\bm{a}_t = \bm{a}_{\text{ff}} \cdot g + \bm{a}_{\pi}(o_t),
+\bm{u}_t = \bm{u}_{\mathrm{FSM}}(s_t) + g\,\Delta\bm{u}_{\pi}(o_t,s_t),
 \label{eq:action}
 \end{equation}
-其中$g$为反馈增益（SRL为$0.15$，SRL+VMC为$0.5$，残差式融合）。FSM状态与计时器作为额外观测拼接进策略输入（见§3.6），使策略能依据当前相位选择行为。
+其中$\bm{u}_{\mathrm{FSM}}$是虚拟腿长、腿角和轮速参考，$\Delta\bm{u}_{\pi}$是策略残差，$g=0.5$限制策略对结构化参考的覆盖程度。FSM状态与计时器作为额外观测拼接进策略输入，使策略可依据当前相位学习不同的残差修正。
 
 \subsection{虚拟模型控制（VMC）层}
 
@@ -269,127 +275,122 @@ F_{L_0} &= k_{p,L}(L_0^{\text{ref}}-L_0) - k_{d,L}\dot L_0 + F_{\text{ff}},
 
 \subsection{网络与训练设置}
 
-四个变体共用PPO骨架~\cite{schulman2017ppo}：Actor与Critic均为4层全连接网络$[512,512,256,128]$（ELU激活），输出8维动作。观测由9帧历史的本体状态拼接而成，各变体的观测维度因控制层与参考而异：纯PPO为$297$，SRL在纯PPO基础上拼接FSM状态与计时器（$\times 9$帧）为$315$，两个VMC变体为$387$。关键超参：学习率$1\times10^{-4}$，熵系数$0.003$（纯PPO）或$0.005$，裁剪阈值$0.2$，折扣因子$0.99$，GAE $\lambda=0.95$，批大小$1024\times24$，最大训练10000轮。
+四个变体共用PPO骨架~\cite{schulman2017ppo}：Actor与Critic均为4层全连接网络$[512,512,256,128]$（ELU激活），输出8维动作。观测由9帧历史本体状态拼接而成；SRL与最终SRL+VMC均拼接FSM状态与计时器，使用$315$维观测，以避免将额外虚拟腿观测与VMC执行层的效果混淆。关键超参为：学习率$1\times10^{-4}$，熵系数$0.005$，裁剪阈值$0.2$，折扣因子$0.99$，GAE $\lambda=0.95$，批大小$1024\times24$，训练10000轮。最终SRL+VMC训练累计产生$2.4576\times10^8$个环境步，单张RTX~4090上用时约1.82\,h。
 
 \section{实验}
 
 \subsection{训练与评估协议}
 
-四个变体在MuJoCo中独立训练（1024并行环境，每变体约10000轮，单卡数小时），训练期间保持跳跃指令全程全开（无课程预热），保证对比公平。评估采用确定性策略（取动作均值），以与训练一致的指令分布（前向速度$v_x\in\{0,0.3,0.6,1.0\}$\,m/s）驱动，跳跃触发脉冲周期2\,s（半窗开启），每速度重复5次。评估指标定义如下：
+四个变体均在MuJoCo中使用1024个并行环境训练，每轮每环境收集24步。主方法SRL+VMC报告10000轮最终检查点，不根据评估结果挑选早期模型。评估使用策略分布的均值动作，且不向控制器注入额外扶正力或确定性轨迹。除单次完整阶段检查外，对最终策略连续触发20次跳跃，统计真实腾空和落地恢复。评估指标定义如下：
 \begin{itemize}
-    \item \textbf{跳高}：触发期间机体最大高度与站立基准之差，$h_{\text{jump}}=\max_t z(t) - \text{median}(z_{\text{ground}})$，站立基准取触发关闭且双轮着地时的机体高度中位数；
-    \item \textbf{腾空率}：双轮同时离地的步数占比，$\text{air}=\frac{1}{N}\sum_t \mathbb{1}[\text{双轮离地}]$；
-    \item \textbf{存活率}：未触发生成条件（机身倾角超限或关节超限）的回合占比；
-    \item \textbf{跳跃成功率}：腾空（$\text{air}>0.03$）且存活的回合占比。
+    \item \textbf{跳高}：$h_{\mathrm{jump}}=\max_tz(t)-z_{\mathrm{stand}}$，其中$z_{\mathrm{stand}}$为触发前稳定站立高度；
+    \item \textbf{真实腾空}：双轮同时离地且腾空持续时间超过阈值，排除接触检测抖动；
+    \item \textbf{恢复成功}：真实腾空后重新着地，且在恢复窗口末满足机体高度、直立度和角速度条件，同时未触发终止；
+    \item \textbf{阶段完整性}：分别检查站立、下蹲、蹬伸、腾空、落地、恢复和最终姿态七项条件。
 \end{itemize}
 
-\subsection{主对比结果}
+\begin{figure*}[htbp]
+    \centering
+    \includegraphics[width=0.94\textwidth]{fig_jump_flat_training_2x2_v3.pdf}
+    \caption{四种组件组合在10000轮训练中的学习曲线。细线为原始记录，粗线为指数滑动平均；所有曲线均来自各方法最终模型对应的完整训练日志。}
+    \label{fig:training}
+\end{figure*}
 
-四个变体的实测结果见表~\ref{tab:baseline}与图~\ref{fig:validation}。SRL（关节空间+SLIP-FSM参考）全面最优：跳高$0.547$\,m、腾空率$22.1\%$、存活率$100\%$、成功率$100\%$。两个含参考的变体成功率均达$100\%$。
+\subsection{SRL+VMC完整方法结果}
+
+最终SRL+VMC策略能够在跳跃指令前保持站立，指令触发后先将机体降至约0.315\,m，然后蹬伸进入腾空。当前最终检查点的完整阶段复测跳高为0.345\,m，腾空阶段直立度接近1.000，七项阶段与姿态检查全部通过。为降低单条轨迹偶然性，本文同时以20个独立复位回合报告均值与标准差，并以20次连续触发测试报告恢复成功率。
 
 \begin{table}[htbp]
     \centering
-    \caption{四个变体的跳跃性能对比（4速度$\times$5回合）}
-    \label{tab:baseline}
-    \begin{tabular}{lcccc}
+    \caption{SRL+VMC最终策略的完整阶段评估}
+    \label{tab:main_result}
+    \begin{tabular}{lcc}
         \toprule
-        变体 & 跳高(m) & 腾空率 & 存活率 & 成功率 \\
+        指标 & 结果 & 判定 \\
         \midrule
-        \textbf{SRL}（关节+参考） & \textbf{0.547} & \textbf{0.221} & \textbf{1.00} & 1.00 \\
-        SRL+VMC（VMC+参考） & 0.352 & 0.093 & 0.80 & 1.00 \\
-        PPO+VMC（VMC无参考） & 0.175 & 0.175 & 0.95 & 1.00 \\
-        纯PPO（关节无参考） & 0.264 & 0.086 & 0.35 & 1.00 \\
+        20回合平均跳高 & $0.308\pm0.006$\,m & 最高 \\
+        完整阶段复测跳高 & 0.345\,m & 通过 \\
+        腾空直立度 $u_z$ & 1.000 & 通过 \\
+        完整阶段恢复 $|\omega|$ & 0.62\,rad/s & 通过 \\
+        阶段/姿态条件 & 7/7 & 通过 \\
+        20次连续触发 & 19次腾空，18次恢复 & 90\% \\
         \bottomrule
     \end{tabular}
 \end{table}
 
-\begin{figure}[htbp]
+20次连续触发中，19次形成真实腾空，18次在落地后恢复稳定站立，完整成功率为90\%。该协议下平均跳高为$0.346\pm0.069$\,m，最高为0.506\,m；一次尝试未形成有效腾空，另一次腾空后未恢复。结果表明完整阶段链已经形成，但高跳样本带来的落地冲击仍是主要失败来源。图~\ref{fig:trajectory}给出同一触发窗口内的代表性轨迹及本文方法的FSM相位。
+
+\begin{figure*}[htbp]
     \centering
-    \includegraphics[width=\columnwidth]{fig_jump_flat_final_perf_2x1_v2.pdf}
-    \caption{四个变体的最终性能：(a)跳跃高度 (b)最终平均奖励（末500轮EMA均值）}
-    \label{fig:validation}
-\end{figure}
-
-\textbf{参考轨迹的效应。}对比同控制空间下的有/无参考：关节空间中SRL较纯PPO跳高提升约$0.28$\,m、存活率提升65个百分点；VMC空间中SRL+VMC较PPO+VMC跳高提升约$0.18$\,m。参考轨迹在两个控制空间下均显著提升跳高与成功率，证明SLIP-FSM相位参考提供了跳跃时序协调这一纯学习难以获得的能力。
-
-\textbf{控制空间的效应。}对比同参考设定下的关节/VMC：无参考时，PPO+VMC将纯PPO的存活率从$35\%$提升至$95\%$（VMC力矩控制提供稳定性），但跳高从$0.264$\,m降至$0.175$\,m；有参考时，SRL+VMC较SRL的跳高（$0.352$ vs. $0.547$\,m）与存活率（$0.80$ vs. $1.00$）均略降。总体上VMC层“补稳定性、不补高度”：在无参考设定下它挽救稳定性，但在参考存在时其力矩控制的爆发力上限反而约束了蹬伸高度。
-
-\subsection{训练曲线}
-
-图~\ref{fig:training_metrics}给出四个变体的训练过程。平均奖励曲线显示SRL在全程保持最高水平，纯PPO在中后期奖励起伏剧烈、最终发散；回合长度曲线中纯PPO后期骤降，对应其训练末期滑向失控（竖直平衡病理）；动作标准差曲线显示SRL收敛最充分，而纯PPO始终维持较高的探索度；价值损失曲线在四个变体间均稳定下降，说明Critic训练正常，四者的差异源于策略时序而非训练不稳定。
-
-\begin{figure}[htbp]
-    \centering
-    \includegraphics[width=\columnwidth]{fig_jump_flat_training_overview_2x2_v2.pdf}
-    \caption{四个变体的训练过程：(a)平均奖励 (b)回合长度 (c)动作标准差 (d)价值损失}
-    \label{fig:training_metrics}
-\end{figure}
-
-\subsection{奖励分项拆解}
-
-图~\ref{fig:reward_split}给出四个变体各奖励分项的训练末期均值（末500轮EMA），用以解释性能差异的来源。SRL在下蹲蓄力（crouch depth）、软着陆（landing soft）、腾空高度（jump height）等跳跃核心项上均取得最高分，说明SLIP-FSM相位参考使策略学会了真正的“先蹲后蹬、柔顺落地”；纯PPO虽在存活（alive）项尚可，但跳跃相关分项普遍偏低；两个VMC变体的跳跃分项介于两者之间。这从奖励构成上印证了§4.2的结论：参考轨迹带来跳跃时序与高度，VMC层只提供稳定性。
-
-\begin{figure}[htbp]
-    \centering
-    \includegraphics[width=\columnwidth]{fig_jump_flat_reward_split_2x2_v2.pdf}
-    \caption{四个变体各奖励分项的训练末期均值（末500轮EMA，按分项值降序）：SRL在下蹲、软着陆、腾空高度等跳跃核心项上均最高}
-    \label{fig:reward_split}
-\end{figure}
-
-\subsection{无参考纯PPO的奖励工程与失败模式}
-
-无参考纯PPO共经历多轮迭代（v5--v12，含v6--v9四轮假跳局部最优），逐轮发现并修复三类“偷懒盆地”（表~\ref{tab:hack}）。这些反例揭示了无参考学习中时序动作的关键失败机理：奖励若不绑定“实际的时序结果”，策略便用过程代理量凑分。
-
-\begin{table}[htbp]
-    \centering
-    \caption{纯PPO奖励工程中的典型失败模式与修复}
-    \label{tab:hack}
-    \begin{tabular}{lcp{6.5cm}}
-        \toprule
-        轮次 & 偷懒盆地 & 证据与修复 \\
-        \midrule
-        v10 & 推而不蹲 & 不先下蹲直接推力刷分（thrust$\approx$17/步，跳高$\approx$0.02）。修复：窗口内基座高度归零+蹬伸门控需先蹲+深蹲奖励 \\
-        v11 & 推而不起（stutter） & 反复短推产生$v_z$尖峰但不伸腿离地。修复：$v_z^2$奖励改为实际升高（式~\eqref{eq:launch_rise}） \\
-        v12 & 突破 & 首次真实腾空：跳高0.203\,m、腾空率11\% \\
-        \bottomrule
-    \end{tabular}
-\end{table}
-
-v12之后纯PPO虽然能腾空（实测$0.264$\,m、腾空率$8.6\%$），但全量训练后期发散，最优策略出现在早期checkpoint（model\_1000），随后滑向竖直平衡等病理行为，实测存活率仅$35\%$。这说明：\textbf{无参考时，策略虽能“偶然”学会离地，但无法维持可控、稳定的跳跃}——这一失败本身即是本文支持参考轨迹必要性的核心证据。
-
-\subsection{跳跃轨迹与姿态}
-
-图~\ref{fig:trajectory}给出单次跳跃的机体高度与前向速度曲线。SRL的下蹲、蹬伸、腾空、落地相位清晰可分，腾空段高度平滑，前向速度峰达$1.67$\,m/s；纯PPO虽能离地但相位含混、落地速度偏大（随后终止）。图~\ref{fig:joints}给出对应跳跃过程的腿部关节角曲线（髋pitch/膝/髋roll，左右腿）：SRL在蹬伸前先完成明显的屈膝下蹲（膝角先负向增大再爆发伸展）而纯PPO缺乏该时序结构；两者髋roll均保持微小，跳跃过程无侧向失衡。跳跃中姿态数据（关节角、机体欧拉角）按规范导出为逐帧CSV存档，供姿态反推复核。
-
-\begin{figure}[htbp]
-    \centering
-    \includegraphics[width=\columnwidth]{fig_jump_flat_joints_2x3_v2.pdf}
-    \caption{跳跃过程腿部关节角曲线（SRL上、PPO下）：SRL膝角呈现先屈膝下蹲再爆发伸展的时序结构，纯PPO缺乏明确的先蹲后蹬；髋roll保持微小表明跳跃无侧向失衡}
-    \label{fig:joints}
-\end{figure}
-
-\begin{figure}[htbp]
-    \centering
-    \includegraphics[width=\columnwidth]{fig_jump_flat_traj_vel_2x1_v2.pdf}
-    \caption{跳跃过程：(a)机体高度 (b)前向速度。SRL相位分明、速度峰$1.67$\,m/s；纯PPO落地后终止（×标记）}
+    \includegraphics[width=0.94\textwidth]{fig_jump_flat_traj_2x1_v3.pdf}
+    \caption{四种方法在单次触发窗口内相对于触发前站立高度的垂向位移和垂向速度。背景色表示SRL+VMC的下蹲、蹬伸、腾空、落地与恢复相位；终止后的仿真重置状态不计入轨迹。}
     \label{fig:trajectory}
+\end{figure*}
+
+\subsection{组件消融}
+
+表~\ref{tab:ablation}给出四个最终模型各20个独立回合的跳高统计。完整SRL+VMC取得$0.308\pm0.006$\,m，较去除VMC的SRL提高23.0\%，较去除SLIP-FSM的PPO+VMC提高219.0\%。两个不含SLIP-FSM的变体均低于0.11\,m，说明对“先蹲后蹬”这类强时序动作，只靠奖励探索难以稳定形成足够的蓄力深度。图~\ref{fig:final_perf}进一步并列展示跳高与连续触发恢复率，完整方法的高度优势伴随10\%的恢复失败率，因此不能将高度优势等同于全面的鲁棒性优势。
+
+\begin{table}[htbp]
+    \centering
+    \caption{SRL+VMC组件消融的20回合跳高（均值$\pm$标准差）}
+    \label{tab:ablation}
+    \begin{tabular}{lccc}
+        \toprule
+        变体 & SLIP-FSM & VMC & 跳高(m) \\
+        \midrule
+        纯PPO & 否 & 否 & $0.098\pm0.001$ \\
+        PPO+VMC & 否 & 是 & $0.097\pm0.009$ \\
+        SRL & 是 & 否 & $0.250\pm0.005$ \\
+        \textbf{SRL+VMC（本文）} & 是 & 是 & $\mathbf{0.308\pm0.006}$ \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\columnwidth]{fig_jump_flat_final_perf_2x1_v3.pdf}
+    \caption{组件消融的最终性能。(a) 20个独立回合的跳高分布，散点为单回合数据，箱体表示四分位距，白色菱形表示均值；(b) 20次连续触发中的落地恢复成功率，误差线为二项分布Wilson 95\%置信区间。}
+    \label{fig:final_perf}
 \end{figure}
+
+结果还表明，VMC不应被解释为对SLIP-FSM的替代。它为蹬伸与落地提供相位相关的柔顺性，但在无相位先验时仍不知道何时下蹲、何时释放能量。反之，SRL具有正确时序，但关节位置PD不能像VMC一样直接在虚拟腿空间调节蹬伸力与落地阻尼。
+
+\subsection{FSM一致奖励门控的作用}
+
+开发过程中，未将vertical\_thrust和height\_progress与FSM状态绑定的版本会形成“下蹲到位—提前升起—再次回落—真正起跳”的双重运动。其根因是下蹲状态的腿长残差上抬也能获得正奖励，与FSM的下蹲前馈构成相反目标。表~\ref{tab:gating}给出修改前后的评估结果。
+
+\begin{table}[htbp]
+    \centering
+    \caption{FSM一致奖励门控前后的SRL+VMC性能}
+    \label{tab:gating}
+    \begin{tabular}{lcc}
+        \toprule
+        指标 & 未按FSM门控 & 按FSM门控（本文） \\
+        \midrule
+        轨迹形状 & 双重运动 & 单峰起跳 \\
+        典型跳高 & $0.225\pm0.038$\,m & $0.308\pm0.006$\,m \\
+        完整评估跳高 & $0.229$--$0.266$\,m & $0.345$\,m \\
+        腾空直立度 & $0.992$--$0.996$ & $1.000$ \\
+        恢复$|\omega|$ & $0.52$\,rad/s & $0.62$\,rad/s \\
+        20次重复成功率 & $100\%$ & $90\%$ \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+门控后策略下蹲更深，且在蹬伸状态中将动量集中到一次起跳，因此轨迹更干净、跳高更大。但跳高增加也带来更大落地冲击，使重复成功率从开发版本记录的100\%降至当前复测的90\%。由于两列来自不同开发检查点，该表用于解释设计演化而非严格配对统计；它说明奖励门控解决了轨迹时序问题，但高跳的落地鲁棒性仍需单独处理。
 
 \section{讨论}
 
-实验结果表明，2×2对照分离出两个设计维度的清晰效应。
+实验支持本文的核心判断：对两轮足跳跃，SLIP-FSM与VMC不是互相排斥的两种控制方案，而是分别解决“何时做什么”和“如何以合适的力去做”的两个层次。残差强化学习则连接了理想化参考与非线性轮腿动力学。这一结构与Hu等~\cite{hu2026srl}的模型先验和策略残差思路一致，但通过虚拟腿力控、相位变刚度/阻尼和轮速匹配扩展到了滚动接触平台。
 
-\textbf{SLIP-FSM相位参考提供“时序协调”与“高度”。}含参考的SRL与SRL+VMC成功率均达$100\%$，且SRL跳高$0.547$\,m为四者之最；而无参考纯PPO即便在充分奖励工程后仍训练发散、实测存活率仅$35\%$。两者对比说明，跳跃的时序相位（先蹲后蹬、腾空收腿、落地缓冲）是纯学习难以自发学到的结构，参考轨迹将其显式给出，策略只需学残差。
+同时，结果显示高跳与稳定落地之间存在明显张力。奖励门控使动量释放更集中，但这也将落地冲击推向了当前VMC和策略的鲁棒性边界。因此，90\%的重复成功率不应被表述为已完全解决跳跃问题，而是说明完整阶段链已形成，落地鲁棒性仍是主要瓶颈。
 
-\textbf{VMC控制层“补稳定性、不补高度”。}在无参考设定下，PPO+VMC将纯PPO的存活率从$35\%$提升至$95\%$，说明力矩级控制带来的柔顺性显著增强抗扰能力；但两个VMC变体的跳高（$0.352$、$0.175$\,m）均低于其同参考设定的关节空间变体（$0.547$、$0.264$\,m）。可能的原因有两方面：一是力矩执行器受$\pm50$\,N·m限幅，爆发蹬伸的峰值力矩不足以将$18.65$\,kg机体推到关节空间位置控制所能达到的高度；二是VMC腿长参考的残差空间较关节角参考更受限。这一边界提示：在轮腿平台上，\textbf{力矩控制层适合作为稳定性补丁，而非替代参考轨迹的高度来源}。
-
-\textbf{与先前工作的关系。}本文的SRL变体是Hu等~\cite{hu2026srl}混合范式的轮腿落地，但将“点足+被动落地”假设替换为滚动接触与轮速同步行为，并以2×2对照给出量化证据，而非孤立的单方法报告。VMC层的稳定性收益与轮腿平台的运动基元控制~\cite{klemm2020ascento}在直觉上一致，但本文表明其无法单独支撑跳跃高度。
-
-\textbf{局限与边界。}本研究存在以下限制：(1)全部结果来自MuJoCo仿真，实物迁移需考虑地面接触参数与执行器延时；(2)纯PPO的达标checkpoint为其早期（model\_1000），其训练后期发散反映无参考跳跃的可学习性边界，而非最终收敛性能；(3)仅考察单任务跳跃，未涉及多任务策略与三维跳跃中的偏航控制；(4)长序列连续跳跃存在位置累积漂移，需外环估计器修正。
+\textbf{局限与边界。}本研究存在以下限制：(1)结果全部来自MuJoCo仿真，尚未验证执行器延时、峰值电流和轮地摩擦误差下的实物性能；(2)每种方法仅训练一个随机种子，20回合评估只能反映回合级波动，不能替代多训练种子的统计显著性检验；(3)组件消融中与控制表达相关的观测和奖励做了必要适配，不是只替换一行控制器代码的严格正交实验；(4)尚未评估地面摩擦、质量、腿长和通信延时随机化下的鲁棒性。
 
 \section{结论}
 
-本文针对两轮足机器人的跳跃控制，提出了控制空间（关节位置 vs.\ VMC）与参考轨迹（无参考 vs.\ SLIP-FSM相位参考）的2×2对照研究，并在统一的任务、奖励与训练协议下训练对比了纯PPO、PPO+VMC、SRL与SRL+VMC四个变体。核心结论：SLIP-FSM相位参考提供了动态跳跃所必需的时序协调与蹬伸高度（SRL跳高$0.547$\,m、腾空率$22.1\%$、成功率$100\%$），而无参考的纯PPO经多轮奖励工程后虽能腾空但训练发散、存活率仅$35\%$；VMC力矩控制层能显著提升无参考策略的稳定性（存活率$95\%$），但无法替代参考轨迹提供高度。该2×2框架与量化结果可直接指导轮腿机器人跳跃控制方案的选择。后续工作将围绕实物迁移、多任务泛化与三维跳跃展开。
+本文提出了一种面向两轮足机器人的SRL+VMC跳跃方法。该方法用SLIP-FSM规定下蹲、蹬伸、腾空、落地和恢复的相位结构，用PPO学习虚拟腿目标的残差，再由相位自适应VMC实现柔顺力矩控制。与FSM物理状态一致的蹬伸奖励门控消除了下蹲相提前上升导致的双重运动。最终策略在20个独立回合中取得$0.308\pm0.006$\,m的平均跳高，完整阶段复测达到0.345\,m并通过七项检查；20次连续触发中18次完成落地恢复。组件消融说明SLIP-FSM与VMC分别负责时序结构和柔顺力控，两者与残差学习结合后取得最高平均跳高。后续工作将通过多随机种子、域随机化和实物试验重点提升高跳落地的鲁棒性。
 
 % ==================== 参考文献 ====================
 \printbibliography[title={参考文献}]

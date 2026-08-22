@@ -81,61 +81,55 @@
 \abx@aux@cite{0}{rudin2022learning}
 \abx@aux@segm{0}{0}{rudin2022learning}
 \@writefile{toc}{\contentsline {section}{\numberline {3}本文方法}{4}{section.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}任务定义与总体框架}{4}{subsection.3.1}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {3.1}{\ignorespaces 2×2 对照设计：四个跳跃控制变体\relax }}{4}{table.caption.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}任务定义与SRL+VMC总体框架}{4}{subsection.3.1}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {3.1}{\ignorespaces SRL+VMC的组件消融设计\relax }}{4}{table.caption.1}\protected@file@percent }
 \providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
-\newlabel{tab:design}{{3.1}{4}{2×2 对照设计：四个跳跃控制变体\relax }{table.caption.1}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {3.1}{\ignorespaces (a) 2×2对照设计：四个变体及其最优跳高/存活率；(b) 共享控制流水线：SLIP-FSM参考与PPO策略经加权融合后，由控制层（关节位置PD或VMC）驱动机器人\relax }}{4}{figure.caption.2}\protected@file@percent }
-\newlabel{fig:framework}{{3.1}{4}{(a) 2×2对照设计：四个变体及其最优跳高/存活率；(b) 共享控制流水线：SLIP-FSM参考与PPO策略经加权融合后，由控制层（关节位置PD或VMC）驱动机器人\relax }{figure.caption.2}{}}
+\newlabel{tab:design}{{3.1}{4}{SRL+VMC的组件消融设计\relax }{table.caption.1}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {3.2}机器人平台与仿真环境}{4}{subsection.3.2}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3.1}{\ignorespaces SRL+VMC方法与消融关系：(a) SLIP-FSM相位先验、PPO残差策略和相位自适应VMC组成的分层控制链；(b) 通过去除相位先验或VMC得到的四个实验变体\relax }}{5}{figure.caption.2}\protected@file@percent }
+\newlabel{fig:framework}{{3.1}{5}{SRL+VMC方法与消融关系：(a) SLIP-FSM相位先验、PPO残差策略和相位自适应VMC组成的分层控制链；(b) 通过去除相位先验或VMC得到的四个实验变体\relax }{figure.caption.2}{}}
 \@writefile{lof}{\contentsline {figure}{\numberline {3.2}{\ignorespaces xqrobotwl 两轮足机器人\relax }}{5}{figure.caption.3}\protected@file@percent }
 \newlabel{fig:robot}{{3.2}{5}{xqrobotwl 两轮足机器人\relax }{figure.caption.3}{}}
 \@writefile{lot}{\contentsline {table}{\numberline {3.2}{\ignorespaces xqrobotwl 主要参数\relax }}{5}{table.caption.4}\protected@file@percent }
 \newlabel{tab:robot_params}{{3.2}{5}{xqrobotwl 主要参数\relax }{table.caption.4}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.3}相位门控奖励}{5}{subsection.3.3}\protected@file@percent }
-\newlabel{eq:reward}{{3.1}{5}{相位门控奖励}{equation.3.1}{}}
-\newlabel{eq:launch_rise}{{3.2}{5}{相位门控奖励}{equation.3.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.3}与物理状态一致的相位门控奖励}{6}{subsection.3.3}\protected@file@percent }
+\newlabel{eq:reward}{{3.2}{6}{与物理状态一致的相位门控奖励}{equation.3.2}{}}
 \@writefile{lot}{\contentsline {table}{\numberline {3.3}{\ignorespaces 相位门控的跳跃奖励项（关键项）\relax }}{6}{table.caption.5}\protected@file@percent }
 \newlabel{tab:phase_reward}{{3.3}{6}{相位门控的跳跃奖励项（关键项）\relax }{table.caption.5}{}}
+\newlabel{eq:launch_rise}{{3.3}{6}{与物理状态一致的相位门控奖励}{equation.3.3}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {3.4}SLIP-FSM 相位参考}{6}{subsection.3.4}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {3.4}{\ignorespaces 面向两轮足跳跃的六状态有限状态机\relax }}{6}{table.caption.6}\protected@file@percent }
-\newlabel{tab:fsm}{{3.4}{6}{面向两轮足跳跃的六状态有限状态机\relax }{table.caption.6}{}}
 \abx@aux@cite{0}{pratt2001vmc}
 \abx@aux@segm{0}{0}{pratt2001vmc}
+\@writefile{lot}{\contentsline {table}{\numberline {3.4}{\ignorespaces 面向两轮足跳跃的六状态有限状态机\relax }}{7}{table.caption.6}\protected@file@percent }
+\newlabel{tab:fsm}{{3.4}{7}{面向两轮足跳跃的六状态有限状态机\relax }{table.caption.6}{}}
+\newlabel{eq:action}{{3.4}{7}{SLIP-FSM 相位参考}{equation.3.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.5}虚拟模型控制（VMC）层}{7}{subsection.3.5}\protected@file@percent }
+\newlabel{eq:fk}{{3.5}{7}{虚拟模型控制（VMC）层}{equation.3.5}{}}
+\newlabel{eq:vmc_law}{{3.7}{7}{虚拟模型控制（VMC）层}{equation.3.7}{}}
 \abx@aux@cite{0}{schulman2017ppo}
 \abx@aux@segm{0}{0}{schulman2017ppo}
-\newlabel{eq:action}{{3.3}{7}{SLIP-FSM 相位参考}{equation.3.3}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.5}虚拟模型控制（VMC）层}{7}{subsection.3.5}\protected@file@percent }
-\newlabel{eq:fk}{{3.4}{7}{虚拟模型控制（VMC）层}{equation.3.4}{}}
-\newlabel{eq:vmc_law}{{3.6}{7}{虚拟模型控制（VMC）层}{equation.3.6}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.6}网络与训练设置}{7}{subsection.3.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.6}网络与训练设置}{8}{subsection.3.6}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {4}实验}{8}{section.4}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {4.1}训练与评估协议}{8}{subsection.4.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.2}主对比结果}{8}{subsection.4.2}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {4.1}{\ignorespaces 四个变体的跳跃性能对比（4速度$\times $5回合）\relax }}{8}{table.caption.7}\protected@file@percent }
-\newlabel{tab:baseline}{{4.1}{8}{四个变体的跳跃性能对比（4速度$\times $5回合）\relax }{table.caption.7}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {4.1}{\ignorespaces 四个变体的最终性能：(a)跳跃高度 (b)最终平均奖励（末500轮EMA均值）\relax }}{8}{figure.caption.8}\protected@file@percent }
-\newlabel{fig:validation}{{4.1}{8}{四个变体的最终性能：(a)跳跃高度 (b)最终平均奖励（末500轮EMA均值）\relax }{figure.caption.8}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.3}训练曲线}{9}{subsection.4.3}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {4.2}{\ignorespaces 四个变体的训练过程：(a)平均奖励 (b)回合长度 (c)动作标准差 (d)价值损失\relax }}{9}{figure.caption.9}\protected@file@percent }
-\newlabel{fig:training_metrics}{{4.2}{9}{四个变体的训练过程：(a)平均奖励 (b)回合长度 (c)动作标准差 (d)价值损失\relax }{figure.caption.9}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.4}奖励分项拆解}{9}{subsection.4.4}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {4.3}{\ignorespaces 四个变体各奖励分项的训练末期均值（末500轮EMA，按分项值降序）：SRL在下蹲、软着陆、腾空高度等跳跃核心项上均最高\relax }}{10}{figure.caption.10}\protected@file@percent }
-\newlabel{fig:reward_split}{{4.3}{10}{四个变体各奖励分项的训练末期均值（末500轮EMA，按分项值降序）：SRL在下蹲、软着陆、腾空高度等跳跃核心项上均最高\relax }{figure.caption.10}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.5}无参考纯PPO的奖励工程与失败模式}{10}{subsection.4.5}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {4.2}{\ignorespaces 纯PPO奖励工程中的典型失败模式与修复\relax }}{10}{table.caption.11}\protected@file@percent }
-\newlabel{tab:hack}{{4.2}{10}{纯PPO奖励工程中的典型失败模式与修复\relax }{table.caption.11}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.6}跳跃轨迹与姿态}{11}{subsection.4.6}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {4.4}{\ignorespaces 跳跃过程腿部关节角曲线（SRL上、PPO下）：SRL膝角呈现先屈膝下蹲再爆发伸展的时序结构，纯PPO缺乏明确的先蹲后蹬；髋roll保持微小表明跳跃无侧向失衡\relax }}{11}{figure.caption.12}\protected@file@percent }
-\newlabel{fig:joints}{{4.4}{11}{跳跃过程腿部关节角曲线（SRL上、PPO下）：SRL膝角呈现先屈膝下蹲再爆发伸展的时序结构，纯PPO缺乏明确的先蹲后蹬；髋roll保持微小表明跳跃无侧向失衡\relax }{figure.caption.12}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {5}讨论}{11}{section.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.2}SRL+VMC完整方法结果}{8}{subsection.4.2}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {4.1}{\ignorespaces 四种组件组合在10000轮训练中的学习曲线。细线为原始记录，粗线为指数滑动平均；所有曲线均来自各方法最终模型对应的完整训练日志。\relax }}{9}{figure.caption.7}\protected@file@percent }
+\newlabel{fig:training}{{4.1}{9}{四种组件组合在10000轮训练中的学习曲线。细线为原始记录，粗线为指数滑动平均；所有曲线均来自各方法最终模型对应的完整训练日志。\relax }{figure.caption.7}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {4.1}{\ignorespaces SRL+VMC最终策略的完整阶段评估\relax }}{9}{table.caption.8}\protected@file@percent }
+\newlabel{tab:main_result}{{4.1}{9}{SRL+VMC最终策略的完整阶段评估\relax }{table.caption.8}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {4.2}{\ignorespaces 四种方法在单次触发窗口内相对于触发前站立高度的垂向位移和垂向速度。背景色表示SRL+VMC的下蹲、蹬伸、腾空、落地与恢复相位；终止后的仿真重置状态不计入轨迹。\relax }}{9}{figure.caption.9}\protected@file@percent }
+\newlabel{fig:trajectory}{{4.2}{9}{四种方法在单次触发窗口内相对于触发前站立高度的垂向位移和垂向速度。背景色表示SRL+VMC的下蹲、蹬伸、腾空、落地与恢复相位；终止后的仿真重置状态不计入轨迹。\relax }{figure.caption.9}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.3}组件消融}{10}{subsection.4.3}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {4.2}{\ignorespaces SRL+VMC组件消融的20回合跳高（均值$\pm $标准差）\relax }}{10}{table.caption.10}\protected@file@percent }
+\newlabel{tab:ablation}{{4.2}{10}{SRL+VMC组件消融的20回合跳高（均值$\pm $标准差）\relax }{table.caption.10}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {4.3}{\ignorespaces 组件消融的最终性能。(a) 20个独立回合的跳高分布，散点为单回合数据，箱体表示四分位距，白色菱形表示均值；(b) 20次连续触发中的落地恢复成功率，误差线为二项分布Wilson 95\%置信区间。\relax }}{10}{figure.caption.11}\protected@file@percent }
+\newlabel{fig:final_perf}{{4.3}{10}{组件消融的最终性能。(a) 20个独立回合的跳高分布，散点为单回合数据，箱体表示四分位距，白色菱形表示均值；(b) 20次连续触发中的落地恢复成功率，误差线为二项分布Wilson 95\%置信区间。\relax }{figure.caption.11}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.4}FSM一致奖励门控的作用}{10}{subsection.4.4}\protected@file@percent }
 \abx@aux@cite{0}{hu2026srl}
 \abx@aux@segm{0}{0}{hu2026srl}
-\abx@aux@cite{0}{klemm2020ascento}
-\abx@aux@segm{0}{0}{klemm2020ascento}
-\@writefile{lof}{\contentsline {figure}{\numberline {4.5}{\ignorespaces 跳跃过程：(a)机体高度 (b)前向速度。SRL相位分明、速度峰$1.67$\,m/s；纯PPO落地后终止（×标记）\relax }}{12}{figure.caption.13}\protected@file@percent }
-\newlabel{fig:trajectory}{{4.5}{12}{跳跃过程：(a)机体高度 (b)前向速度。SRL相位分明、速度峰$1.67$\,m/s；纯PPO落地后终止（×标记）\relax }{figure.caption.13}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {6}结论}{12}{section.6}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {4.3}{\ignorespaces FSM一致奖励门控前后的SRL+VMC性能\relax }}{11}{table.caption.12}\protected@file@percent }
+\newlabel{tab:gating}{{4.3}{11}{FSM一致奖励门控前后的SRL+VMC性能\relax }{table.caption.12}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {5}讨论}{11}{section.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {6}结论}{11}{section.6}\protected@file@percent }
 \abx@aux@read@bbl@mdfivesum{7F59E6EEBDC54641FB49C976C0220FF9}
 \abx@aux@defaultrefcontext{0}{mo2020jumping}{none/global//global/global}
 \abx@aux@defaultrefcontext{0}{koh2015jumping}{none/global//global/global}
@@ -161,4 +155,4 @@
 \abx@aux@defaultrefcontext{0}{rudin2022learning}{none/global//global/global}
 \abx@aux@defaultrefcontext{0}{pratt2001vmc}{none/global//global/global}
 \abx@aux@defaultrefcontext{0}{schulman2017ppo}{none/global//global/global}
-\gdef \@abspage@last{14}
+\gdef \@abspage@last{13}

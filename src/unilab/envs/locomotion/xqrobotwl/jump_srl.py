@@ -40,7 +40,16 @@ SLIP_FF_GAIN = 0.15
 
 _FSM_FEEDFORWARD = {
     -1: [0.1, 0.15, 0.15, -0.1, -0.15, -0.15, 0.0, 0.0],
-    0: [0.1, 0.10, 0.50, -0.1, -0.10, -0.50, 0.0, 0.0],  # v4: 膝 0.70→0.50 防下蹲过深 (实测 0.24"倒地")
+    0: [
+        0.1,
+        0.10,
+        0.50,
+        -0.1,
+        -0.10,
+        -0.50,
+        0.0,
+        0.0,
+    ],  # v4: 膝 0.70→0.50 防下蹲过深 (实测 0.24"倒地")
     1: [0.1, 0.10, -0.87, -0.1, -0.10, 0.87, 0.0, 0.0],
     2: [0.1, 0.10, 0.00, -0.1, -0.10, 0.00, 0.0, 0.0],
     3: [0.1, 0.15, -0.30, -0.1, -0.15, 0.30, 0.0, 0.0],
@@ -350,7 +359,10 @@ def _reward_anti_drift(ctx: RewardContext) -> np.ndarray:
     residual = np.clip(v_xy - vx_cmd - 0.05, 0.0, None)
     pen = np.clip(residual / 0.3, 0.0, 2.0)
     weight = ctx.info.get("jump_curriculum", 1.0)
-    return -pen * active * weight
+    # Reward dispatch multiplies this magnitude by the configured negative
+    # scale (``anti_drift: -3``).  Returning a negative value here would apply
+    # the sign twice and reward, rather than penalise, horizontal drift.
+    return pen * active * weight
 
 
 def _reward_action_magnitude(ctx: RewardContext) -> np.ndarray:
@@ -631,9 +643,14 @@ class XqRobotWLJumpSRLFlatEnv(XqRobotWLWalkFlatEnv):
                 self._backend.get_sensor_data("left_wheel_world_pos"),
                 dtype=get_global_dtype(),
             ).reshape(-1, 3)[: self._num_envs]
+            right = np.asarray(
+                self._backend.get_sensor_data("right_wheel_world_pos"),
+                dtype=get_global_dtype(),
+            ).reshape(-1, 3)[: self._num_envs]
             wheel_radius = 0.11
-            contact = (left[:, 2] < wheel_radius + 0.02).astype(np.float64)
-            info["wheel_contact"] = np.stack([contact, contact], axis=1)
+            left_contact = (left[:, 2] < wheel_radius + 0.02).astype(np.float64)
+            right_contact = (right[:, 2] < wheel_radius + 0.02).astype(np.float64)
+            info["wheel_contact"] = np.stack([left_contact, right_contact], axis=1)
         except (KeyError, AttributeError):
             self._update_wheel_contact(info)
 

@@ -167,6 +167,18 @@ class XqRobotWLJumpSRLVMCFlatEnv(XqRobotWLJumpVMCFlatEnv):
         # proven crouch-thrust trajectory.
         actions[:, 2] = target_action + residual_scale * actions[:, 2]  # L0_L
         actions[:, 5] = target_action + residual_scale * actions[:, 5]  # L0_R
+        cfg = self._vmc_cfg
+        # Safety-critical phase floors: PPO remains a residual controller but
+        # cannot command a deeper crouch or retract the legs during touchdown.
+        crouch_floor = (cfg.crouch_min_length - cfg.l0_offset) / cfg.action_scale_l0
+        preland_floor = (cfg.prelanding_min_length - cfg.l0_offset) / cfg.action_scale_l0
+        crouch = self._fsm_state == 0
+        preland = np.isin(self._fsm_state, [3, 4])
+        for action_index in (2, 5):
+            actions[crouch, action_index] = np.maximum(actions[crouch, action_index], crouch_floor)
+            actions[preland, action_index] = np.maximum(
+                actions[preland, action_index], preland_floor
+            )
         return super().step(actions)
 
     def _compute_reward(self, info, linvel, gyro, gravity, dof_pos, dof_vel) -> np.ndarray:
@@ -177,7 +189,9 @@ class XqRobotWLJumpSRLVMCFlatEnv(XqRobotWLJumpVMCFlatEnv):
         phase = info.get("jump_phase", np.zeros(self._num_envs, dtype=np.float64))
         window_active = (phase >= 1.0).astype(np.float64)
         idle = (window_active <= 0.0).astype(np.float64)
-        base_z = np.asarray(self._backend.get_base_pos(), dtype=get_global_dtype())[:, 2][: self._num_envs]
+        base_z = np.asarray(self._backend.get_base_pos(), dtype=get_global_dtype())[:, 2][
+            : self._num_envs
+        ]
         fresh = np.asarray(info.get("steps", np.zeros(self._num_envs)))[: self._num_envs] <= 1
         if fresh.any():
             self._window_jumped[fresh] = 0.0
@@ -205,9 +219,7 @@ class XqRobotWLJumpSRLVMCFlatEnv(XqRobotWLJumpVMCFlatEnv):
         fsm_feat = self._fsm_state.astype(np.float64).reshape(-1, 1)[:batch] / 5.0
         timer_feat = np.clip(self._fsm_timer.reshape(-1, 1)[:batch] / 0.8, 0, 1)
         extra = np.tile(
-            np.concatenate([fsm_feat, timer_feat], axis=1, dtype=get_global_dtype())[
-                :, None, :
-            ],
+            np.concatenate([fsm_feat, timer_feat], axis=1, dtype=get_global_dtype())[:, None, :],
             (1, self._hist_len, 1),
         ).reshape(batch, -1)
         base["obs"] = np.concatenate([base["obs"], extra], axis=1)
@@ -246,7 +258,25 @@ class XqRobotWLJumpSRLVMCFlatEnv(XqRobotWLJumpVMCFlatEnv):
             "jump_event": self._reward_jump_event,
             "jump_upright": self._reward_jump_upright,
             "jump_symmetry": self._reward_jump_symmetry,
+            "knee_limit": self._reward_knee_limit,
         }
+
+    def _reward_knee_limit(self, ctx):
+        """Penalise operation close to the calibrated knee joint limit.
+
+        MuJoCo's soft constraint can overshoot the XML limit during an
+        explosive push-off, so the policy needs a gradient before impact.
+        """
+        knee = np.abs(ctx.dof_pos[:, [2, 5]])
+        proximity = np.clip((knee - 0.72) / (0.873 - 0.72), 0.0, 1.5)
+        return np.sum(np.square(proximity), axis=1)
+
+    def _compute_terminated(self, gravity, dof_pos):
+        terminated = super()._compute_terminated(gravity, dof_pos)
+        # The XML knee range is ±0.873 rad.  Allow a small solver tolerance,
+        # but terminate trajectories that learn to exploit the soft stop.
+        terminated |= np.max(np.abs(dof_pos[:, [2, 5]]), axis=1) > 0.90
+        return terminated
 
     def _reward_jump_upright(self, ctx):
         """腾空期保持躯干直立: 奖 up_z→1.

@@ -87,16 +87,21 @@ def _compute_feedforward(fsm_state, fsm_timer, action_scale: float) -> np.ndarra
             continue
         if s == 2:
             r = np.clip(fsm_timer[m] / ramp, 0.0, 1.0)
+            l_roll_t = _FREE_LEG_ROLL_INIT + (0.1 - _FREE_LEG_ROLL_INIT) * r
             l_knee_t = _FOLD_KNEE + (0.15 - _FOLD_KNEE) * r
             l_pitch_t = _FOLD_PITCH + (0.15 - _FOLD_PITCH) * r
             r_pitch_t = 0.0 + (-0.15 - 0.0) * r
             r_knee_t = 0.0 + (-0.15 - 0.0) * r
         else:  # 0/1: 折腿 + 支撑腿伸直 + 保持 (1 直接钉满)
             r = 1.0 if s == 1 else np.clip(fsm_timer[m] / ramp, 0.0, 1.0)
+            # 自由腿髋横滚是已验证的质心转移/配重轨迹。旧实现遗漏了该项，
+            # 使策略必须独自从稀疏奖励发现约 0.6 rad 的大幅侧摆。
+            l_roll_t = 0.1 + (_FREE_LEG_ROLL_INIT - 0.1) * r
             l_knee_t = 0.15 + (_FOLD_KNEE - 0.15) * r
             l_pitch_t = 0.15 + (_FOLD_PITCH - 0.15) * r
             r_pitch_t = -0.15 + (0.0 + 0.15) * r
             r_knee_t = -0.15 + (0.0 + 0.15) * r
+        ff[m, 0] = (l_roll_t - 0.1) / action_scale  # L_hip_roll, flip=+1
         ff[m, 1] = (l_pitch_t - 0.15) / action_scale  # L_hip_pitch, flip=+1
         ff[m, 2] = (l_knee_t - 0.15) / (-action_scale)  # L_knee, flip=-1
         ff[m, 4] = (r_pitch_t - (-0.15)) / (-action_scale)  # R_hip_pitch, flip=-1
@@ -111,7 +116,12 @@ def _update_fsm(
     balance_done: np.ndarray,
     dt: float,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """时间驱动 4 状态 FSM 转移"""
+    """时间驱动 4 状态 FSM 转移。
+
+    状态 1 是按键锁存模式：达到平衡判据只用于奖励和统计，不会自动落腿；
+    只有用户/训练命令释放 ``sl_trigger`` 才进入状态 2。
+    """
+    del balance_done
     fsm_timer += dt
     for s in (-1, 0, 1, 2):
         m = fsm_state == s
@@ -124,8 +134,8 @@ def _update_fsm(
             t = fsm_timer[m] > _FSM_DUR[0]
             nxt_state = 1
         elif s == 1:
-            # 触发结束 或 本轮平衡完成 → 落腿
-            t = (sl_trigger[m] < 0.5) | balance_done[m]
+            # 按键再次切换为 OFF 后才落腿。
+            t = sl_trigger[m] < 0.5
             nxt_state = 2
         else:  # s == 2
             t = fsm_timer[m] > _FSM_DUR[2]
@@ -185,12 +195,13 @@ def _reward_fold_pose(ctx: RewardContext) -> np.ndarray:
     free_err = np.square(ctx.dof_pos[:, 1] - _FOLD_PITCH) + np.square(
         ctx.dof_pos[:, 2] - _FOLD_KNEE
     )
-    return -(stance_err * 3.0 + free_err) * active
+    # 返回正的 cost，由配置中的负 scale 施加惩罚。
+    return (stance_err * 3.0 + free_err) * active
 
 
 def _reward_balance_complete(ctx: RewardContext) -> np.ndarray:
     """单轮平衡达成(周期级锁存): 一次性大奖"""
-    done = ctx.info.get("balance_completed", np.zeros(ctx.num_envs, dtype=bool))
+    done = ctx.info.get("balance_just_completed", np.zeros(ctx.num_envs, dtype=bool))
     return done.astype(np.float64)
 
 
@@ -198,7 +209,8 @@ def _reward_stance_height(ctx: RewardContext) -> np.ndarray:
     """支撑高度: 状态 1 罚 base_z 偏离目标"""
     fsm = ctx.info["fsm_state"]
     active = (fsm == 1).astype(np.float64)
-    return -np.square(ctx.base_height - ctx.base_height_target) * active
+    # 返回正的 cost，由配置中的负 scale 施加惩罚。
+    return np.square(ctx.base_height - ctx.base_height_target) * active
 
 
 def _reward_roll_rate(ctx: RewardContext) -> np.ndarray:
@@ -383,6 +395,14 @@ class XqRobotWLSingleLegFlatEnv(XqRobotWLJumpSRLFlatEnv):
         self._balance_completed = np.zeros(num_envs, dtype=bool)  # 本轮平衡完成锁存
         self._policy_actions = np.zeros((num_envs, 8), dtype=np.float64)
 
+        # 单腿负载下 kp=60 会发生膝屈曲失稳。同步设置 gain 与 position
+        # feedback bias（只改 gain 会错误放大目标），并增加阻尼。
+        model = self._backend._model  # type: ignore[attr-defined]
+        for actuator_id in (0, 1, 2, 4, 5, 6):
+            model.actuator_gainprm[actuator_id, 0] = 300.0
+            model.actuator_biasprm[actuator_id, 1] = -300.0
+            model.actuator_biasprm[actuator_id, 2] = -10.0
+
     @property
     def obs_groups_spec(self) -> dict[str, int]:
         # base 297/324 + 额外 4×9=36 (fsm_state, timer/0.8, wheel_contact×2)
@@ -498,12 +518,17 @@ class XqRobotWLSingleLegFlatEnv(XqRobotWLJumpSRLFlatEnv):
         ) & ~self._balance_completed
         self._balance_completed |= just_done
         state.info["balance_completed"] = self._balance_completed.copy()
+        state.info["balance_just_completed"] = just_done.copy()
 
         # FSM 更新
         jt = state.info["commands"][:, 4] * self._warmup_progress
+        previous_fsm = self._fsm_state.copy()
         self._fsm_state, self._fsm_timer = _update_fsm(
             self._fsm_state, self._fsm_timer, jt, self._balance_completed, self._cfg.ctrl_dt
         )
+        returned_to_stand = (previous_fsm == 2) & (self._fsm_state == -1)
+        self._balance_hold[returned_to_stand] = 0.0
+        self._balance_completed[returned_to_stand] = False
         state.info["fsm_state"] = self._fsm_state.copy()
         state.info["fsm_timer"] = self._fsm_timer.copy()
         state.info["wheel_vel"] = dof_vel[:, NUM_LEG_ACTIONS:]

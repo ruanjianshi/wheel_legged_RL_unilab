@@ -235,6 +235,17 @@ def test_handle_command_key_maps_drive_style_keys():
     assert commander.command.tolist() == [0.0, 0.0, 0.0]
 
 
+def test_handle_command_key_toggles_persistent_single_leg_mode():
+    mod = _load_script("play_interactive")
+    commander = mod.KeyboardCommander.from_vel_limit([[-0.6, -0.4, -0.8], [1.0, 0.4, 0.8]])
+    commander.trigger_mode = "single_leg"
+
+    mod._handle_command_key(commander, ord("H"))
+    assert commander.jump_trigger == 1
+    mod._handle_command_key(commander, ord("H"))
+    assert commander.jump_trigger == 0
+
+
 def test_play_interactive_viewer_model_uses_shared_render_playback_resolver(
     tmp_path: Path, monkeypatch
 ):

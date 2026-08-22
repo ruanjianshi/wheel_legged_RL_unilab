@@ -8,6 +8,7 @@ XqRobotWL 跳跃训练 — PPO 算法 + phase-gated 奖励 / Wheeled-SRL。
 |------|------|------|
 | 52 | 四算法 final10000 轮最终训练 (纯PPO/PPO+VMC/SRL/SRL+VMC) | 本索引 |
 | 53 | SRL+VMC v8e5: 消灭"下蹲相提前升起"双重运动 (跳跃不干净根因) | [→](2026-08-17/NN_jump_srl_vmc_v8e5_clean_jump.md) |
+| 54 | SRL+VMC v9/v10: 奖励、单次触发、膝限位与安全 warm-start 重训 | [→](2026-08-17/NN_jump_srl_vmc_v9_safety_retrain.md) |
 
 ## 2026-08-16
 

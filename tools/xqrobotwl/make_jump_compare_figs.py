@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """四算法跳跃对比图 (nature-draw.md v2.1 规范, Okabe-Ito 色盲安全调色板).
 
-图 1  fig_jump_flat_training_2x2_v2  — 训练曲线全景 (reward/ep_len/jump_height/action_std)
-图 2  fig_jump_flat_final_perf_2x1_v2 — 最终性能柱状 (跳高 / 站姿|gyro|), mean±std
-图 3  fig_jump_flat_traj_2x1_v2      — 典型跳跃轨迹 (base_z / 垂直速度, SRL-FSM 相位带)
+图 1  fig_jump_flat_training_2x2_v3  — 训练曲线全景 (return/ep_len/jump reward/policy std)
+图 2  fig_jump_flat_final_perf_2x1_v3 — 回合分布 + 恢复成功率置信区间
+图 3  fig_jump_flat_traj_2x1_v3      — 相对站立高度 / 垂直速度, SRL-FSM 相位带
 
 数据源:
   训练曲线: logs/train/jump_full_{ppo,vmc,srl,srl_vmc}.log (官方 10000 轮对比训练)
@@ -45,15 +45,15 @@ ALGO_COLORS = {
     "SRL": "#009E73",      # 绿
     "SRL+VMC": "#CC79A7",  # 紫
 }
-# 图例/画线顺序: 按最终性能(跳高)从高到低
-ALGOS = ["PPO+VMC", "SRL", "SRL+VMC", "PPO"]
+# 图例/画线顺序: 本文方法在前，随后为三个组件消融。
+ALGOS = ["SRL+VMC", "SRL", "PPO+VMC", "PPO"]
 ALGO_FULL = {"PPO": "PPO", "PPO+VMC": "PPO+VMC", "SRL": "SRL", "SRL+VMC": "SRL+VMC"}
 
 TRAIN_LOGS = {
-    "PPO": "logs/train/jump_full_ppo.log",
-    "PPO+VMC": "logs/train/jump_full_vmc.log",
-    "SRL": "logs/train/jump_full_srl.log",
-    "SRL+VMC": "logs/train/jump_full_srl_vmc.log",
+    "PPO": "logs/train/jump_flat_final10000.log",
+    "PPO+VMC": "logs/train/jump_vmc_final10000.log",
+    "SRL": "logs/train/jump_srl_final10000.log",
+    "SRL+VMC": "logs/train/jump_srl_vmc_v8e5.log",
 }
 
 # ---- 全局样式 (nature-draw.md §二/§三) ----
@@ -74,7 +74,7 @@ plt.rcParams.update({
     "ytick.major.width": 0.7,
     "xtick.major.size": 3.5,
     "ytick.major.size": 3.5,
-    "axes.grid": True,
+    "axes.grid": False,
     "axes.grid.axis": "y",
     "grid.linewidth": 0.3,
     "grid.alpha": 0.25,
@@ -164,14 +164,14 @@ def parse_train_log(path: str) -> dict[str, np.ndarray]:
 
 def fig_training_metrics() -> None:
     panels = [
-        ("reward", "Mean Reward", True),
-        ("ep_len", "Episode Length", True),
-        ("jump_height", "Jump Height Reward", True),
-        ("std", "Action Std", False),
+        ("reward", "Mean episodic return", True),
+        ("ep_len", "Episode length (steps)", True),
+        ("jump_height", "Jump-height reward", True),
+        ("std", "Policy action std", False),
     ]
-    fig, axes = plt.subplots(2, 2, figsize=(FULL, FULL * 0.62), layout="constrained")
+    fig, axes = plt.subplots(2, 2, figsize=(FULL, FULL * 0.55))
     data = {a: parse_train_log(TRAIN_LOGS[a]) for a in ALGOS}
-    for ax, (tag, title, smooth) in zip(axes.flatten(), panels):
+    for panel_idx, (ax, (tag, ylabel, smooth)) in enumerate(zip(axes.flatten(), panels)):
         for algo in ALGOS:
             steps, values = data[algo][tag]
             if len(values) == 0:
@@ -183,46 +183,109 @@ def fig_training_metrics() -> None:
             s2, v2 = downsample(steps, sv)
             ax.plot(s2 / 1000.0, v2, label=ALGO_FULL[algo], color=ALGO_COLORS[algo],
                     lw=1.4, zorder=3)
-        panel_label(ax, f"({chr(97 + panels.index((tag, title, smooth)))})")
-        ax.set_title(title, fontsize=9)
-        ax.set_xlabel("Training iteration (×10$^3$)", fontsize=9)
-        ax.set_ylabel("Value", fontsize=9)
+        panel_label(ax, f"({chr(97 + panel_idx)})", dx=-0.02, dy=1.03)
+        if panel_idx >= 2:
+            ax.set_xlabel("Training iteration (×10$^3$)", fontsize=9)
+        ax.set_ylabel(ylabel, fontsize=9)
         ax.set_xlim(0, 10)
+        ax.yaxis.grid(True, color="#D8D8D8", lw=0.35, alpha=0.55, zorder=0)
         _style_ax(ax)
     handles, labels = axes[0, 0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc="lower center", bbox_to_anchor=(0.5, 0.0),
+    fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.995),
                ncol=len(ALGOS), frameon=False, fontsize=7)
-    fig.tight_layout(pad=0.6, rect=(0, 0.06, 1, 1))
-    save(fig, "training", "2x2", "v2", "fig_jump_flat_training_2x2_v2")
+    fig.subplots_adjust(left=0.09, right=0.985, bottom=0.12, top=0.88,
+                        wspace=0.28, hspace=0.38)
+    save(fig, "training", "2x2", "v3", "fig_jump_flat_training_2x2_v3")
 
 
 # ================= 图 2: 最终性能柱状 2×1 =================
 
 def fig_final_perf() -> None:
-    jf = ROOT / "logs" / "pose_data" / "jump_final_metrics.json"
+    jf = ROOT / "logs" / "pose_data" / "jump_final_metrics_20260817.json"
     raw = json.loads(jf.read_text())
     metrics = {a: {k: np.array([ep[k] for ep in raw[a]]) for k in raw[a][0].keys()}
                for a in raw}
     x = np.arange(len(ALGOS))
-    panels = [("jump_height", "Jump Height (m)", True),
-              ("stand_gyro", "Standing $|\\omega|$ (rad/s)", False)]
-    fig, axes = plt.subplots(1, 2, figsize=(FULL, FULL * 0.34), layout="constrained")
-    for ax, (key, ylabel, higher_better) in zip(axes, panels):
-        vals = [metrics[a][key].mean() for a in ALGOS]
-        stds = [metrics[a][key].std() for a in ALGOS]
-        colors = [ALGO_COLORS[a] for a in ALGOS]
-        ax.bar(x, vals, 0.6, color=colors, yerr=stds, capsize=4,
-               error_kw={"elinewidth": 0.8, "ecolor": "#444444"}, zorder=3)
-        for xi, v, s in zip(x, vals, stds):
-            ax.text(xi, v + s + 0.01, f"{v:.2f}", ha="center", fontsize=6, color="#222222")
-        ax.set_xticks(x)
-        ax.set_xticklabels([ALGO_FULL[a] for a in ALGOS], fontsize=7)
-        ax.set_ylabel(ylabel, fontsize=9)
-        ax.set_ylim(0, max(vals) * 1.35)
+    fig, axes = plt.subplots(1, 2, figsize=(FULL, FULL * 0.34), layout="constrained",
+                             gridspec_kw={"width_ratios": [1.15, 1.0]})
+    colors = [ALGO_COLORS[a] for a in ALGOS]
+
+    # Independent single-jump evaluation (n=20). Show every observation;
+    # boxes encode the IQR and the white diamond is the arithmetic mean.
+    rng = np.random.default_rng(20260817)
+    height_runs = [metrics[a]["jump_height"] for a in ALGOS]
+    for xi, (algo, values) in enumerate(zip(ALGOS, height_runs)):
+        parts = axes[0].violinplot(values, positions=[xi], widths=0.72,
+                                  showmeans=False, showmedians=False, showextrema=False)
+        for body in parts["bodies"]:
+            body.set_facecolor(ALGO_COLORS[algo])
+            body.set_edgecolor("none")
+            body.set_alpha(0.18)
+        axes[0].boxplot(values, positions=[xi], widths=0.20, patch_artist=True,
+                        showfliers=False,
+                        boxprops={"facecolor": "white", "edgecolor": ALGO_COLORS[algo], "lw": 1.0},
+                        whiskerprops={"color": ALGO_COLORS[algo], "lw": 0.8},
+                        capprops={"color": ALGO_COLORS[algo], "lw": 0.8},
+                        medianprops={"color": "#222222", "lw": 1.0})
+        jitter = rng.uniform(-0.105, 0.105, len(values))
+        axes[0].scatter(xi + jitter, values, s=9, color=ALGO_COLORS[algo],
+                        edgecolor="white", linewidth=0.25, alpha=0.78, zorder=4)
+        mean = float(np.mean(values))
+        axes[0].scatter([xi], [mean], marker="D", s=20, facecolor="white",
+                        edgecolor="#222222", linewidth=0.7, zorder=6)
+        axes[0].text(xi, max(values) + 0.010, f"{mean:.3f}", ha="center", fontsize=6.5)
+    axes[0].set_ylabel("Jump height (m)", fontsize=9)
+    axes[0].set_ylim(0.07, max(max(v) for v in height_runs) + 0.035)
+    axes[0].yaxis.grid(True, color="#D8D8D8", lw=0.35, alpha=0.55, zorder=0)
+
+    # Repeated-trigger protocol (n=20): parse episode rows so the plot remains
+    # reproducible from the raw evaluation logs rather than hand-entered data.
+    repeat_logs = {
+        "PPO": ROOT / "logs/pose_data/jump_repeat_20260817/ppo.txt",
+        "PPO+VMC": ROOT / "logs/pose_data/jump_repeat_20260817/ppo_vmc.txt",
+        "SRL": ROOT / "logs/pose_data/jump_repeat_20260817/srl.txt",
+        "SRL+VMC": ROOT / "logs/pose_data/jump_repeat_20260817/srl_vmc.txt",
+    }
+    row_re = re.compile(r"^ep\S+\s+(True|False)\s*(True|False)\s*(True|False)\s+")
+    successes = []
+    for algo in ALGOS:
+        rows = [row_re.match(line) for line in repeat_logs[algo].read_text().splitlines()]
+        rows = [m for m in rows if m]
+        if len(rows) != 20:
+            raise ValueError(f"expected 20 repeat rows for {algo}, got {len(rows)}")
+        successes.append(sum(m.group(2) == "True" for m in rows))
+
+    def wilson_interval(k: int, n: int, z: float = 1.96) -> tuple[float, float]:
+        p = k / n
+        den = 1 + z**2 / n
+        center = (p + z**2 / (2 * n)) / den
+        half = z * np.sqrt(p * (1 - p) / n + z**2 / (4 * n**2)) / den
+        return center - half, center + half
+
+    ypos = np.arange(len(ALGOS))[::-1]
+    for y, algo, k in zip(ypos, ALGOS, successes):
+        value = k / 20
+        lo, hi = wilson_interval(k, 20)
+        axes[1].errorbar(value, y, xerr=[[value - lo], [hi - value]], fmt="o",
+                         ms=5.2, mfc=ALGO_COLORS[algo], mec="white", mew=0.5,
+                         ecolor=ALGO_COLORS[algo], elinewidth=1.2, capsize=3, zorder=4)
+        axes[1].text(min(value + 0.012, 1.006), y + 0.16, f"{k}/20",
+                     ha="right" if value > 0.98 else "left", fontsize=6.5)
+    axes[1].set_yticks(ypos)
+    axes[1].set_yticklabels([ALGO_FULL[a] for a in ALGOS], fontsize=7)
+    axes[1].set_xlabel("Landing-recovery success (95% CI)", fontsize=9)
+    axes[1].set_xlim(0.66, 1.015)
+    axes[1].set_xticks([0.7, 0.8, 0.9, 1.0])
+    axes[1].set_xticklabels(["70", "80", "90", "100"])
+    axes[1].xaxis.grid(True, color="#D8D8D8", lw=0.35, alpha=0.55, zorder=0)
+
+    axes[0].set_xticks(x)
+    axes[0].set_xticklabels([ALGO_FULL[a] for a in ALGOS], fontsize=7)
+    for ax in axes:
         _style_ax(ax)
     for ax, lab in zip(axes, "ab"):
         panel_label(ax, f"({lab})")
-    save(fig, "final_perf", "2x1", "v2", "fig_jump_flat_final_perf_2x1_v2")
+    save(fig, "final_perf", "2x1", "v3", "fig_jump_flat_final_perf_2x1_v3")
 
 
 # ================= 图 3: 典型跳跃轨迹 2×1 =================
@@ -235,9 +298,10 @@ TRAJ_STEMS = {"PPO+VMC": "jump_traj_vmc", "SRL": "jump_traj_srl",
               "SRL+VMC": "jump_traj_srlvmc", "PPO": "jump_traj_ppo"}
 
 
-def _shade_srl_phases(ax, t, phase, dt) -> None:
+def _shade_srl_phases(ax, t, phase, dt, show_labels: bool = True) -> None:
     if phase.max() < 0:
         return
+    label_runs = []
     for s in sorted(set(phase.tolist())):
         if s < 0:
             continue
@@ -251,53 +315,77 @@ def _shade_srl_phases(ax, t, phase, dt) -> None:
                 continue
             ax.axvspan(t[run[0]], t[run[-1]],
                        color=PHASE_COLORS.get(int(s), "#eeeeee"), alpha=0.4, lw=0, zorder=0)
-    for s in sorted(set(phase.tolist())):
-        if s < 0:
-            continue
-        mask = phase == s
-        if mask.sum() < 2:
-            continue
-        tm = float(np.median(t[mask]))
-        ax.text(tm, 1.02, PHASES[int(s)], transform=ax.get_xaxis_transform(),
-                ha="center", fontsize=5.5, color="#444444", style="italic")
+            # Label only the first meaningful contiguous occurrence.  Taking
+            # the median over every occurrence made labels overlap when the
+            # FSM briefly revisited a state during recovery.
+            if not any(item[0] == int(s) for item in label_runs) and len(run) * dt >= 0.06:
+                label_runs.append((int(s), run))
+    if not show_labels:
+        return
+    for s, run in sorted(label_runs, key=lambda item: item[1][0]):
+        tm = float((t[run[0]] + t[run[-1]]) / 2)
+        duration = float(t[run[-1]] - t[run[0]])
+        short = duration < 0.20
+        ax.text(tm, 0.965, PHASES[s],
+                transform=ax.get_xaxis_transform(), ha="center",
+                va="top", rotation=90 if short else 0,
+                fontsize=4.8 if short else 5.5, color="#444444", style="italic")
 
 
 def fig_trajectory() -> None:
-    # 用 SRL 的相位作参考带 (SLIP-FSM 规范跳跃时序)
-    srl = np.load(DATA / "jump_traj_srl.npz")
-    t0 = float(srl["t"][39])  # settle=40, 触发起点
-    fig, axes = plt.subplots(2, 1, figsize=(COL, COL * 1.3), layout="constrained",
+    # Use the proposed method's first FSM cycle as the phase reference.
+    srl = np.load(DATA / "jump_traj_srlvmc.npz")
+    phase = np.asarray(srl["phase"])
+    active = np.flatnonzero(phase >= 0)
+    t0 = float(srl["t"][active[0]]) if len(active) else 0.5
+    fig, axes = plt.subplots(1, 2, figsize=(FULL, FULL * 0.34), layout="constrained",
                              sharex=True)
     ax_h, ax_v = axes
     for algo in ALGOS:
         d = np.load(DATA / f"{TRAJ_STEMS[algo]}.npz")
         t = np.array(d["t"]) - t0
         z = np.array(d["base_z"])
-        ax_h.plot(t, z, color=ALGO_COLORS[algo], lw=1.3, label=ALGO_FULL[algo], zorder=3)
+        # The terminal step may already contain the simulator reset state.
+        # Exclude it to avoid a nonphysical vertical spike at the trace end.
+        if bool(np.asarray(d["terminated"]).reshape(-1)[0]) and len(t) > 1:
+            t, z = t[:-1], z[:-1]
+        pre = z[t < 0]
+        standing = float(np.median(pre[-20:])) if len(pre) else float(z[0])
+        ax_h.plot(t, z - standing, color=ALGO_COLORS[algo], lw=1.25,
+                  label=ALGO_FULL[algo], zorder=3)
         if "linvel" in d.files and d["linvel"].shape[1] >= 3:
             vz = np.array(d["linvel"])[:, 2]
+            vz = vz[:len(t)]
             ax_v.plot(t, vz, color=ALGO_COLORS[algo], lw=1.3, label=ALGO_FULL[algo], zorder=3)
         else:
             vz = np.gradient(z, np.array(d["t"])) * 1.0
             ax_v.plot(t, vz, color=ALGO_COLORS[algo], lw=1.3, zorder=3)
-    _shade_srl_phases(ax_h, np.array(srl["t"]) - t0, np.array(srl["phase"]), float(srl["ctrl_dt"]))
-    panel_label(ax_h, "(a)")
-    panel_label(ax_v, "(b)")
-    ax_h.set_ylabel("Base height (m)", fontsize=9)
+    phase_t = np.array(srl["t"]) - t0
+    phase = np.array(srl["phase"])
+    _shade_srl_phases(ax_h, phase_t, phase, float(srl["ctrl_dt"]), show_labels=True)
+    _shade_srl_phases(ax_v, phase_t, phase, float(srl["ctrl_dt"]), show_labels=False)
+    panel_label(ax_h, "(a)", dx=0.015, dy=0.955)
+    panel_label(ax_v, "(b)", dx=0.015, dy=0.955)
+    ax_h.set_ylabel("Vertical displacement (m)", fontsize=9)
     ax_v.set_ylabel("Vertical vel. $v_z$ (m/s)", fontsize=9)
-    ax_v.set_xlabel("Time relative to trigger (s)", fontsize=9)
+    for ax in (ax_h, ax_v):
+        ax.set_xlabel("Time relative to trigger (s)", fontsize=9)
     ax_v.axhline(0, color="#888888", lw=0.5, ls=":", zorder=1)
     for ax in (ax_h, ax_v):
+        ax.set_xlim(-0.15, 1.28)
+        ax.yaxis.grid(True, color="#D8D8D8", lw=0.35, alpha=0.55, zorder=0)
         _style_ax(ax)
     handles, labels = ax_h.get_legend_handles_labels()
-    ax_h.legend(handles, labels, loc="upper left", frameon=False, fontsize=7)
-    save(fig, "traj", "2x1", "v2", "fig_jump_flat_traj_2x1_v2")
+    fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 1.025),
+               ncol=4, frameon=False, fontsize=7, columnspacing=1.6,
+               handlelength=2.0)
+    save(fig, "traj", "2x1", "v3", "fig_jump_flat_traj_2x1_v3")
 
 
 def main() -> int:
     print("图 1: 训练曲线全景 2×2")
     fig_training_metrics()
-    print("图 2: 最终性能柱状 2×1")
+    print("图 2: 回合分布与恢复成功率 2×1")
     fig_final_perf()
     print("图 3: 典型跳跃轨迹 2×1")
     fig_trajectory()

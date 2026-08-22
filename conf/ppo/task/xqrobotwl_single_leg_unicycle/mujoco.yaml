@@ -1,6 +1,6 @@
 # @package _global_
 # =============================================================================
-# XqRobotWL 改进结构单轮平衡 RL (MuJoCo 后端) — 从零训练
+# XqRobotWL 站立按键切换独轮车式 RL (MuJoCo 后端)
 #
 # 改进结构 (devlog 20 结构搜索, 物理可行):
 # - 机身横躺 up=[0,-1,0], 左腿近直支撑, 右腿伸直配重, CoM 偏移 0.5cm
@@ -11,10 +11,20 @@
 # =============================================================================
 training:
   task_name: XqRobotWLSingleLegUnicycle
+  run_suffix: ""
   sim_backend: mujoco
   play_steps: 300
   play_env_num: 1
   render_spacing: 0.0
+
+interactive:
+  action_mode: policy
+  policy_obs_mode: auto
+  camera_follow_body: true
+  camera_distance: 4.0
+  camera_elevation: -15.0
+  keyboard: true
+  require_keyboard_command_obs: false
 
 algo:
   num_envs: 1024
@@ -41,14 +51,15 @@ env:
     action_scale: 0.6
     # 轮=扭矩源: RL 动作 × 8 → 轮扭矩 Nm (夹 ±20)
     wheel_action_scale: 8.0
-    clip_actions: 100.0
+    clip_actions: 1.0
   commands:
-    # 5D: [vx, vy, vyaw, tsk, height] — 第一阶段只保持 (vx=0)
+    # 横躺结构反向大扭矩会压向自由侧；本阶段先完成稳定前进行走。
+    # vx 从 0~0.03 逐步扩到 0~0.30 m/s，并保留 20% 零速样本。
     vel_limit:
-      - [0.0, 0.0, 0.0, 0.0, 0.6776]
-      - [0.0, 0.0, 0.0, 0.0, 0.6776]
+      - [0.0, 0.0, 0.0, 0.0, 0.0]
+      - [0.30, 0.0, 0.0, 0.0, 1.0]
     resampling_time: 3.0
-  max_episode_seconds: 8.0
+  max_episode_seconds: 20.0
   domain_rand:
     randomize_base_mass: false
     randomize_ground_friction: false
@@ -56,27 +67,55 @@ env:
     randomize_kd: false
     random_com: false
     randomize_leg_length: false
+    randomize_init_yaw: false
 
 reward:
   only_positive_rewards: false
   scales:
-    # ★ 核心: 机身保持横躺参考 (up=[0,-1,0] 与 base长轴=[1,0,0] 同时对齐)
-    upright: 10.0
+    tracking_vx: 12.0
+    directional_progress: 4.0
+    # 横躺平衡；pitch方向放宽，允许加减速所需的小倾角
+    upright: 8.0
     # 支撑轮贴地 (z≈0.11)
     wheel_down: 3.0
+    free_wheel_clearance: 3.0
     # 配重保持伸直基准 (R_roll≈-1.50, R_knee≈0)
     counterweight_pose: -0.5
     # 角速度阻尼 (保持静止平衡)
-    damping: -0.5
-    # ★ 净漂移惩罚 (base 水平位移平方, 允许轮子滚动平衡; 不能用线速度惩罚 —
-    #   罚速度会阻止倒立摆必需的轮滚动, v2 实测平台 1.2s 反更低)
-    drift: -0.3
+    damping: -0.2
+    lateral_drift: -1.0
+    lateral_velocity: -0.5
+    stop_hold: -0.5
+    wheel_effort: -0.02
     # 动作平滑
-    action_rate: -0.1
+    action_rate: -0.05
+    # 完成站立→独轮过渡的一次性奖励。
+    mode_complete: 100.0
+    stand_height: 6.0
     # 存活
     alive: 1.0
-  tracking_sigma: 0.3
+  tracking_sigma: 0.01
   base_height_target: 0.6776
   # 横躺参考 tilt≈0, 允许摆动
   max_tilt_deg: 45.0
   min_base_height: 0.30
+  # 速度课程约在前 2000 PPO iterations 从±0.05扩展到±0.30 m/s
+  command_start_speed: 0.03
+  command_curriculum_steps: 50000000
+  # 续训时显式恢复环境课程进度，例如 25000000 表示从 50% 开始。
+  command_curriculum_start_steps: 0
+  stand_command_probability: 0.20
+  # reset 角速度扰动，训练恢复能力而非只记住精确初始姿态
+  reset_ang_vel: 0.02
+  # 轮扭矩方向辨识: negative left-wheel action -> positive body vx
+  # reference = kp*(vx-vx_cmd) - ff*vx_cmd，PPO 在其上学习残差
+  wheel_command_kp: 2.0
+  wheel_command_ff: 2.0
+  # 最终任务从正常双轮站立 reset；H 键锁存触发独轮模式，再按 H 返回。
+  start_in_unicycle: false
+  unicycle_trigger_probability: 0.70
+  transition_time: 7.0
+  # 仅训练 CLI 覆盖为 >0；部署默认始终从真实双轮站立开始。
+  transition_reset_probability: 0.0
+  transition_reset_min_progress: 0.20
+  stand_wheel_kv: 1.0

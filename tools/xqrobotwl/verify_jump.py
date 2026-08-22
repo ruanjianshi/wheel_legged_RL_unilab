@@ -119,6 +119,22 @@ def trained_env_overrides(checkpoint_path: str) -> dict | None:
     return overrides
 
 
+def config_env_overrides(config_path: str) -> dict:
+    """Build evaluation overrides from a current Hydra task YAML."""
+    from omegaconf import OmegaConf
+
+    cfg = OmegaConf.to_container(OmegaConf.load(config_path), resolve=True)
+    env_cfg = cfg.get("env", {})
+    overrides = {
+        "reward_config": cfg.get("reward", {}),
+        "domain_rand": env_cfg.get("domain_rand", {}),
+    }
+    for key in ("control_config", "commands", "curriculum", "vmc", "post_step_forward_sensor"):
+        if key in env_cfg:
+            overrides[key] = env_cfg[key]
+    return overrides
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--task", required=True, help="Registered env name")

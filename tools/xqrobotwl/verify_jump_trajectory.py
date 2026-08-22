@@ -48,34 +48,37 @@ from tools.xqrobotwl.verify_jump import (  # noqa: E402
     trained_env_overrides,
 )
 
-# Best checkpoint per algorithm — must match four_algo_comparison.json.
+# Final checkpoints used by the paper's unified 2026-08-17 evaluation.
 # (npz stem, env task, checkpoint path)
 JOBS: dict[str, tuple[str, str, str]] = {
     "SRL": (
         "jump_traj_srl",
         "XqRobotWLJumpSRLFlat",
-        "logs/rsl_rl_ppo/XqRobotWLJumpSRLFlat/2026-08-06_01-16-20_mujoco/model_9999.pt",
+        "logs/rsl_rl_ppo/XqRobotWLJumpSRLFlat/2026-08-17_00-55-51_mujoco_final10000/model_9999.pt",
     ),
     "PPO": (
         "jump_traj_ppo",
         "XqRobotWLJumpFlat",
-        "logs/rsl_rl_ppo/XqRobotWLJumpFlat/2026-08-09_01-21-11_mujoco/model_1000.pt",
+        "logs/rsl_rl_ppo/XqRobotWLJumpFlat/2026-08-17_00-54-30_mujoco_final10000/model_9999.pt",
     ),
     "PPO+VMC": (
         "jump_traj_vmc",
         "XqRobotWLJumpVMC",
-        "logs/rsl_rl_ppo/XqRobotWLJumpVMC/2026-08-09_01-21-12_mujoco/model_9999.pt",
+        "logs/rsl_rl_ppo/XqRobotWLJumpVMC/2026-08-17_00-54-30_mujoco_final10000/model_9999.pt",
     ),
-    "VMC+SRL": (
+    "SRL+VMC": (
         "jump_traj_srlvmc",
         "XqRobotWLJumpSRLVMC",
-        "logs/rsl_rl_ppo/XqRobotWLJumpSRLVMC/2026-08-08_01-05-51_mujoco/model_9999.pt",
+        "logs/rsl_rl_ppo/XqRobotWLJumpSRLVMC/2026-08-17_12-50-27_mujoco_v8e5_10000/model_9999.pt",
     ),
 }
 
 SETTLE = 50  # trigger-off steps first (let the reset drop settle)
-ON = 160  # trigger-on steps (crouch + thrust + flight)
-TAIL = 170  # trailing trigger-off steps (landing + recover)
+# Keep the command window identical to the repeated-jump protocol.  A longer
+# trigger window can start a second FSM cycle and is therefore unsuitable for
+# a representative single-jump trace.
+ON = 100  # trigger-on steps (one crouch + thrust + flight cycle)
+TAIL = 120  # trailing trigger-off steps (landing + recover)
 HIDDEN = [512, 512, 256, 128]
 CTRL_DT = 0.01  # xqrobotwl base.py default; overwritten from env at runtime
 DOF = {"hip_roll": [0, 3], "hip": [1, 4], "knee": [2, 5]}  # [L, R] indices in dof order
@@ -149,7 +152,7 @@ def main() -> int:
                         break
 
             standing_z = float(np.median(stand_samples)) if stand_samples else float(base_z[0])
-            dest = ROOT / "jump_management" / "results" / f"{stem}.npz"
+            dest = ROOT / "latex" / "Wheeled-SRL-Jumping" / "data" / f"{stem}.npz"
             np.savez_compressed(
                 dest,
                 t=np.asarray(t),

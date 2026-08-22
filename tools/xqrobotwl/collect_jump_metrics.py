@@ -27,13 +27,13 @@ from tools.xqrobotwl.verify_jump import load_actor, trained_env_overrides  # noq
 
 ALGOS = {
     "PPO": ("XqRobotWLJumpFlat",
-            "logs/rsl_rl_ppo/XqRobotWLJumpFlat/2026-08-16_01-53-39_mujoco/model_9999.pt"),
+            "logs/rsl_rl_ppo/XqRobotWLJumpFlat/2026-08-17_00-54-30_mujoco_final10000/model_9999.pt"),
     "PPO+VMC": ("XqRobotWLJumpVMC",
-                "logs/rsl_rl_ppo/XqRobotWLJumpVMC/2026-08-16_01-53-43_mujoco/model_1000.pt"),
+                "logs/rsl_rl_ppo/XqRobotWLJumpVMC/2026-08-17_00-54-30_mujoco_final10000/model_9999.pt"),
     "SRL": ("XqRobotWLJumpSRLFlat",
-            "logs/rsl_rl_ppo/XqRobotWLJumpSRLFlat/2026-08-16_13-36-25_mujoco/model_3999.pt"),
+            "logs/rsl_rl_ppo/XqRobotWLJumpSRLFlat/2026-08-17_00-55-51_mujoco_final10000/model_9999.pt"),
     "SRL+VMC": ("XqRobotWLJumpSRLVMC",
-                "logs/rsl_rl_ppo/XqRobotWLJumpSRLVMC/2026-08-16_14-08-53_mujoco/model_3999.pt"),
+                "logs/rsl_rl_ppo/XqRobotWLJumpSRLVMC/2026-08-17_12-50-27_mujoco_v8e5_10000/model_9999.pt"),
 }
 
 SETTLE, PULSE, TAIL = 100, 160, 200
@@ -67,9 +67,13 @@ def one_episode(task, ckpt, hidden):
                 action = actor(obs).numpy()
                 st = env.step(action)
                 bp = np.asarray(env._backend.get_base_pos())[0]
-                lz = float(np.asarray(env._backend.get_sensor_data("left_wheel_world_pos")).reshape(-1, 3)[0, 2])
+                wheel_contact = np.asarray(
+                    st.info.get("wheel_contact", np.zeros((1, 2))), dtype=np.float64
+                ).reshape(-1, 2)[0]
                 gyro = np.asarray(env._backend.get_sensor_data("gyro")).reshape(-1, 3)[0]
-                recs.append((step, trig, float(bp[2]), float(np.linalg.norm(gyro)), 1.0 if lz < 0.13 else 0.0))
+                recs.append(
+                    (step, trig, float(bp[2]), float(np.linalg.norm(gyro)), float(np.min(wheel_contact)))
+                )
                 if st.terminated[0]:
                     break
         n = len(recs)
