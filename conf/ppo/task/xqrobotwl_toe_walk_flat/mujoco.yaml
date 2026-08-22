@@ -95,7 +95,7 @@ reward:
   base_height_target: 0.55
   cycle_time: 0.7
   use_reference: true      # v13: 正弦参考轨迹强制左右交替
-  ref_scale: 0.15            # v13b: 幅度 0.15 (0.08 不足离地, 0.18 v1 曾成功; 0.15 仍算小幅)
+  ref_scale: 0.20            # v14: 0.15不足离地→0.20 (老板拍板方案A; 膝弯0.8rad仍属小幅)
   max_tilt_deg: 90.0
   min_base_height: 0.15
   curriculum_steps: 1200      # 参考模式不依赖预热 (保留字段)
